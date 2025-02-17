@@ -1,0 +1,100 @@
+{
+    "configurations": [
+        {
+            "name": "torch-cpu",
+            "type": "debugpy",
+            "request": "attach",
+            "preLaunchTask": "Current file: torch-cpu",
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/core",
+                    "remoteRoot": "/app/core"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/jax_onehot",
+                    "remoteRoot": "/app/jax_onehot"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/llm",
+                    "remoteRoot": "/app/llm"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/humn",
+                    "remoteRoot": "/app/humn"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/tasks",
+                    "remoteRoot": "/app/tasks"
+                }
+            ],
+            "connect": {
+                "host": "127.0.0.1",
+                "port": 43690
+            }
+        },
+        {
+            "name": "torch-cuda",
+            "type": "debugpy",
+            "request": "attach",
+            "preLaunchTask": "Current file: torch-cuda",
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/core",
+                    "remoteRoot": "/app/core"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/jax_onehot",
+                    "remoteRoot": "/app/jax_onehot"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/llm",
+                    "remoteRoot": "/app/llm"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/humn",
+                    "remoteRoot": "/app/humn"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/tasks",
+                    "remoteRoot": "/app/tasks"
+                }
+            ],
+            "connect": {
+                "host": "127.0.0.1",
+                "port": 43690
+            }
+        },
+        {
+            "name": "torch-rocm",
+            "type": "debugpy",
+            "request": "attach",
+            "preLaunchTask": "Current file: torch-rocm",
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/core",
+                    "remoteRoot": "/app/core"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/jax_onehot",
+                    "remoteRoot": "/app/jax_onehot"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/llm",
+                    "remoteRoot": "/app/llm"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/humn",
+                    "remoteRoot": "/app/humn"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/tasks",
+                    "remoteRoot": "/app/tasks"
+                }
+            ],
+            "connect": {
+                "host": "127.0.0.1",
+                "port": 43690
+            }
+        }
+    ]
+}
