@@ -57,7 +57,7 @@ services:
                     devices:
                         - driver: nvidia
                           count: 1
-                          capabilities: [cuda]
+                          capabilities: [gpu]
     torch-rocm-service:
         profiles: ["torch-rocm"]
         build:
