@@ -50,11 +50,15 @@ An implementation of agentic systems with quest graphs.
 
 ## To do
 
+-   [ ] Algorithms
+    -   [ ] self-consistency
+    -   [ ] ReAct
+    -   [ ] Reflexion
+
 ### Experiments
 
--   [ ] SAC
-    -   [ ] Textual Gradient
 -   [ ] Multi-hop Q&A
     -   [ ] [Musique Dataset](https://github.com/StonyBrookNLP/musique) loader
--   [ ] TextWorld RL
-    -   [ ] [TextWorld](https://github.com/microsoft/TextWorld) environment
+-   [x] Reinforcement learning
+    -   [x] [TextWorld](https://github.com/microsoft/TextWorld) environment
+    -   [x] [ALFWorld](https://github.com/alfworld/alfworld) environment

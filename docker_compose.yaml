@@ -10,7 +10,8 @@ services:
             - ./artifacts/log:/app/log
             - ./artifacts/cache:/app/cache
             - ./artifacts/experiments:/app/experiments
-            - ./humn:/app/humn
+            - ./artifacts/pip_modules:/app/pip_modules
+            - ./quest_interface:/app/quest_interface
             - ./core:/app/core
             - ./implementations:/app/implementations
             - ./tasks:/app/tasks
@@ -33,10 +34,11 @@ services:
         container_name: thinking-cuda-torch
         restart: no
         volumes:
-            - ./artifacts/log/:/app/log
+            - ./artifacts/log:/app/log
             - ./artifacts/cache:/app/cache
             - ./artifacts/experiments:/app/experiments
-            - ./humn:/app/humn
+            - ./artifacts/pip_modules:/app/pip_modules
+            - ./quest_interface:/app/quest_interface
             - ./core:/app/core
             - ./implementations:/app/implementations
             - ./tasks:/app/tasks
@@ -66,10 +68,11 @@ services:
         container_name: thinking-rocm-torch
         restart: no
         volumes:
-            - ./artifacts/log/:/app/log
+            - ./artifacts/log:/app/log
             - ./artifacts/cache:/app/cache
             - ./artifacts/experiments:/app/experiments
-            - ./humn:/app/humn
+            - ./artifacts/pip_modules:/app/pip_modules
+            - ./quest_interface:/app/quest_interface
             - ./core:/app/core
             - ./implementations:/app/implementations
             - ./tasks:/app/tasks
@@ -100,7 +103,8 @@ services:
             - ./artifacts/log:/app/log
             - ./artifacts/cache:/app/cache
             - ./artifacts/experiments:/app/experiments
-            - ./humn:/app/humn
+            - ./artifacts/pip_modules:/app/pip_modules
+            - ./quest_interface:/app/quest_interface
             - ./core:/app/core
             - ./implementations:/app/implementations
             - ./tasks:/app/tasks

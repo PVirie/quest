@@ -1,11 +1,20 @@
-import textworld
-import textworld.gym
 import os
+import sys
 import subprocess
 import numpy as np
 from typing import Any, Mapping
 
 import torch
+
+import utilities
+
+utilities.install('textworld')
+utilities.install('textworld.gym')
+
+import textworld
+import textworld.gym
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 textworld_data_path = "/app/cache/textworld_data"
 os.makedirs(textworld_data_path, exist_ok=True)
