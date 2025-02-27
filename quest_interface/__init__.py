@@ -10,30 +10,30 @@ class Direction_List:
 
 
 class Node_List:
-    def prepend(self, node):
+    
+    def __iter__(self):
         pass
 
-    def append_neighbor(self, node):
+    def __getitem__(self, index):
         pass
 
 
 class Node:
-    def get_neighbors(self, directions = None) -> Node_List:
-        pass
 
-    def get_neighbor_directions(self) -> Direction_List:
-        pass
-
-    def set(self, other):
+    def __eq__(self, other):
         pass
 
     def get_neighbor(self, direction: Direction):
         pass
 
-    def append_neighbor(self, other):
+    def get_neighbors(self, directions: Direction_List = None) -> Node_List:
+        # directions None = get all nodes including self [self, neighbor1, neighbor2, ...]
         pass
 
-    def __eq__(self, other):
+    def set(self, other):
+        pass
+
+    def attach_to(self, others: Node_List):
         pass
 
 
@@ -64,7 +64,7 @@ class Quest_Graph:
             if current_node == node:
                 break
             else:
-                stack.extend(current_node.get_neighbors())
+                stack.extend(list(current_node.get_neighbors()))
         else:
             raise ValueError("Node not found in the graph")
 
@@ -74,7 +74,6 @@ class Quest_Graph:
     def query(self, head_index=0) -> Node_List:
         current_focus_node = self.focus[head_index]
         neighbors = current_focus_node.get_neighbors()
-        neighbors.prepend(current_focus_node)
         return neighbors
 
     
@@ -82,8 +81,7 @@ class Quest_Graph:
     def discover(self, node: Node, directions: Direction_List, head_index=0):
         current_focus_node = self.focus[head_index]
         neighbors = current_focus_node.get_neighbors(directions)
-        current_focus_node.append_neighbor(node)
-        neighbors.append_neighbor(node)
+        node.attach_to(neighbors)
     
     # action 1
     def respond(self, node: Node, direction: Direction, head_index=0):
