@@ -4,24 +4,13 @@ from typing import Union, Tuple
 class Direction:
     pass
 
-
 class Direction_List:
     pass
 
-
 class Node_List:
-    
-    def __iter__(self):
-        pass
-
-    def __getitem__(self, index):
-        pass
-
+    pass
 
 class Node:
-
-    def __eq__(self, other):
-        pass
 
     def get_neighbor(self, direction: Direction):
         pass
@@ -46,28 +35,17 @@ class Quest_Graph:
             raise ValueError("Only one of start_node or start_graph must be provided")
         elif start_node is not None:
             self.root = start_node
+            self.focus = {
+                0: self.root
+            }
         else:
             self.root = start_graph.root
-
-        self.focus = {
-            0: self.root
-        }
+            self.focus = start_graph.focus
 
 
     def set_focus_node(self, node: Node, head_index=0):
-        # check whether node is in the graph
-        # if not, raise an error
-        stack = []
-        stack.append(self.root)
-        while stack:
-            current_node = stack.pop()
-            if current_node == node:
-                break
-            else:
-                stack.extend(list(current_node.get_neighbors()))
-        else:
-            raise ValueError("Node not found in the graph")
-
+        # check whether node is in the graph is not implemented.
+        # to remove some interfaces.
         self.focus[head_index] = node
 
 
@@ -82,6 +60,7 @@ class Quest_Graph:
         current_focus_node = self.focus[head_index]
         neighbors = current_focus_node.get_neighbors(directions)
         node.attach_to(neighbors)
+    
     
     # action 1
     def respond(self, node: Node, direction: Direction, head_index=0):

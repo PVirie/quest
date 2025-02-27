@@ -22,10 +22,10 @@ os.makedirs(alfworld_data_path, exist_ok=True)
 if len(os.listdir(alfworld_data_path)) == 0:
     subprocess.run(["alfworld-download"])
     # clone the Alfred data repository
-    subprocess.run(["git", "clone", "https://github.com/alfworld/alfworld.git", "/app/cache/alfworld_data/alfworld"])
+    subprocess.run(["git", "clone", "https://github.com/alfworld/alfworld.git", f"{alfworld_data_path}/alfworld"])
 
 # load config
-with open('/app/cache/alfworld_data/alfworld/configs/base_config.yaml', 'r') as f:
+with open(f"{alfworld_data_path}/alfworld/configs/base_config.yaml", 'r') as f:
     config = yaml.safe_load(f)
 env_type = config['env']['type'] # 'AlfredTWEnv' or 'AlfredThorEnv' or 'AlfredHybrid'
 

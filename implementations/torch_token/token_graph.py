@@ -1,16 +1,11 @@
-from uuid import uuid4
 from quest_interface import Quest_Graph, Node, Node_List, Direction, Direction_List
 
 
 
 class Token_Node(Node, Direction):
     def __init__(self, tokens):
-        self.id = uuid4()
         self.tokens = tokens
         self.neighbors = [self]
-
-    def __eq__(self, other):
-        return self.id == other.id
 
     def get_neighbor(self, direction: Direction):
         return direction
@@ -26,14 +21,13 @@ class Token_Node(Node, Direction):
         self.tokens = other.tokens
 
     def attach_to(self, others: Node_List):
-        neighbor_ids = [neighbor.id for neighbor in self.neighbors]
+        # does not have to check for duplicates
+        # because this only be called from the discover method
         for other in others:
-            if other.id not in neighbor_ids:
-                self.neighbors.append(other)
+            self.neighbors.append(other)
 
 
 class Token_Node_List(Node_List, Direction_List):
-    
     def __init__(self, nodes):
         self.nodes = nodes
 
@@ -42,3 +36,7 @@ class Token_Node_List(Node_List, Direction_List):
 
     def __getitem__(self, index):
         return self.nodes[index]
+    
+    def serialize(self):
+        # flatten for LM
+        pass
