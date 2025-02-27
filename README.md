@@ -42,11 +42,12 @@ An implementation of agentic systems with quest graphs.
 -   Running on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
 
-| Experiment      | Task              | Description                                                  | Valid configurations (pick one) | File (--flags)         | Required env vars |
-| --------------- | ----------------- | ------------------------------------------------------------ | ------------------------------- | ---------------------- | ----------------- |
-| **Benchmark**   | Benchmark devices | Run the benchmark to compare the performance of the devices. | `torch-cuda`, `torch-rocm`      | `tasks/benchmark.py`   | -                 |
-| **Multihop-QA** | Multi-hop QA      | Run the multi-hop QA experiment.                             | `torch-cuda`, `torch-rocm`      | `tasks/qa_multihop.py` | -                 |
-| **TextWorld**   | TextWorld RL      | Run the TextWorld RL experiment.                             | `torch-cuda`, `torch-rocm`      | `tasks/textworld.py`   | -                 |
+| Experiment      | Task              | Description                                                  | Valid configurations (pick one) | File (--flags)          | Required env vars |
+| --------------- | ----------------- | ------------------------------------------------------------ | ------------------------------- | ----------------------- | ----------------- |
+| **Benchmark**   | Benchmark devices | Run the benchmark to compare the performance of the devices. | `torch-cuda`, `torch-rocm`      | `tasks/benchmark.py`    | -                 |
+| **Multihop-QA** | Multi-hop QA      | Run the multi-hop QA experiment.                             | `torch-cuda`, `torch-rocm`      | `tasks/qa_multihop.py`  | -                 |
+| **TextWorld**   | TextWorld RL      | Run the TextWorld RL experiment.                             | `torch-cuda`, `torch-rocm`      | `tasks/rl_textworld.py` | -                 |
+| **ALFWorld**    | ALFWorld RL       | Run the ALFWorld RL experiment.                              | `torch-cuda`, `torch-rocm`      | `tasks/rl_alfworld.py`  | -                 |
 
 ## To do
 
