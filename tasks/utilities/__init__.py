@@ -3,6 +3,8 @@ import sys
 import logging
 import importlib.util
  
+from . import musique_classes
+
 sys.path.append('/app/pip_modules')
 logging.basicConfig(level=logging.INFO)
 

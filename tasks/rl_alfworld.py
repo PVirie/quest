@@ -16,16 +16,16 @@ import alfworld.agents.modules.generic as generic
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-alfworld_data_path = "/app/cache/alfworld_data"
-os.environ['ALFWORLD_DATA'] = alfworld_data_path
-os.makedirs(alfworld_data_path, exist_ok=True)
-if len(os.listdir(alfworld_data_path)) == 0:
+alfworld_path = "/app/cache/alfworld_data"
+os.environ['ALFWORLD_DATA'] = alfworld_path
+os.makedirs(alfworld_path, exist_ok=True)
+if len(os.listdir(alfworld_path)) == 0:
     subprocess.run(["alfworld-download"])
     # clone the Alfred data repository
-    subprocess.run(["git", "clone", "https://github.com/alfworld/alfworld.git", f"{alfworld_data_path}/alfworld"])
+    subprocess.run(["git", "clone", "https://github.com/alfworld/alfworld.git", f"{alfworld_path}/alfworld"])
 
 # load config
-with open(f"{alfworld_data_path}/alfworld/configs/base_config.yaml", 'r') as f:
+with open(f"{alfworld_path}/alfworld/configs/base_config.yaml", 'r') as f:
     config = yaml.safe_load(f)
 env_type = config['env']['type'] # 'AlfredTWEnv' or 'AlfredThorEnv' or 'AlfredHybrid'
 

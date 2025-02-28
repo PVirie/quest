@@ -16,12 +16,12 @@ import textworld.gym
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-textworld_data_path = "/app/cache/textworld_data"
-os.makedirs(textworld_data_path, exist_ok=True)
+textworld_path = "/app/cache/textworld_data"
+os.makedirs(textworld_path, exist_ok=True)
 
-if len(os.listdir(textworld_data_path)) == 0:
+if len(os.listdir(textworld_path)) == 0:
     # tw-make custom --world-size 5 --nb-objects 10 --quest-length 5 --seed 1234 --output tw_games/custom_game.z8
-    subprocess.run(["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_data_path}/games/default/custom_game.z8"])
+    subprocess.run(["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_path}/games/default/custom_game.z8"])
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -67,7 +67,7 @@ def play(env, agent, nb_episodes=10, verbose=True):
 
 if __name__ == "__main__":
 
-    game_path = f"{textworld_data_path}/games/default/custom_game.z8"
+    game_path = f"{textworld_path}/games/default/custom_game.z8"
 
     request_infos = textworld.EnvInfos(
         facts=True,  # All the facts that are currently true about the world.

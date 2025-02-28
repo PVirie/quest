@@ -58,8 +58,8 @@ An implementation of agentic systems with quest graphs.
 
 ### Experiments
 
--   [ ] Multi-hop Q&A
-    -   [ ] [Musique Dataset](https://github.com/StonyBrookNLP/musique) loader
+-   [x] Multi-hop Q&A
+    -   [x] [Musique Dataset](https://github.com/StonyBrookNLP/musique) loader
 -   [x] Reinforcement learning
     -   [x] [TextWorld](https://github.com/microsoft/TextWorld) environment
     -   [x] [ALFWorld](https://github.com/alfworld/alfworld) environment
