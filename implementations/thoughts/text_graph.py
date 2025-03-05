@@ -18,6 +18,9 @@ class Text_Node_List(Node_List, Direction_List):
     def __getitem__(self, index):
         return self.nodes[index]
     
+    def __len__(self):
+        return len(self.nodes)
+
     def get(self):
         return [(node.get_question(), node.get_answer()) for node in self.nodes]
 
@@ -27,7 +30,7 @@ class Text_Node(Node, Direction):
         self.type = type
         self.question = question
         self.answer = answer
-        self.parents = None
+        self.parents = []
         self.children = []
 
     def get_neighbor(self, direction):
@@ -35,7 +38,7 @@ class Text_Node(Node, Direction):
 
     def get_neighbors(self, directions = None):
         if directions is None:
-            return Text_Node_List([self] + self.parents + self.children)
+            return Text_Node_List([self] + (self.parents if self.parents is not None else []) + self.children)
         else:
             return directions
         
@@ -46,13 +49,13 @@ class Text_Node(Node, Direction):
     def attach_to(self, others):
         for other in others:
             other.children.append(self)
-        self.parents = others
+        self.parents = list(others)
 
     def get_parents(self):
-        return self.parents
+        return Text_Node_List(self.parents)
 
     def get_children(self):
-        return self.children
+        return Text_Node_List(self.children)
 
     def is_answered(self):
         return self.answer is not None

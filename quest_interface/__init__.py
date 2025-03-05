@@ -60,7 +60,7 @@ class Quest_Graph:
         neighbors = current_focus_node.get_neighbors(directions)
         node.attach_to(neighbors)
     
-    
+
     def respond(self, node: Node, direction: Direction, head_index=0):
         current_focus_node = self.focus[head_index]
         current_focus_node.set(node)

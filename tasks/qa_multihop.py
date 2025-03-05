@@ -58,8 +58,7 @@ def llm_function(question, sub_questions):
     response = completion(model=os.getenv("QA_MODEL"), messages=messages)
     text = response.choices[0].message.content
 
-
-    return is_sufficient, detail
+    return True, "hello"
 
 
 def compute(record):

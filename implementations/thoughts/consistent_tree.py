@@ -1,5 +1,5 @@
 from quest_interface import *
-from text_graph import Text_Node, Text_Node_List, Text_Node_Type
+from .text_graph import Text_Node, Text_Node_List, Text_Node_Type
 from enum import Enum
 
 class Action(Enum):
@@ -30,7 +30,7 @@ def agent_function(parameters, nodes: Text_Node_List) -> Tuple[Action, Text_Node
                 return Action.ANSWER, focus_node, question_node
         
         # check if all questions are sufficient, if not, return next sub question, if yes return answer
-        is_sufficient, detail = parameters.compute_answer(focus_node.get_question(), question_nodes.get()) 
+        is_sufficient, detail = parameters["compute_answer"](focus_node.get_question(), question_nodes.get()) 
         if is_sufficient:
             return Action.ANSWER, Text_Node(Text_Node_Type.Question_Node, None, detail), focus_node.get_parents()[0]
         else:
