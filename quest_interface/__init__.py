@@ -55,24 +55,15 @@ class Quest_Graph:
         return neighbors
 
     
-    # action 0
     def discover(self, node: Node, directions: Direction_List, head_index=0):
         current_focus_node = self.focus[head_index]
         neighbors = current_focus_node.get_neighbors(directions)
         node.attach_to(neighbors)
     
     
-    # action 1
     def respond(self, node: Node, direction: Direction, head_index=0):
         current_focus_node = self.focus[head_index]
         current_focus_node.set(node)
         neighbor = current_focus_node.get_neighbor(direction)
         self.focus[head_index] = neighbor
-
-
-
-def agent_function(nodes: Node_List) -> Tuple[int, Node, Union[Direction, Direction_List]]:
-    pass
-
-
 

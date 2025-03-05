@@ -12,7 +12,7 @@ services:
             - ./artifacts/experiments:/app/experiments
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
-            - ./core:/app/core
+            - ./agent_templates:/app/agent_templates
             - ./implementations:/app/implementations
             - ./tasks:/app/tasks
         environment:
@@ -39,7 +39,7 @@ services:
             - ./artifacts/experiments:/app/experiments
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
-            - ./core:/app/core
+            - ./agent_templates:/app/agent_templates
             - ./implementations:/app/implementations
             - ./tasks:/app/tasks
         environment:
@@ -73,7 +73,7 @@ services:
             - ./artifacts/experiments:/app/experiments
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
-            - ./core:/app/core
+            - ./agent_templates:/app/agent_templates
             - ./implementations:/app/implementations
             - ./tasks:/app/tasks
         environment:
@@ -105,7 +105,7 @@ services:
             - ./artifacts/experiments:/app/experiments
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
-            - ./core:/app/core
+            - ./agent_templates:/app/agent_templates
             - ./implementations:/app/implementations
             - ./tasks:/app/tasks
         environment:

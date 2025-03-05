@@ -7,7 +7,10 @@ import json
 import logging
 import random
 
-from utilities import musique_classes
+from quest_interface import Quest_Graph
+from implementations.thoughts import consistent_tree, text_graph
+
+from utilities import musique_classes, install
 
 musique_path = "/app/cache/musique_data"
 musique_repo_path = f"{musique_path}/repo"
@@ -42,6 +45,38 @@ def evaluate(answer_path, dev_file_path):
     return json_obj
 
 
+install("litellm")
+from litellm import completion
+
+def llm_function(question, sub_questions):
+    # sub_questions is a list of sub (question, answer)
+    # return True, answer if all sub questions are sufficient
+    # return False, next sub question if not sufficient
+
+    messages = [{ "content": "Hello, how are you?", "role": "user"}]
+    # LLM call
+    response = completion(model=os.getenv("QA_MODEL"), messages=messages)
+    text = response.choices[0].message.content
+
+
+    return is_sufficient, detail
+
+
+def compute(record):
+    working_memory = Quest_Graph(text_graph.Text_Node(text_graph.Text_Node_Type.Question_Node, record.question, None))
+
+    while True:
+        action, param_1, param_2 = consistent_tree.agent_function({
+            "compute_answer": llm_function
+        }, working_memory.query())
+        if param_2 is None:
+            break
+        if action == consistent_tree.Action.ANSWER:
+            working_memory.respond(param_1, param_2)
+        else:
+            working_memory.discover(param_1, param_2)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     experiment_path = "/app/experiments/qa_multihop"
@@ -59,6 +94,7 @@ if __name__ == "__main__":
     answer_records = []
     for record in data_records:
         # generate answer here
+        compute(record)
         answer_records.append(
             musique_classes.Answer_Record(
                 record.id, 
