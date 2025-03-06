@@ -27,8 +27,8 @@ An implementation of agentic systems with quest graphs.
 
 3.  Create `secrets.env` file to install neccessary tokens (Huggingface, OpenAI, etc.) (See the running section for more details.)
     ```
-    export VARIABLE_NAME_1="VARIABLE_VALUE"
-    export VARIABLE_NAME_2="VARIABLE_VALUE"
+    export QUEST_USE_MODEL_API="true"
+    export QUEST_LM_MODEL="openai/gpt-4o"
     ...
     ```
 
@@ -42,12 +42,21 @@ An implementation of agentic systems with quest graphs.
 -   Running on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
 
-| Experiment       | Description                                             | Valid configurations (pick one) | Path to file (--flags)  | Required env vars |
-| ---------------- | ------------------------------------------------------- | ------------------------------- | ----------------------- | ----------------- |
-| **Test devices** | Run the test to compare the performance of the devices. | `torch-cuda`, `torch-rocm`      | `tasks/benchmark.py`    | -                 |
-| **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cuda`, `torch-rocm`      | `tasks/qa_multihop.py`  | -                 |
-| **TextWorld**    | Run the TextWorld RL experiment.                        | `torch-cuda`, `torch-rocm`      | `tasks/rl_textworld.py` | -                 |
-| **ALFWorld**     | Run the ALFWorld RL experiment.                         | `torch-cuda`, `torch-rocm`      | `tasks/rl_alfworld.py`  | -                 |
+| Experiment       | Description                                             | Valid configurations (pick one) | Path to file (--flags)  |
+| ---------------- | ------------------------------------------------------- | ------------------------------- | ----------------------- |
+| **Test devices** | Run the test to compare the performance of the devices. | `torch-cuda`, `torch-rocm`      | `tasks/benchmark.py`    |
+| **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cuda`, `torch-rocm`      | `tasks/qa_multihop.py`  |
+| **TextWorld**    | Run the TextWorld RL experiment.                        | `torch-cuda`, `torch-rocm`      | `tasks/rl_textworld.py` |
+| **ALFWorld**     | Run the ALFWorld RL experiment.                         | `torch-cuda`, `torch-rocm`      | `tasks/rl_alfworld.py`  |
+
+### Environment Variables
+
+| Environment Variables | Description                          | Values            |
+| --------------------- | ------------------------------------ | ----------------- |
+| `QUEST_USE_MODEL_API` | Use language model via API vs local. | "true" or "false" |
+| `QUEST_LM_MODEL`      | Language model name.                 | str               |
+
+Apart from the above environment variables, you must also include third-party API keys in the `secrets.env` file in order to use their services.
 
 ## To do
 

@@ -50,9 +50,6 @@ def evaluate(answer_path, dev_file_path):
 
 def compute(record):
 
-    text = llm_function("hello")
-    print(text)
-
     working_memory = Quest_Graph(text_graph.Text_Node(text_graph.Text_Node_Type.Question_Node, record.question, None))
     persona = Persona(llm_function, record.paragraphs)
     while True:
