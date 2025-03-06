@@ -1,5 +1,5 @@
 from typing import Union, Tuple
-
+from enum import Enum
 
 class Direction:
     pass
@@ -25,6 +25,10 @@ class Node:
     def attach_to(self, others: Node_List):
         pass
 
+
+class Action(Enum):
+    DISCOVER = 0
+    ANSWER = 1
 
 
 class Quest_Graph:

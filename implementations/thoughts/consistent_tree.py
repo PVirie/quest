@@ -2,12 +2,8 @@ from quest_interface import *
 from .text_graph import Text_Node, Text_Node_List, Text_Node_Type
 from enum import Enum
 
-class Action(Enum):
-    DISCOVER = 0
-    ANSWER = 1
 
-
-def agent_function(parameters, nodes: Text_Node_List) -> Tuple[Action, Text_Node, Union[Direction, Direction_List]]:
+def agent_function(parameters, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Direction, Direction_List]]:
     focus_node = nodes[0]
     if focus_node.type == Text_Node_Type.Question_Node:
         round_nodes = focus_node.get_children()
