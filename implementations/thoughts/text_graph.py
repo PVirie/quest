@@ -30,7 +30,7 @@ class Text_Node(Node, Direction):
         self.type = type
         self.question = question
         self.answer = answer
-        self.parents = []
+        self.parent = None
         self.children = []
 
     def get_neighbor(self, direction):
@@ -38,7 +38,7 @@ class Text_Node(Node, Direction):
 
     def get_neighbors(self, directions = None):
         if directions is None:
-            return Text_Node_List([self] + (self.parents if self.parents is not None else []) + self.children)
+            return Text_Node_List([self] + ([self.parent] if self.parent is not None else []) + self.children)
         else:
             return directions
         
@@ -49,10 +49,10 @@ class Text_Node(Node, Direction):
     def attach_to(self, others):
         for other in others:
             other.children.append(self)
-        self.parents = list(others)
+        self.parent = others[0]
 
-    def get_parents(self):
-        return Text_Node_List(self.parents)
+    def get_parent(self):
+        return self.parent
 
     def get_children(self):
         return Text_Node_List(self.children)

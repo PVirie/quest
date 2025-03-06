@@ -32,7 +32,7 @@ class RL_Node(Node, Direction):
 
     def get_neighbors(self, directions = None):
         if directions is None:
-            return RL_Node_List([self] + (self.parent if self.parent is not None else []) + self.children)
+            return RL_Node_List([self] + ([self.parent] if self.parent is not None else []) + self.children)
         else:
             return directions
         

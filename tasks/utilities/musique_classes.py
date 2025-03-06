@@ -27,7 +27,7 @@ class Record(Serializable):
         self.id = id
 
 
-# {"id": "2hop__640262_122868", "paragraphs": [{"idx": 19, "title": "Chevrolet Camaro", "paragraph_text": "The Chevrolet...", "question_decomposition": [{"id": 640262, "question": "1967: The Last Good Year >> author", "answer": "Pierre Berton", "paragraph_support_idx": 0}, {"id": 122868, "question": "What is the university where #1 went?", "answer": "University of British Columbia", "paragraph_support_idx": 2}], "answer": "University of British Columbia", "answer_aliases": ["The University of British Columbia"], "answerable": true}
+# {"id": "2hop__640262_122868", "question": "...", "paragraphs": [{"idx": 19, "title": "Chevrolet Camaro", "paragraph_text": "The Chevrolet..."}], "question_decomposition": [{"id": 640262, "question": "1967: The Last Good Year >> author", "answer": "Pierre Berton", "paragraph_support_idx": 0}, {"id": 122868, "question": "What is the university where #1 went?", "answer": "University of British Columbia", "paragraph_support_idx": 2}], "answer": "University of British Columbia", "answer_aliases": ["The University of British Columbia"], "answerable": true}
 class Question_Record(Record):
     def __init__(self, json_obj):
         super().__init__(json_obj["id"])

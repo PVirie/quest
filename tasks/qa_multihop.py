@@ -12,6 +12,7 @@ from implementations.thoughts import consistent_tree, text_graph
 from implementations.thoughts.persona import Persona
 
 from utilities import musique_classes, install
+from utilities.language_models import llm_function
 
 musique_path = "/app/cache/musique_data"
 musique_repo_path = f"{musique_path}/repo"
@@ -46,30 +47,26 @@ def evaluate(answer_path, dev_file_path):
     return json_obj
 
 
-install("litellm")
-from litellm import completion
-
-def llm_function(system_prompt, user_prompt):
-    messages = [
-        {"content": system_prompt, "role": "system"},
-        {"content": user_prompt, "role": "user"}
-    ]
-    response = completion(model=os.getenv("QA_MODEL"), messages=messages)
-    text = response.choices[0].message.content
-    return text
-
 
 def compute(record):
+
+    text = llm_function("hello")
+    print(text)
+
     working_memory = Quest_Graph(text_graph.Text_Node(text_graph.Text_Node_Type.Question_Node, record.question, None))
-    persona = Persona(llm_function)
+    persona = Persona(llm_function, record.paragraphs)
     while True:
         action, param_1, param_2 = consistent_tree.agent_function(persona, working_memory.query())
         if param_2 is None:
             break
         if action == consistent_tree.Action.ANSWER:
             working_memory.respond(param_1, param_2)
-        else:
+        elif action == consistent_tree.Action.DISCOVER:
             working_memory.discover(param_1, param_2)
+        else:
+            raise ValueError("Invalid action")
+        
+    # retrieve answer and support paragraph indices from the working memory
 
     return record.answer if random.random() < 0.7 else "dummy", [support.paragraph_support_idx for support in record.question_decomposition]
 
