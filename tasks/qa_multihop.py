@@ -9,6 +9,7 @@ import random
 
 from quest_interface import Quest_Graph
 from implementations.thoughts import consistent_tree, text_graph
+from implementations.thoughts.persona import Persona
 
 from utilities import musique_classes, install
 
@@ -48,32 +49,29 @@ def evaluate(answer_path, dev_file_path):
 install("litellm")
 from litellm import completion
 
-def llm_function(question, sub_questions):
-    # sub_questions is a list of sub (question, answer)
-    # return True, answer if all sub questions are sufficient
-    # return False, next sub question if not sufficient
-
-    messages = [{ "content": "Hello, how are you?", "role": "user"}]
-    # LLM call
+def llm_function(system_prompt, user_prompt):
+    messages = [
+        {"content": system_prompt, "role": "system"},
+        {"content": user_prompt, "role": "user"}
+    ]
     response = completion(model=os.getenv("QA_MODEL"), messages=messages)
     text = response.choices[0].message.content
-
-    return True, "hello"
+    return text
 
 
 def compute(record):
     working_memory = Quest_Graph(text_graph.Text_Node(text_graph.Text_Node_Type.Question_Node, record.question, None))
-
+    persona = Persona(llm_function)
     while True:
-        action, param_1, param_2 = consistent_tree.agent_function({
-            "compute_answer": llm_function
-        }, working_memory.query())
+        action, param_1, param_2 = consistent_tree.agent_function(persona, working_memory.query())
         if param_2 is None:
             break
         if action == consistent_tree.Action.ANSWER:
             working_memory.respond(param_1, param_2)
         else:
             working_memory.discover(param_1, param_2)
+
+    return record.answer if random.random() < 0.7 else "dummy", [support.paragraph_support_idx for support in record.question_decomposition]
 
 
 if __name__ == "__main__":
@@ -93,15 +91,8 @@ if __name__ == "__main__":
     answer_records = []
     for record in data_records:
         # generate answer here
-        compute(record)
-        answer_records.append(
-            musique_classes.Answer_Record(
-                record.id, 
-                record.answer if random.random() < 0.7 else "dummy", 
-                [support.paragraph_support_idx for support in record.question_decomposition], 
-                True
-            )
-        )
+        answer, supports = compute(record)
+        answer_records.append(musique_classes.Answer_Record(record.id, answer, supports, True))
 
     with open(answer_path, 'w') as f:
         save_jsonl(f, answer_records)

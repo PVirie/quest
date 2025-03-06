@@ -3,7 +3,7 @@ from .text_graph import Text_Node, Text_Node_List, Text_Node_Type
 from enum import Enum
 
 
-def agent_function(parameters, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Direction, Direction_List]]:
+def agent_function(persona, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Direction, Direction_List]]:
     focus_node = nodes[0]
     if focus_node.type == Text_Node_Type.Question_Node:
         round_nodes = focus_node.get_children()
@@ -26,7 +26,7 @@ def agent_function(parameters, nodes: Text_Node_List) -> Tuple[Action, Node, Uni
                 return Action.ANSWER, focus_node, question_node
         
         # check if all questions are sufficient, if not, return next sub question, if yes return answer
-        is_sufficient, detail = parameters["compute_answer"](focus_node.get_question(), question_nodes.get()) 
+        is_sufficient, detail = persona.compute_answer(focus_node.get_question(), question_nodes.get()) 
         if is_sufficient:
             return Action.ANSWER, Text_Node(Text_Node_Type.Question_Node, None, detail), focus_node.get_parents()[0]
         else:
