@@ -73,10 +73,11 @@ print(f"Chat completion time: {end_stamp - start_stamp:.4f} seconds")
 
 
 from utilities.embedding_models import embed
+from utilities.vector_dictionary import Vector_Text_Dictionary
 
 start_stamp = time.time()
-dog_embedding = embed("Dog")
-pivots = embed(["Canis lupus familiaris", "Homo sapien", "Felis catus"])
-# compare cosine similarity
-metric = torch.nn.functional.cosine_similarity(pivots, torch.reshape(dog_embedding, [1, -1]), dim=-1)
-print(metric)
+pivots = Vector_Text_Dictionary(paragraphs=["Homo sapien", "Canis lupus familiaris", "Felis catus"])
+top_k_indices = pivots.match("Dog", k=1)
+end_stamp = time.time()
+print(pivots.get_paragraph(top_k_indices))
+print(f"Retrieval time: {end_stamp - start_stamp:.4f} seconds")

@@ -7,24 +7,20 @@
             "preLaunchTask": "Current file: torch-cpu",
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}/core",
-                    "remoteRoot": "/app/core"
+                    "localRoot": "${workspaceFolder}/implementations",
+                    "remoteRoot": "/app/implementations"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/jax_onehot",
-                    "remoteRoot": "/app/jax_onehot"
-                },
-                {
-                    "localRoot": "${workspaceFolder}/llm",
-                    "remoteRoot": "/app/llm"
-                },
-                {
-                    "localRoot": "${workspaceFolder}/humn",
-                    "remoteRoot": "/app/humn"
+                    "localRoot": "${workspaceFolder}/quest_interface",
+                    "remoteRoot": "/app/quest_interface"
                 },
                 {
                     "localRoot": "${workspaceFolder}/tasks",
                     "remoteRoot": "/app/tasks"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/utilities",
+                    "remoteRoot": "/app/utilities"
                 }
             ],
             "connect": {
@@ -39,24 +35,20 @@
             "preLaunchTask": "Current file: torch-cuda",
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}/core",
-                    "remoteRoot": "/app/core"
+                    "localRoot": "${workspaceFolder}/implementations",
+                    "remoteRoot": "/app/implementations"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/jax_onehot",
-                    "remoteRoot": "/app/jax_onehot"
-                },
-                {
-                    "localRoot": "${workspaceFolder}/llm",
-                    "remoteRoot": "/app/llm"
-                },
-                {
-                    "localRoot": "${workspaceFolder}/humn",
-                    "remoteRoot": "/app/humn"
+                    "localRoot": "${workspaceFolder}/quest_interface",
+                    "remoteRoot": "/app/quest_interface"
                 },
                 {
                     "localRoot": "${workspaceFolder}/tasks",
                     "remoteRoot": "/app/tasks"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/utilities",
+                    "remoteRoot": "/app/utilities"
                 }
             ],
             "connect": {
@@ -71,24 +63,20 @@
             "preLaunchTask": "Current file: torch-rocm",
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}/core",
-                    "remoteRoot": "/app/core"
+                    "localRoot": "${workspaceFolder}/implementations",
+                    "remoteRoot": "/app/implementations"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/jax_onehot",
-                    "remoteRoot": "/app/jax_onehot"
-                },
-                {
-                    "localRoot": "${workspaceFolder}/llm",
-                    "remoteRoot": "/app/llm"
-                },
-                {
-                    "localRoot": "${workspaceFolder}/humn",
-                    "remoteRoot": "/app/humn"
+                    "localRoot": "${workspaceFolder}/quest_interface",
+                    "remoteRoot": "/app/quest_interface"
                 },
                 {
                     "localRoot": "${workspaceFolder}/tasks",
                     "remoteRoot": "/app/tasks"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/utilities",
+                    "remoteRoot": "/app/utilities"
                 }
             ],
             "connect": {
