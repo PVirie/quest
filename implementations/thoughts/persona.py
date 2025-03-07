@@ -1,4 +1,4 @@
-
+from utilities.language_models import complete_chat, complete_text, Language_Model, Chat, Chat_Message
 
 class Answer:
     def __init__(self, text, synonyms, support_paragraph_indices):
@@ -16,9 +16,9 @@ class Answer:
 
 
 class Persona:
-    def __init__(self, lm_func, paragraphs):
-        self.lm_func = lm_func
+    def __init__(self, paragraphs):
         self.paragraphs = paragraphs
+        self.lm = Language_Model()
 
 
     def compute_answer(self, question, supports):
@@ -39,6 +39,6 @@ class Persona:
 
         # return True, answer if all sub questions are sufficient in Answer format
         # return False, next sub question if not sufficient in Question format
-        # use self.lm_func(user_prompt, system_prompt) to facilitate the computation of the answer
+        # use lm_func(user_prompt, system_prompt) to facilitate the computation of the answer
     
         return True, "hello"

@@ -1,15 +1,63 @@
-from utilities.language_models import complete_text, complete_chat
-from utilities.language_models import Chat, Chat_Message
 import time
-import logging
+import torch
 
-logging.basicConfig(level=logging.INFO)
+print("Torch version:", torch.__version__)
+is_cuda = torch.cuda.is_available()
+device = torch.device("cuda" if is_cuda else "cpu")
+print("Device:", device)
 
+def selu(x, alpha:float=1.67, lmbda:float=1.05):
+    return lmbda * torch.where(x > 0, x, alpha * torch.exp(x) - alpha)
+
+x = torch.randn(1_000_000, device=device)
+
+start_time = time.time()
+for i in range(10000):
+    selu(x)
+print(f"SELUs took {time.time() - start_time:.4f} seconds")
+
+# test torch legacy jit.script
+
+selu_jit = torch.jit.script(selu)
+
+start_time = time.time()
+for i in range(10000):
+    selu_jit(x)
+print(f"JITted SELUs took {time.time() - start_time:.4f} seconds")
+
+# test torch jit with more complex function
+
+def loop_selu(x):
+    sum = torch.zeros(1_000_000, device=x.device)
+    for i in range(1000):
+        sum = sum + selu(x)
+    return torch.sum(sum)
+
+loop_selu_jit = torch.jit.script(loop_selu)
+
+start_time = time.time()
+loop_selu_jit(x)
+print(f"JITted loop SELUs took {time.time() - start_time:.4f} seconds")
+
+
+# test torch compile
+
+loop_selu_compiled = torch.compile(loop_selu)
+loop_selu_compiled(x) # compiles on first call
+
+start_time = time.time()
+loop_selu_compiled(x)
+print(f"Compiled loop SELUs took {time.time() - start_time:.4f} seconds")
+
+
+from utilities.language_models import Chat, Chat_Message, Language_Model
+
+lm = Language_Model()
 start_stamp = time.time()
-text = complete_text("Who's the greatest scientist of all time?")
+text = lm.complete_text("Who's the greatest scientist of all time?")
 end_stamp = time.time()
-logging.info(f"Time elapsed: {end_stamp - start_stamp}")
-logging.info(text)
+print(text)
+print(f"Prompt completion time: {end_stamp - start_stamp:.4f} seconds")
 
 
 chat = Chat(messages=[
@@ -18,7 +66,17 @@ chat = Chat(messages=[
 ])
 
 start_stamp = time.time()
-text = complete_chat(chat)
+text = lm.complete_chat(chat)
 end_stamp = time.time()
-logging.info(f"Time elapsed: {end_stamp - start_stamp}")
-logging.info(text)
+print(text)
+print(f"Chat completion time: {end_stamp - start_stamp:.4f} seconds")
+
+
+from utilities.embedding_models import embed
+
+start_stamp = time.time()
+dog_embedding = embed("Dog")
+pivots = embed(["Canis lupus familiaris", "Homo sapien", "Felis catus"])
+# compare cosine similarity
+metric = torch.nn.functional.cosine_similarity(pivots, torch.reshape(dog_embedding, [1, -1]), dim=-1)
+print(metric)

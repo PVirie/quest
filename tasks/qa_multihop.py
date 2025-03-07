@@ -12,7 +12,6 @@ from implementations.thoughts import consistent_tree, text_graph
 from implementations.thoughts.persona import Persona
 
 from utilities import musique_classes, install
-from utilities.language_models import llm_function
 
 musique_path = "/app/cache/musique_data"
 musique_repo_path = f"{musique_path}/repo"
@@ -51,7 +50,7 @@ def evaluate(answer_path, dev_file_path):
 def compute(record):
 
     working_memory = Quest_Graph(text_graph.Text_Node(text_graph.Text_Node_Type.Question_Node, record.question, None))
-    persona = Persona(llm_function, record.paragraphs)
+    persona = Persona(record.paragraphs)
     while True:
         action, param_1, param_2 = consistent_tree.agent_function(persona, working_memory.query())
         if param_2 is None:

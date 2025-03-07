@@ -12,8 +12,8 @@ services:
             - ./artifacts/experiments:/app/experiments
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
-            - ./agent_templates:/app/agent_templates
             - ./implementations:/app/implementations
+            - ./utilities:/app/utilities
             - ./tasks:/app/tasks
         environment:
             - ERROR_LOG=/app/log/error.log
@@ -39,8 +39,8 @@ services:
             - ./artifacts/experiments:/app/experiments
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
-            - ./agent_templates:/app/agent_templates
             - ./implementations:/app/implementations
+            - ./utilities:/app/utilities
             - ./tasks:/app/tasks
         environment:
             - ERROR_LOG=/app/log/error.log
@@ -73,8 +73,8 @@ services:
             - ./artifacts/experiments:/app/experiments
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
-            - ./agent_templates:/app/agent_templates
             - ./implementations:/app/implementations
+            - ./utilities:/app/utilities
             - ./tasks:/app/tasks
         environment:
             - ERROR_LOG=/app/log/error.log
@@ -105,8 +105,8 @@ services:
             - ./artifacts/experiments:/app/experiments
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
-            - ./agent_templates:/app/agent_templates
             - ./implementations:/app/implementations
+            - ./utilities:/app/utilities
             - ./tasks:/app/tasks
         environment:
             - ERROR_LOG=/app/log/error.log
