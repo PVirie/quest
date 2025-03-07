@@ -51,19 +51,23 @@ An implementation of agentic systems with quest graphs.
 
 ### Environment Variables
 
-| Environment Variables | Description                          | Values            |
-| --------------------- | ------------------------------------ | ----------------- |
-| `QUEST_USE_MODEL_API` | Use language model via API vs local. | "true" or "false" |
-| `QUEST_LM_MODEL`      | Language model name.                 | str               |
+| Environment Variables | Description                          | Values                                          |
+| --------------------- | ------------------------------------ | ----------------------------------------------- |
+| `QUEST_LM_DEPLOYMENT` | Use language model via API vs local. | "cloud-api-litellm", "cloud-api-raw","local-hf" |
+| `QUEST_LM_MODEL`      | Language model name.                 | string                                          |
 
 Apart from the above environment variables, you must also include third-party API keys in the `secrets.env` file in order to use their services.
 
 ## To do
 
 -   [ ] Algorithms
-    -   [ ] self-consistency
-    -   [ ] ReAct
-    -   [ ] Reflexion
+    -   [ ] consisten tree
+        -   [ ] manual flow
+        -   [ ] RAG
+    -   [ ] dynamic hierarchy RL
+-   [ ] Backends
+    -   [ ] ROCm support
+    -   [x] vLLM API with credentials
 
 ### Experiments
 

@@ -23,6 +23,20 @@ class Persona:
 
     def compute_answer(self, question, supports):
         # supports is a list of sub (question, answer)
+
+        # first it has to consider whether the question can be found in one of the paragraphs
+        # if it can, return the answer with support paragraph index
+        # if not it then has to check whether the supports are sufficient to answer the question
+        # if not, it has to break another next sub question
+        # if yes, it has to return the answer
+
+
+        prompts = ""
+        prompts += f"In order to answer this question: {question}\n"
+        prompts += "We should break it down into first layer sub questions as follows:\n"
+        prompts += "(In the following format: 1. sub question 1\n2. sub question 2\n...\n -----------)\n"
+
+
         # return True, answer if all sub questions are sufficient in Answer format
         # return False, next sub question if not sufficient in Question format
         # use self.lm_func(user_prompt, system_prompt) to facilitate the computation of the answer

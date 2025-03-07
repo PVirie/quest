@@ -64,9 +64,11 @@ def compute(record):
             raise ValueError("Invalid action")
         
     # retrieve answer and support paragraph indices from the working memory
+    answer = working_memory.root.answer.text
+    support_paragraph_indices = working_memory.root.answer.support_paragraph_indices
 
-    return record.answer if random.random() < 0.7 else "dummy", [support.paragraph_support_idx for support in record.question_decomposition]
-
+    # return record.answer if random.random() < 0.7 else "dummy", [support.paragraph_support_idx for support in record.question_decomposition]
+    return answer, support_paragraph_indices
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

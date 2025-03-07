@@ -11,7 +11,10 @@ class Paragraph(Serializable):
         self.idx = json_obj["idx"]
         self.title = json_obj["title"]
         self.paragraph_text = json_obj["paragraph_text"]
-        self.is_supporting = json_obj["is_supporting"]
+        if "is_supporting" in json_obj:
+            self.is_supporting = json_obj["is_supporting"]
+        else:
+            self.is_supporting = None
 
 
 class Support(Serializable):
