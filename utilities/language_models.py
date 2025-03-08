@@ -117,23 +117,22 @@ elif lm_deployment_type == "local-hf":
 
     os.environ['HF_HOME'] = '/app/cache/hf_home'
     install("transformers")
-    install("accelerate")
 
     from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
-    from accelerate.test_utils.testing import get_backend
 
     class Language_Model:
 
         def __init__(self, max_length=1024, top_p=0.95, temperature=0.6):
-            self.device, _, _ = get_backend() # automatically detects the underlying device type (CUDA, CPU, XPU, MPS, etc.)
             self.model_name = os.getenv("QUEST_LM_MODEL")
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, trust_remote_code=True, device_map="auto")
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-
+            
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.generator = pipeline(
                 'text-generation',
                 model=self.model,
-                tokenizer=self.tokenizer
+                tokenizer=self.tokenizer,
+                device=device
             )
 
             self.generation_args = {

@@ -67,8 +67,8 @@ Apart from the above environment variables, you must also include third-party AP
         -   [ ] manual flow
         -   [x] vector dictionary (simulate hippocampus)
     -   [ ] dynamic hierarchy RL
--   [ ] Backends
-    -   [ ] ROCm support
+-   [x] Backends
+    -   [x] ROCm support
     -   [x] vLLM API with credentials
 
 ### Experiments

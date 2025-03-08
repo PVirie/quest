@@ -9,7 +9,7 @@ import torch
 print("Torch version:", torch.__version__)
 is_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if is_cuda else "cpu")
-print("Device:", device)
+print("Device:", torch.cuda.get_device_name() if is_cuda else "cpu")
 
 def selu(x, alpha:float=1.67, lmbda:float=1.05):
     return lmbda * torch.where(x > 0, x, alpha * torch.exp(x) - alpha)
