@@ -43,8 +43,10 @@ elif deployment_type == "local-hf":
 
     model_name = os.getenv("QUEST_EMBEDDING_MODEL")
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModel.from_pretrained(model_name)
+    model = AutoModel.from_pretrained(model_name).to(device)
     model.eval()
     
     def embed(text):
@@ -53,7 +55,7 @@ elif deployment_type == "local-hf":
         else:
             input_queries = [text]
 
-        tokenized_queries = tokenizer(input_queries, padding=True, truncation=True, return_tensors='pt')
+        tokenized_queries = tokenizer(input_queries, padding=True, truncation=True, return_tensors='pt').to(device)
 
         with torch.no_grad():
             # Queries

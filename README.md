@@ -51,12 +51,12 @@ An implementation of agentic systems with quest graphs.
 
 ### Environment Variables
 
-| Environment Variables        | Description                          | Values                                           |
-| ---------------------------- | ------------------------------------ | ------------------------------------------------ |
-| `QUEST_LM_DEPLOYMENT`        | Use language model via API vs local. | "cloud-api-litellm", "cloud-api-raw", "local-hf" |
-| `QUEST_LM_MODEL`             | Language model name.                 | Ex. "openai/gpt-4"                               |
-| `QUEST_EMBEDDING_DEPLOYMENT` | Use embedding model via API.         | "cloud-api-litellm"                              |
-| `QUEST_EMBEDDING_MODEL`      | Embedding model name.                | Ex. "text-embedding-3-small"                     |
+| Environment Variables        | Description                          | Values                                                                     |
+| ---------------------------- | ------------------------------------ | -------------------------------------------------------------------------- |
+| `QUEST_LM_DEPLOYMENT`        | Use language model via API vs local. | "cloud-api-litellm", "cloud-api-raw", "local-hf"                           |
+| `QUEST_LM_MODEL`             | Language model name.                 | Ex. "openai/gpt-4", "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"            |
+| `QUEST_EMBEDDING_DEPLOYMENT` | Use embedding model via API.         | "cloud-api-litellm", "local-hf"                                            |
+| `QUEST_EMBEDDING_MODEL`      | Embedding model name.                | Ex. "text-embedding-3-small", "ibm-granite/granite-embedding-125m-english" |
 
 Apart from the above environment variables, you must also include third-party API keys in the `secrets.env` file in order to use their services.
 
