@@ -30,9 +30,9 @@ class Chat(BaseModel):
         return Chat(messages=[Chat_Message(**message) for message in json_obj["messages"]])
 
 
-lm_deployment_type = os.getenv("QUEST_LM_DEPLOYMENT", "cloud-api-litellm")
+deployment_type = os.getenv("QUEST_LM_DEPLOYMENT", "cloud-api-litellm")
 
-if lm_deployment_type == "cloud-api-litellm":
+if deployment_type == "cloud-api-litellm":
     install("litellm")
     import litellm
     from litellm import text_completion, completion, embedding
@@ -75,7 +75,7 @@ if lm_deployment_type == "cloud-api-litellm":
             text = response.choices[0].message.content
             return text
 
-elif lm_deployment_type == "cloud-api-raw":
+elif deployment_type == "cloud-api-raw":
     install("requests")
     import requests
 
@@ -113,7 +113,7 @@ elif lm_deployment_type == "cloud-api-raw":
             text = response.json()['output'][0]['choices'][0]['tokens'][0]
             return text
 
-elif lm_deployment_type == "local-hf":
+elif deployment_type == "local-hf":
 
     os.environ['HF_HOME'] = '/app/cache/hf_home'
     install("transformers")
@@ -124,7 +124,7 @@ elif lm_deployment_type == "local-hf":
 
         def __init__(self, max_length=1024, top_p=0.95, temperature=0.6):
             self.model_name = os.getenv("QUEST_LM_MODEL")
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, trust_remote_code=True)
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
             
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
