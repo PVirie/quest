@@ -45,14 +45,14 @@ loop_selu_jit(x)
 print(f"JITted loop SELUs took {time.time() - start_time:.4f} seconds")
 
 
-# test torch compile
+if torch.cuda.is_available():
+    # test torch compile
+    loop_selu_compiled = torch.compile(loop_selu)
+    loop_selu_compiled(x) # compiles on first call
 
-loop_selu_compiled = torch.compile(loop_selu)
-loop_selu_compiled(x) # compiles on first call
-
-start_time = time.time()
-loop_selu_compiled(x)
-print(f"Compiled loop SELUs took {time.time() - start_time:.4f} seconds")
+    start_time = time.time()
+    loop_selu_compiled(x)
+    print(f"Compiled loop SELUs took {time.time() - start_time:.4f} seconds")
 
 
 from utilities.language_models import Chat, Chat_Message, Language_Model

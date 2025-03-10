@@ -18,6 +18,18 @@ def agent_function(persona, nodes: Text_Node_List) -> Tuple[Action, Node, Union[
                 parent = focus_node.get_parent()
                 # if parent is none, it is the root node
                 return Action.ANSWER, Text_Node(Text_Node_Type.Question_Node, None, node_1.get_answer()), parent
+            elif len(round_nodes) >= 5:
+                # too long, use voting
+                votes = {}
+                for round_node in round_nodes:
+                    answer = round_node.get_answer()
+                    if answer in votes:
+                        votes[answer] += 1
+                    else:
+                        votes[answer] = 1
+                max_vote = max(votes, key=votes.get)
+                parent = focus_node.get_parent()
+                return Action.ANSWER, Text_Node(Text_Node_Type.Question_Node, None, max_vote), parent
         return Action.DISCOVER, Text_Node(Text_Node_Type.Round_Node, len(round_nodes), None), Text_Node_List([focus_node])
     else:
         question_nodes = focus_node.get_children()

@@ -84,7 +84,7 @@ if __name__ == "__main__":
     # print(data_records[10])
 
     answer_records = []
-    for record in data_records:
+    for record in data_records[:2]:
         # generate answer here
         answer, supports = compute(record)
         answer_records.append(musique_classes.Answer_Record(record.id, answer, supports, True))

@@ -10,7 +10,7 @@ class Chat_Message(BaseModel):
     content: str
 
 class Chat(BaseModel):
-    messages: List[Chat_Message]
+    messages: List[Chat_Message] = []
 
     def __add__(self, message: Chat_Message):
         concatenated_messages = self.messages + [message]
