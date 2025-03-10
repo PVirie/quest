@@ -37,9 +37,12 @@ class RL_Node(Node, Direction):
             return directions
         
     def set(self, other):
-        self.is_fulfilled = other.is_fulfilled
-        self.quest = other.quest
-        self.response = other.response
+        if other.is_fulfilled is not None:
+            self.is_fulfilled = other.is_fulfilled
+        if other.quest is not None:
+            self.quest = other.quest
+        if other.response is not None:
+            self.response = other.response
 
     def attach_to(self, others):
         for other in others:

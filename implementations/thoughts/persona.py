@@ -25,7 +25,8 @@ def try_get_answer(lm, question, paragraph):
     Based on the provided information ONLY, decide whether the information is enough to answer. Do not use your own knowledge.
     
     If the information is not enough, respond with exactly: "no".
-    If the information is enough, respond the answer the question using the provided information only. 
+    If the information is enough, respond the answer the question using the provided information only.
+    Keep your response short. Do not repeat the question.
     
     Question:
     {question}

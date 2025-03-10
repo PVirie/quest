@@ -43,8 +43,10 @@ class Text_Node(Node, Direction):
             return directions
         
     def set(self, other):
-        self.question = other.question
-        self.answer = other.answer
+        if other.question is not None:
+            self.question = other.question
+        if other.answer is not None:
+            self.answer = other.answer
 
     def attach_to(self, others):
         for other in others:
