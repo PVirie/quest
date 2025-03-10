@@ -21,11 +21,11 @@ class Answer:
 def try_get_answer(lm, question, paragraph):
 
     prompt = f"""
-    You are an AI that determines if there is enough information to answer a given question.
-    Based on the provided information ONLY, decide whether the information is enough to answer. Do not use your own knowledge
+    You are an AI that determines if there is enough information to answer a given question and answer it.
+    Based on the provided information ONLY, decide whether the information is enough to answer. Do not use your own knowledge.
     
     If the information is not enough, respond with exactly: "no".
-    If the information is enough, answer the question using the provided details. 
+    If the information is enough, respond the answer the question using the provided information only. 
     
     Question:
     {question}
@@ -36,7 +36,7 @@ def try_get_answer(lm, question, paragraph):
 
     chat = Chat()
     chat.append(Chat_Message(role="system", content="""You determine if the provided information is enough to answer a specific question.
-                                        If so, answer it using the provided details only; otherwise, respond with 'no'."""))
+                                        If so, answer it using the provided information only; otherwise, respond with 'no'."""))
     chat.append(Chat_Message(role="user", content=prompt))
     
     text_response = lm.complete_chat(chat)
@@ -80,7 +80,7 @@ class Persona:
         self.paragraphs = paragraphs
         self.short_lm = Language_Model(max_length=200, top_p=1, temperature=0)
         self.long_lm = Language_Model(max_length=1024, top_p=1, temperature=0)
-        self.hippocampus = Vector_Text_Dictionary([p.paragraph_text for p in paragraphs], metadata=[p.idx for p in paragraphs])
+        self.hippocampus = Vector_Text_Dictionary([p.paragraph_text for p in paragraphs], metadata=[p.idx for p in paragraphs], chunk_size=64)
 
 
     def compute_answer(self, question, supports):

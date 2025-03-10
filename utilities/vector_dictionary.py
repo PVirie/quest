@@ -8,14 +8,14 @@ def chunk(paragraph, chunk_size=256):
 
 class Vector_Text_Dictionary:
 
-    def __init__(self, paragraphs, metadata=None):
+    def __init__(self, paragraphs, metadata=None, chunk_size=256):
         self.paragraphs = paragraphs
         self.metadata = metadata
 
         self.embeddings = []
         self.indices = []
         for i, paragraph in enumerate(paragraphs):
-            embeddings = embed(chunk(paragraph))
+            embeddings = embed(chunk(paragraph, chunk_size=chunk_size))
             self.embeddings.append(embeddings)
             self.indices.append(torch.ones(embeddings.shape[0], dtype=torch.int)*i)
 

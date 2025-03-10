@@ -7,8 +7,8 @@ import json
 import logging
 import random
 
-from quest_interface import Quest_Graph
-from implementations.thoughts import consistent_tree, text_graph
+from quest_interface import Quest_Graph, Action
+from implementations.thoughts import agent_functions, text_graph
 from implementations.thoughts.persona import Persona
 
 from utilities import musique_classes, install
@@ -47,25 +47,28 @@ def evaluate(answer_path, dev_file_path):
 
 
 
-def compute(record):
+def compute(record, verbose=False):
 
     working_memory = Quest_Graph(text_graph.Text_Node(text_graph.Text_Node_Type.Question_Node, record.question, None))
     persona = Persona(record.paragraphs)
     while True:
-        action, param_1, param_2 = consistent_tree.agent_function(persona, working_memory.query())
+        action, param_1, param_2 = agent_functions.basic_tree(persona, working_memory.query())
         if param_2 is None:
+            # answering the root
+            # retrieve answer and support paragraph indices from the working memory
+            answer = param_1.answer.text
+            support_paragraph_indices = param_1.answer.support_paragraph_indices
             break
-        if action == consistent_tree.Action.ANSWER:
+        if action == Action.ANSWER:
             working_memory.respond(param_1, param_2)
-        elif action == consistent_tree.Action.DISCOVER:
+        elif action == Action.DISCOVER:
             working_memory.discover(param_1, param_2)
         else:
             raise ValueError("Invalid action")
         
-    # retrieve answer and support paragraph indices from the working memory
-    answer = working_memory.root.answer.text
-    support_paragraph_indices = working_memory.root.answer.support_paragraph_indices
-
+        if verbose:
+            working_memory.root.print()
+        
     # return record.answer if random.random() < 0.7 else "dummy", [support.paragraph_support_idx for support in record.question_decomposition]
     return answer, support_paragraph_indices
 
@@ -86,7 +89,7 @@ if __name__ == "__main__":
     answer_records = []
     for record in data_records[:2]:
         # generate answer here
-        answer, supports = compute(record)
+        answer, supports = compute(record, verbose=True)
         answer_records.append(musique_classes.Answer_Record(record.id, answer, supports, True))
 
     with open(answer_path, 'w') as f:

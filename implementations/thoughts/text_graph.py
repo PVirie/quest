@@ -66,3 +66,10 @@ class Text_Node(Node, Direction):
     def get_answer(self):
         return self.answer
 
+    def print(self, tab=0):
+        tabs = ""
+        for i in range(tab):
+            tabs += "\t"
+        children_text = ("\n" + tabs).join([child.print(tab=tab+1) for child in self.children])
+        node_text = f"{tabs}Q: {self.question}, A: {self.answer}\n{tabs}{children_text}"
+        return node_text
