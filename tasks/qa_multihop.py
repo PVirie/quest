@@ -91,10 +91,14 @@ if __name__ == "__main__":
     # print(data_records[10])
 
     answer_records = []
-    for record in data_records:
+    for i, record in enumerate(data_records):
         # generate answer here
         answer, supports = compute(record, verbose=False)
         answer_records.append(musique_classes.Answer_Record(record.id, answer, supports, True))
+
+        # print every 100 records
+        if i % 100 == 0:
+            logging.info(f"Record {i}/{len(data_records)} done")
 
     with open(answer_path, 'w') as f:
         save_jsonl(f, answer_records)

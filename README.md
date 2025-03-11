@@ -69,6 +69,7 @@ Apart from the above environment variables, you must also include third-party AP
 -   [x] basic tree
     -   [x] manual flow
     -   [x] vector dictionary (simulate hippocampus)
+-   [ ] using search tool
 -   [ ] dynamic hierarchy RL
 
 ### Backends

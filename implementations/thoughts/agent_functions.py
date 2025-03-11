@@ -1,6 +1,7 @@
 from quest_interface import *
 from .text_graph import Text_Node, Text_Node_List, Text_Node_Type
 from enum import Enum
+from .persona import Answer
 
 
 def basic_tree(persona, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Direction, Direction_List]]:
@@ -16,7 +17,7 @@ def basic_tree(persona, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Dire
     elif len(question_nodes) <= 5:
         return Action.DISCOVER, Text_Node(Text_Node_Type.Question_Node, detail, None), Text_Node_List([focus_node])
     else:
-        return Action.ANSWER, Text_Node(Text_Node_Type.Question_Node, None, "Cannot find answer."), focus_node.get_parent()
+        return Action.ANSWER, Text_Node(Text_Node_Type.Question_Node, None, Answer("Cannot find answer.", [], [])), focus_node.get_parent()
 
 
 def consistent_tree(persona, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Direction, Direction_List]]:
