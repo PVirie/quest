@@ -1,21 +1,43 @@
 from .embedding_models import embed
 import torch
+import re
 
 
-def chunk(paragraph, chunk_size=256):
-    return [paragraph[i:i + chunk_size] for i in range(0, len(paragraph), chunk_size)]
+def chunk(paragraph: str, chunk_size, splitters):
+    # first split paragraph, then try to accumulate parts to make each part's length <= chunk_size
+    if isinstance(splitters, list):
+        splitters = "|".join(splitters)
+        new_splitter = splitters[0]
+    else:
+        new_splitter = splitters
+    parts = re.split(splitters, paragraph)
+    chunks = []
+    chunk = ""
+    for part in parts:
+        if len(chunk) + len(part) > chunk_size:
+            chunks.append(chunk)
+            chunk = part
+        else:
+            chunk += new_splitter + part
+    if chunk:
+        chunks.append(chunk)
+    return chunks
+
 
 
 class Vector_Text_Dictionary:
 
-    def __init__(self, paragraphs, metadata=None, chunk_size=256):
+    def __init__(self, paragraphs, metadata=None, max_chunk_size=None, splitters=None):
         self.paragraphs = paragraphs
         self.metadata = metadata
 
         self.embeddings = []
         self.indices = []
         for i, paragraph in enumerate(paragraphs):
-            embeddings = embed(chunk(paragraph, chunk_size=chunk_size))
+            if max_chunk_size is None:
+                embeddings = embed([paragraph])
+            else:
+                embeddings = embed(chunk(paragraph, chunk_size=max_chunk_size, splitters=splitters))
             self.embeddings.append(embeddings)
             self.indices.append(torch.ones(embeddings.shape[0], dtype=torch.int)*i)
 

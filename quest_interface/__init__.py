@@ -42,9 +42,15 @@ class Quest_Graph:
             self.focus = {
                 0: self.root
             }
+            self.total_node_count = 1
         else:
             self.root = start_graph.root
             self.focus = start_graph.focus
+            self.total_node_count = start_graph.total_node_count
+
+
+    def __len__(self):
+        return self.total_node_count
 
 
     def set_focus_node(self, node: Node, head_index=0):
@@ -63,6 +69,7 @@ class Quest_Graph:
         current_focus_node = self.focus[head_index]
         neighbors = current_focus_node.get_neighbors(directions)
         node.attach_to(neighbors)
+        self.total_node_count += 1    
     
 
     def respond(self, node: Node, direction: Direction, head_index=0):

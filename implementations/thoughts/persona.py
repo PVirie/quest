@@ -52,13 +52,19 @@ def discover_sub_question(lm, question, supports):
     if len(supports) == 0:
         supports = "What is the first sub-question to ask?"
     else:
-        supports = f"""Pre-existing Sub-Questions:
+        supports = f"""Pre-existing sub-questions:
         {supports}
+
+        What is the next sub-question to ask?
         """
 
     prompt = f"""
-    You are an NLP AI that breaks down a question into sub-questions.
-    Based on the pre-existing sub-questions, determine the next sub-question to ask in order to answer the original question.
+    You are an NLP expert that determines whether the given text question can be further broken down into sub-questions?
+    Based on the question and optionally pre-existing sub-questions, 
+    determine whether any more sub-question can be asked in order to find the step-by-step answer to the original question.
+
+    If yes, please provide the sub-question. Keep your response short. Do not repeat the question.
+    If no, respond with exactly: "no".
 
     Question:
     {question}
@@ -67,13 +73,15 @@ def discover_sub_question(lm, question, supports):
     """
 
     chat = Chat()
-    chat.append(Chat_Message(role="system", content="""You determine if the provided information is a complete.
-                                        If it is not, response the next sub-question only."""))
+    chat.append(Chat_Message(role="system", content="""You determine if the provided question can be broken down into sub-questions.
+                                        If so, response the next sub-question only; otherwise, respond with 'no'."""))
     chat.append(Chat_Message(role="user", content=prompt))
     
     text_response = lm.complete_chat(chat)
+    if text_response[:2].lower().strip() == "no":
+        return False, None
 
-    return text_response
+    return True, text_response
 
 
 class Persona:
@@ -81,7 +89,7 @@ class Persona:
         self.paragraphs = paragraphs
         self.short_lm = Language_Model(max_length=200, top_p=1, temperature=0)
         self.long_lm = Language_Model(max_length=1024, top_p=1, temperature=0)
-        self.hippocampus = Vector_Text_Dictionary([p.paragraph_text for p in paragraphs], metadata=[p.idx for p in paragraphs], chunk_size=64)
+        self.hippocampus = Vector_Text_Dictionary([p.paragraph_text for p in paragraphs], metadata=[p.idx for p in paragraphs])
 
 
     def compute_answer(self, question, supports):
@@ -99,7 +107,7 @@ class Persona:
         else:
             # if not
             # it then has to check whether the supports are sufficient to answer the question
-            success, answer =  try_get_answer(self.short_lm, question, "\n".join([f"{s[0]}: {s[1].text}" for s in supports]))
+            success, answer =  try_get_answer(self.short_lm, question, "\n".join([f"Q:{s[0]} A:{s[1].text}" for s in supports]))
             if success:
                 # merge all support paragraphs
                 support_paragraph_ids = []
@@ -109,5 +117,9 @@ class Persona:
                 return True, Answer(answer, [], support_paragraph_ids)
 
         # if not, it has to break another next sub question
-        sub_question = discover_sub_question(self.long_lm, question, "\n".join([f"{s[0]}: {s[1].text}" for s in supports]))
-        return False, sub_question
+        success, sub_question = discover_sub_question(self.long_lm, question, "\n".join([f"Q:{s[0]} A:{s[1].text}" for s in supports]))
+        if success:
+            return False, sub_question
+        else:
+            # cannot break sub question
+            return True, Answer("Cannot find answer", [], [])

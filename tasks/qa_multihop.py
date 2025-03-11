@@ -63,6 +63,10 @@ def compute(record, verbose=False):
             working_memory.respond(param_1, param_2)
         elif action == Action.DISCOVER:
             working_memory.discover(param_1, param_2)
+            if len(working_memory) > 20:
+                answer = "Cannot find answer."
+                support_paragraph_indices = []
+                break
         else:
             raise ValueError("Invalid action")
         
@@ -87,9 +91,9 @@ if __name__ == "__main__":
     # print(data_records[10])
 
     answer_records = []
-    for record in data_records[:2]:
+    for record in data_records:
         # generate answer here
-        answer, supports = compute(record, verbose=True)
+        answer, supports = compute(record, verbose=False)
         answer_records.append(musique_classes.Answer_Record(record.id, answer, supports, True))
 
     with open(answer_path, 'w') as f:

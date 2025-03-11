@@ -13,8 +13,10 @@ def basic_tree(persona, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Dire
     is_sufficient, detail = persona.compute_answer(focus_node.get_question(), question_nodes.get()) 
     if is_sufficient:
         return Action.ANSWER, Text_Node(Text_Node_Type.Question_Node, None, detail), focus_node.get_parent()
-    else:
+    elif len(question_nodes) <= 5:
         return Action.DISCOVER, Text_Node(Text_Node_Type.Question_Node, detail, None), Text_Node_List([focus_node])
+    else:
+        return Action.ANSWER, Text_Node(Text_Node_Type.Question_Node, None, "Cannot find answer."), focus_node.get_parent()
 
 
 def consistent_tree(persona, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Direction, Direction_List]]:
