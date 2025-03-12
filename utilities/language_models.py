@@ -125,7 +125,7 @@ elif deployment_type == "local-hf":
         def __init__(self, max_length=1024, top_p=0.95, temperature=0.6):
             self.model_name = os.getenv("QUEST_LM_MODEL")
             self.model = AutoModelForCausalLM.from_pretrained(self.model_name, trust_remote_code=True)
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
             
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.generator = pipeline(
@@ -136,8 +136,8 @@ elif deployment_type == "local-hf":
             )
 
             self.generation_args = {
-                "max_length": max_length,
-                "temperature": temperature,
+                "max_new_tokens": max_length,
+                "temperature": temperature + 0.01,
                 "top_p": top_p,
                 "truncation": True,
                 "do_sample": True,

@@ -6,6 +6,9 @@ from typing import Any, Mapping
 import json
 import logging
 import random
+import argparse
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from quest_interface import Quest_Graph, Action
 from implementations.thoughts import agent_functions, text_graph
@@ -77,6 +80,11 @@ def compute(record, verbose=False):
     return answer, support_paragraph_indices
 
 if __name__ == "__main__":
+    # optional flag --reset or -r, default is false
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--reset", "-r", action="store_true")
+    args = parser.parse_args()
+
     logging.basicConfig(level=logging.INFO)
     experiment_path = "/app/experiments/qa_multihop"
     answer_path = f"{experiment_path}/answers.jsonl"
@@ -90,18 +98,23 @@ if __name__ == "__main__":
     data_records = load_data_records(f"{musique_data_path}/musique_ans_v1.0_dev.jsonl")
     # print(data_records[10])
 
-    answer_records = []
-    for i, record in enumerate(data_records):
+    start = 0
+    if not args.reset and os.path.exists(answer_path):
+        # continue from the last record
+        with open(answer_path, 'r') as f:
+            for line in f:
+                start += 1
+
+    for i, record in enumerate(data_records[start:], start):
         # generate answer here
         answer, supports = compute(record, verbose=False)
-        answer_records.append(musique_classes.Answer_Record(record.id, answer, supports, True))
+        answer_record = musique_classes.Answer_Record(record.id, answer, supports, True)
+        with open(answer_path, 'a') as f:
+            f.write(json.dumps(answer_record.to_json()) + "\n")
 
         # print every 100 records
         if i % 100 == 0:
             logging.info(f"Record {i}/{len(data_records)} done")
-
-    with open(answer_path, 'w') as f:
-        save_jsonl(f, answer_records)
 
     # evaluate result
     result = evaluate(answer_path, f"{musique_data_path}/musique_ans_v1.0_dev.jsonl")
