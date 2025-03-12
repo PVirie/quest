@@ -2,20 +2,9 @@ from utilities.language_models import Language_Model, Chat, Chat_Message
 from utilities.vector_dictionary import Vector_Text_Dictionary
 
 class Answer:
-    def __init__(self, text, synonyms, support_paragraph_indices):
+    def __init__(self, text, support_paragraph_indices):
         self.text = text
-        self.synonyms = synonyms
         self.support_paragraph_indices = support_paragraph_indices
-
-    # check synonym
-    def __eq__(self, other):
-        other_text = other.text.lower().strip()
-        if self.text.lower().strip() == other_text:
-            return True
-        for synonym in self.synonyms:
-            if synonym.lower().strip() == other_text:
-                return True
-        return False
 
 
 def try_get_answer(lm, question, paragraph):
@@ -103,7 +92,7 @@ class Persona:
             success, answer = try_get_answer(self.short_lm, question, selected_paragraph)
             if success:
                 best_paragraph_id = self.hippocampus.metadata[best_paragraph_index]
-                return True, Answer(answer, [], [best_paragraph_id])
+                return True, Answer(answer, [best_paragraph_id])
         else:
             # if not
             # it then has to check whether the supports are sufficient to answer the question
@@ -114,7 +103,7 @@ class Persona:
                 for s in supports:
                     if s[1].support_paragraph_indices is not None:
                         support_paragraph_ids.extend(s[1].support_paragraph_indices)
-                return True, Answer(answer, [], support_paragraph_ids)
+                return True, Answer(answer, support_paragraph_ids)
 
         # if not, it has to break another next sub question
         success, sub_question = discover_sub_question(self.long_lm, question, "\n".join([f"Q:{s[0]} A:{s[1].text}" for s in supports]))
@@ -122,4 +111,4 @@ class Persona:
             return False, sub_question
         else:
             # cannot break sub question
-            return True, Answer("Cannot find answer", [], [])
+            return True, Answer("Cannot find answer", [])
