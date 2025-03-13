@@ -124,7 +124,12 @@ elif deployment_type == "local-hf":
 
         def __init__(self, max_length=1024, top_p=0.95, temperature=0.6):
             self.model_name = os.getenv("QUEST_LM_MODEL")
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, trust_remote_code=True)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name, 
+                trust_remote_code=True,
+                # torch_dtype=torch.float16,
+                # use_flash_attention_2=True
+            )
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
             
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

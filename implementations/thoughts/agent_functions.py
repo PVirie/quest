@@ -1,21 +1,32 @@
 from quest_interface import *
-from .text_graph import Text_Node, Text_Node_List, Text_Node_Type
-from enum import Enum
-from .persona import Answer
+from .text_graph import Text_Node_List, Question_Node, Search_Node, Thought_Node
+from .persona import Sub_Action_Type
+
+
+class Answer:
+    def __init__(self, text, support_paragraph_indices):
+        self.text = text
+        self.support_paragraph_indices = support_paragraph_indices
 
 
 def basic_tree(persona, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Direction, Direction_List]]:
     focus_node = nodes[0]
-    question_nodes = focus_node.get_children()
-    for question_node in question_nodes:
-        if not question_node.is_answered():
-            return Action.ANSWER, focus_node, question_node
-    # check if all questions are sufficient, if not, return next sub question, if yes return answer
-    is_sufficient, detail = persona.compute_answer(focus_node.get_question(), question_nodes.get())
-    if is_sufficient:
-        return Action.ANSWER, Text_Node(Text_Node_Type.Question_Node, None, detail), focus_node.get_parent()
-    elif len(question_nodes) <= 5:
-        return Action.DISCOVER, Text_Node(Text_Node_Type.Question_Node, detail, None), Text_Node_List([focus_node])
+    child_nodes = focus_node.get_children()
+    for child in child_nodes:
+        if isinstance(child, Question_Node) and not child.is_answered():
+            return Action.ANSWER, None, child
+        
+    subact, detail = persona.act(focus_node.question, child_nodes.get())
+    if len(child_nodes) >= 10:
+        return Action.ANSWER, None, focus_node.get_parent()
+    elif subact == Sub_Action_Type.Answer:
+        return Action.ANSWER, Question_Node(None, detail), focus_node.get_parent()
+    elif subact == Sub_Action_Type.Search:
+        search_result, paragraph_id = persona.search(detail)
+        return Action.DISCOVER, Search_Node(detail, search_result, paragraph_id), Text_Node_List([focus_node])
+    elif subact == Sub_Action_Type.Thought:
+        return Action.DISCOVER, Thought_Node(detail), Text_Node_List([focus_node])
+    elif subact == Sub_Action_Type.Sub_Question:
+        return Action.DISCOVER, Question_Node(detail, None), Text_Node_List([focus_node])
     else:
-        return Action.ANSWER, Text_Node(Text_Node_Type.Question_Node, None, Answer("Cannot find answer.", [])), focus_node.get_parent()
-
+        return Action.ANSWER, None, focus_node.get_parent()

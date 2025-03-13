@@ -59,8 +59,8 @@ def compute(record, verbose=False):
         if param_2 is None:
             # answering the root
             # retrieve answer and support paragraph indices from the working memory
-            answer = param_1.answer.text
-            support_paragraph_indices = param_1.answer.support_paragraph_indices
+            answer = param_1.answer
+            support_paragraph_indices = param_1.gather_support_ids()
             break
         if action == Action.ANSWER:
             working_memory.respond(param_1, param_2)

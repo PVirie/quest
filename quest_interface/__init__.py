@@ -72,9 +72,11 @@ class Quest_Graph:
         self.total_node_count += 1    
     
 
-    def respond(self, node: Node, direction: Direction, head_index=0):
+    def respond(self, node: Union[Node, None], direction: Union[Direction, None], head_index=0):
         current_focus_node = self.focus[head_index]
-        current_focus_node.set(node)
-        neighbor = current_focus_node.get_neighbor(direction)
-        self.focus[head_index] = neighbor
+        if node is not None:
+            current_focus_node.set(node)
+        if direction is not None:
+            neighbor = current_focus_node.get_neighbor(direction)
+            self.focus[head_index] = neighbor
 
