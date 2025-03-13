@@ -2,7 +2,7 @@ import subprocess
 import sys
 import logging
 import importlib.util
-import regex as re
+import re
  
 sys.path.append('/app/pip_modules')
 logging.basicConfig(level=logging.INFO)

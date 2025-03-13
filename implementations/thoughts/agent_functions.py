@@ -11,7 +11,7 @@ def basic_tree(persona, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Dire
         if not question_node.is_answered():
             return Action.ANSWER, focus_node, question_node
     # check if all questions are sufficient, if not, return next sub question, if yes return answer
-    is_sufficient, detail = persona.compute_answer(focus_node.get_question(), question_nodes.get()) 
+    is_sufficient, detail = persona.compute_answer(focus_node.get_question(), question_nodes.get())
     if is_sufficient:
         return Action.ANSWER, Text_Node(Text_Node_Type.Question_Node, None, detail), focus_node.get_parent()
     elif len(question_nodes) <= 5:
