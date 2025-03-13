@@ -67,13 +67,13 @@ class Question_Node(Text_Node):
         return self.answer is not None
     
     def gather_support_ids(self):
-        support_ids = []
+        support_ids = set()
         for child in self.children:
             if isinstance(child, Search_Node):
-                support_ids.append(child.support_index)
+                support_ids.add(child.support_index)
             elif isinstance(child, Question_Node):
                 if child.is_answered():
-                    support_ids.append(child.gather_support_ids())
+                    support_ids.union(child.gather_support_ids())
         return support_ids
 
 
@@ -107,3 +107,16 @@ class Thought_Node(Text_Node):
             return
         if another.thought is not None:
             self.thought = another.thought
+
+
+class Observation_Node(Text_Node):
+    def __init__(self, observation=None):
+        super().__init__()
+        self.observation = observation
+
+    def set(self, another):
+        # check same class
+        if not isinstance(another, self.__class__):
+            return
+        if another.observation is not None:
+            self.observation = another.observation

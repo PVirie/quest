@@ -58,7 +58,8 @@ if deployment_type == "cloud-api-litellm":
                 prompt=user_prompt,
                 max_tokens=self.max_length,
                 top_p=self.top_p,
-                temperature=self.temperature
+                temperature=self.temperature,
+                stop=["\n"]
             )
             text = response.choices[0].text
             return text
@@ -87,7 +88,8 @@ elif deployment_type == "cloud-api-raw":
             self.sampling_params = {
                 "max_tokens": max_length,
                 "top_p": top_p,
-                "temperature": temperature
+                "temperature": temperature,
+                "stop": ["\n"]
             }
 
         def complete_text(self, user_prompt):
@@ -146,6 +148,7 @@ elif deployment_type == "local-hf":
                 "top_p": top_p,
                 "truncation": True,
                 "do_sample": True,
+                "stop_strings": ["\n"]
             }
         
         def complete_chat(self, chat: Chat):

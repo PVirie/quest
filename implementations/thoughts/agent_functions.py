@@ -1,5 +1,5 @@
 from quest_interface import *
-from .text_graph import Text_Node_List, Question_Node, Search_Node, Thought_Node
+from .text_graph import Text_Node_List, Question_Node, Search_Node, Thought_Node, Observation_Node
 from .persona import Sub_Action_Type
 
 
@@ -26,6 +26,8 @@ def basic_tree(persona, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Dire
         return Action.DISCOVER, Search_Node(detail, search_result, paragraph_id), Text_Node_List([focus_node])
     elif subact == Sub_Action_Type.Thought:
         return Action.DISCOVER, Thought_Node(detail), Text_Node_List([focus_node])
+    elif subact == Sub_Action_Type.Observation:
+        return Action.DISCOVER, Observation_Node(detail), Text_Node_List([focus_node])
     elif subact == Sub_Action_Type.Sub_Question:
         return Action.DISCOVER, Question_Node(detail, None), Text_Node_List([focus_node])
     else:

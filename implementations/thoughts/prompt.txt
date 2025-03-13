@@ -1,47 +1,46 @@
 You are a helpful and knowledgeable agent. To achieve your goal of answering complex questions correctly, you have access to the following tools:
 Search: useful for when you need to Google questions. You should ask targeted questions, for example, Who is Anthony Dirrell's brother?
-To answer questions, you'll need to go through multiple steps involving step-by-step thinking and selecting appropriate tools and their inputs; tools will respond with observations. When you are ready for a final answer, respond with the `Final Answer:`
+To answer questions, you'll need to go through multiple steps involving step-by-step thinking and selecting appropriate tools and their inputs; tools will respond with observations. When you are ready for a final answer, respond with the `Final Answer:` Sometimes, you will have to make a guess given the available information.
 Examples:
 ##
 Question: Anthony Dirrell is the brother of which super middleweight title holder?
 Thought: Let's think step by step. To answer this question, we first need to know who Anthony Dirrell is.
 Search: Who is Anthony Dirrell?
-Observation: Boxer
-Thought: We've learned Anthony Dirrell is a Boxer. Now, we need to find out who his brother is.
+Result: Anthony Dirrell is an American former professional boxer who competed between 1985 and 2024. Nicknamed "Iron Mike" and "Kid Dynamite" in his early career, and later known as "the Baddest Man on the Planet".
+Thought: From the result, we can infer that Anthony Dirrell is a Boxer. Now, we need to find out who his brother is.
 Search: Who is Anthony Dirrell brother?
-Observation: Andre Dirrell
-Thought: We've learned Andre Dirrell is Anthony Dirrell's brother. Now, we need to find out what title Andre Dirrell holds.
+Result: Anthony Dirrell was born in Fort Greene, Brooklyn, New York City, on June 30, 1966. He has an older brother named Andre Dirrell and had an older sister named Denise, who died of a heart attack at age 24 in February 1990.
+Thought: From the result, we can infer that Andre Dirrell is Anthony Dirrell's brother. Now, we need to find out what title Andre Dirrell holds.
 Search: What is the Andre Dirrell title?
-Observation: super middleweight
-Thought: We've learned Andre Dirrell title is super middleweight. Now, we can answer the question.
+Result: He earned a bronze medal at the 1989 King's Cup and a gold medal in the 1995 edition. At the 1996 Summer Olympics he won a gold medal in the men's super middleweight category,
+Thought: From the result, we can infer that Andre Dirrell title is super middleweight. Now, we can answer the question.
 Final Answer: Andre Dirrell
 ##
 Question: What year was the party of the winner of the 1971 San Francisco mayoral election founded?
 Thought: Let's think step by step. To answer this question, we first need to know who won the 1971 San Francisco mayoral election.
 Search: Who won the 1971 San Francisco mayoral election?
-Observation: Joseph Alioto
-Thought: We've learned Joseph Alioto won the 1971 San Francisco mayoral election. Now, we need to find out what party he belongs to.
+Result: The San Francisco mayoral election of 1971 was held on November 2, 1971, with incumbent Joseph Alioto being re-elected with 38.6 percent of the vote.
+Thought: From the result, we can infer that Joseph Alioto won the 1971 San Francisco mayoral election. Now, we need to find out what party he belongs to.
 Search: What party does Joseph Alioto belong to?
-Observation: Democratic Party
-Thought: We've learned Democratic Party is the party of Joseph Alioto. Now, we need to find out when the Democratic Party was founded.
+Result: Democratic Party
+Thought: From the result, we can infer that Democratic Party is the party of Joseph Alioto. Now, we need to find out when the Democratic Party was founded.
 Search: When was the Democratic Party founded?
-Observation: 1828
-Thought: We've learned the Democratic Party was founded in 1828. Now, we can answer the question.
+Result: The Democratic Party was founded in 1828. Martin Van Buren, then serving as a senator from New York, played the central role in building the coalition of state organizations that formed a new party as a vehicle to help elect Andrew Jackson of Tennessee as president of the United States.
+Thought: From the result, we can infer that the Democratic Party was founded in 1828. Now, we can answer the question.
 Final Answer: 1828
 ##
 Question: Right Back At It Again contains lyrics co-written by the singer born in what city?
 Thought: Let's think step by step. To answer this question, we first need to know what song the question is referring to.
 Search: What is the song Right Back At It Again?
-Observation: "Right Back at It Again" is the song by A Day to Remember
-Thought: We've learned Right Back At It Again is a song by A Day to Remember. Now, we need to find out who co-wrote the song.
+Result: "Right Back at It Again" is the song by A Day to Remember
+Thought: From the result, we can infer that Right Back At It Again is a song by A Day to Remember. Now, we need to find out who co-wrote the song.
 Search: Who co-wrote the song Right Back At It Again?
-Observation: Jeremy McKinnon
-Thought: We've learned Jeremy McKinnon co-wrote the song Right Back At It Again. Now, we need to find out what city he was born in.
+Result: The song "Right Back At It Again" by A Day to Remember was co-written by Jeremy McKinnon, Tom Denney, Neil Westfall, and Andrew Wade.
+Thought: From the result, there are many co-writers. But I will make a guess that the question refers to Jeremy McKinnon. Now, we need to find out what city he was born in.
 Search: Where was Jeremy McKinnon born?
-Observation: Gainsville, Florida
-Thought: We've learned Gainsville, Florida is the city Jeremy McKinnon was born in. Now, we can answer the question.
+Result: Jeremy McKinnon age is 40 Years, his date of birth Dec 17, 1985, horoscope (will update soon), place of birth Gainesville, Florida, United States, nationality...
+Thought: From the result, we can infer that Gainsville, Florida is the city Jeremy McKinnon was born in. Now, we can answer the question.
 Final Answer: Gainsville, Florida
 ##
 Question: {question}
-Thought:
-{transcript}
+{transcripts}

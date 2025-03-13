@@ -5,20 +5,21 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 from utilities.language_models import Language_Model, Chat, Chat_Message
 from utilities.vector_dictionary import Vector_Text_Dictionary
-from .text_graph import Question_Node, Search_Node, Thought_Node
+from .text_graph import Question_Node, Search_Node, Thought_Node, Observation_Node
 
 
 class Sub_Action_Type(Enum):
     Answer = 1
     Search = 2
     Thought = 3
-    Sub_Question = 4
+    Observation = 4
+    Sub_Question = 5
 
 
 class Persona:
     def __init__(self, paragraphs):
         self.paragraphs = paragraphs
-        self.long_lm = Language_Model(max_length=1024, top_p=1, temperature=0)
+        self.long_lm = Language_Model(max_length=256, top_p=1, temperature=0)
         self.hippocampus = Vector_Text_Dictionary([p.paragraph_text for p in paragraphs], metadata=[p.idx for p in paragraphs])
 
         with open(os.path.join(dir_path, "prompt.txt"), "r") as file:
@@ -43,11 +44,14 @@ class Persona:
                     transcripts.append("Observation: Failed to answer")
             elif isinstance(node, Search_Node):
                 transcripts.append(f"Search: {node.search_query}")
-                transcripts.append(f"Observation: {node.search_result}")
+                transcripts.append(f"Result: {node.search_result}")
             elif isinstance(node, Thought_Node):
                 transcripts.append(f"Thought: {node.thought}")
+            elif isinstance(node, Observation_Node):
+                transcripts.append(f"Observation: {node.observation}")
 
-        text_response = self.long_lm.complete_text(self.prompt.format(question, "\n".join(transcripts)))
+
+        text_response = self.long_lm.complete_text(self.prompt.format(question=question, transcripts="\n".join(transcripts)))
         # get the first part before newline
         text_response = text_response.split("\n")[0]
         if text_response.startswith("Final Answer:"):
@@ -56,6 +60,8 @@ class Persona:
             return Sub_Action_Type.Search, text_response[7:]
         elif text_response.startswith("Thought:"):
             return Sub_Action_Type.Thought, text_response[8:]
+        elif text_response.startswith("Observation:"):
+            return Sub_Action_Type.Observation, text_response[13:]
         elif text_response.startswith("Sub-Question:"):
             return Sub_Action_Type.Sub_Question, text_response[13:]
         
