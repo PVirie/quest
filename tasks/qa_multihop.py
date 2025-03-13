@@ -89,6 +89,12 @@ if __name__ == "__main__":
     experiment_path = "/app/experiments/qa_multihop"
     answer_path = f"{experiment_path}/answers.jsonl"
 
+    if args.reset:
+        # remove the answer file
+        if os.path.exists(answer_path):
+            os.remove(answer_path)
+        exit()
+
     os.makedirs(experiment_path, exist_ok=True)
 
     # load dataset, 

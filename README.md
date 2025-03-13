@@ -35,10 +35,12 @@ An implementation of agentic systems with quest graphs.
 ## Run experiments
 
 -   By default, use program script `./run_manual.sh {configuration} {path to file} {optional flags}` to execute the python file with the selected configuration. (See table below.)
+    -   To clear the cache and reset the experiment, use `./run_manual.sh {configuration} {path to file} --reset`.
 -   For VSCode, press `F5` to run the selected configuration:
     -   launch `torch-cpu` for torch in cpu environment
     -   launch `torch-cuda` for torch in CUDA environment.
     -   launch `torch-rocm` for torch in ROCm environment.
+    -   launch `reset` to clear the cache and reset the experiment.
 -   Running on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
 
@@ -48,6 +50,7 @@ An implementation of agentic systems with quest graphs.
 | **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/qa_multihop.py`  |
 | **TextWorld**    | Run the TextWorld RL experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_textworld.py` |
 | **ALFWorld**     | Run the ALFWorld RL experiment.                         | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_alfworld.py`  |
+| **Any**          | Reset the selected experiment.                          | `reset`                                 | Any task                |
 
 ### Environment Variables
 
@@ -70,7 +73,7 @@ Apart from the above environment variables, you must also include third-party AP
     -   [x] manual flow
     -   [x] vector dictionary (simulate hippocampus)
 -   [x] ReAct
--   [ ] dynamic hierarchy
+-   [ ] ReAct with dynamic hierarchy (similar to Least-to-most prompting)
 
 ### Backends
 

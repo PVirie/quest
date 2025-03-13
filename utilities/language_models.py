@@ -148,7 +148,9 @@ elif deployment_type == "local-hf":
                 "top_p": top_p,
                 "truncation": True,
                 "do_sample": True,
-                "stop_strings": ["\n"]
+                "stop_strings": ["\n"],
+                "tokenizer": self.tokenizer,
+                "return_full_text": False
             }
         
         def complete_chat(self, chat: Chat):

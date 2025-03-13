@@ -1,6 +1,16 @@
 {
     "configurations": [
         {
+            "name": "reset",
+            "type": "debugpy",
+            "request": "attach",
+            "preLaunchTask": "Current file: reset",
+            "connect": {
+                "host": "127.0.0.1",
+                "port": 43690
+            }
+        },
+        {
             "name": "torch-cpu",
             "type": "debugpy",
             "request": "attach",

@@ -84,7 +84,7 @@ if __name__ == "__main__":
     env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100)
     env = textworld.gym.make(env_id)
 
-    from implementations.rl_text_torch.agent_neural import NeuralAgent
+    from implementations.example_tw_agents.agent_neural import NeuralAgent
 
     # agent = RandomAgent()
     agent = NeuralAgent()

@@ -32,6 +32,23 @@
             "isBackground": false
         },
         {
+            "label": "Current file: reset",
+            "type": "shell",
+            "command": "docker compose -f docker_compose.yaml --profile torch-cpu run --rm -d --build --service-ports torch-cpu-service python3 -m debugpy --listen 0.0.0.0:43690 --wait-for-client ${relativeFile} --reset",
+            "dependsOn": ["docker-compose-stop: torch-cpu"],
+            "isBackground": true,
+            "problemMatcher": [
+                {
+                    "pattern": [{ "regexp": ".", "file": 1, "location": 2, "message": 3 }],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": "^(Building py-service)$",
+                        "endsPattern": "^(Creating|Recreating|Starting) (py-container) ... (done)$"
+                    }
+                }
+            ]
+        },
+        {
             "label": "docker-compose-stop: torch-cuda",
             "type": "shell",
             "command": "docker compose -f docker_compose.yaml down",
