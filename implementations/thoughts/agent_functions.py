@@ -9,14 +9,14 @@ class Answer:
         self.support_paragraph_indices = support_paragraph_indices
 
 
-def basic_tree(persona, nodes: Text_Node_List) -> Tuple[Action, Node, Union[Direction, Direction_List]]:
+def basic_tree(persona, nodes: Node_List) -> Tuple[Action, Node, Union[Direction, Direction_List]]:
     focus_node = nodes[0]
     child_nodes = focus_node.get_children()
     for child in child_nodes:
         if isinstance(child, Question_Node) and not child.is_answered():
             return Action.ANSWER, None, child
         
-    subact, detail = persona.act(focus_node.question, child_nodes.get())
+    subact, detail = persona.think(focus_node.question, child_nodes.get())
     if len(child_nodes) >= 10:
         return Action.ANSWER, None, focus_node.get_parent()
     elif subact == Sub_Action_Type.Answer:

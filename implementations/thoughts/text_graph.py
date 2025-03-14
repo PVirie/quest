@@ -1,6 +1,5 @@
 from quest_interface import Node, Node_List, Direction, Direction_List
 
-from enum import Enum
 
 class Text_Node_List(Node_List, Direction_List):
     def __init__(self, nodes):

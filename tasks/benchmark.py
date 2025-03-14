@@ -78,7 +78,7 @@ print(f"Chat completion time: {end_stamp - start_stamp:.4f} seconds")
 
 
 from utilities.embedding_models import embed
-from utilities.vector_dictionary import Vector_Text_Dictionary
+from utilities.contextual_memory import Vector_Text_Dictionary
 
 start_stamp = time.time()
 pivots = Vector_Text_Dictionary(paragraphs=["Homo sapien", "Canis lupus familiaris", "Felis catus"])

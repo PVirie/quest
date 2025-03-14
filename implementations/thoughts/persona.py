@@ -4,7 +4,7 @@ import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 from utilities.language_models import Language_Model, Chat, Chat_Message
-from utilities.vector_dictionary import Vector_Text_Dictionary
+from utilities.contextual_memory import Vector_Text_Dictionary
 from .text_graph import Question_Node, Search_Node, Thought_Node, Observation_Node
 
 
@@ -26,7 +26,7 @@ class Persona:
             self.prompt = file.read()
 
 
-    def act(self, question, supports):
+    def think(self, question, supports):
         # supports is a list of sub (question, answer)
         # return sub_act, detail
         # if return Answer, just use all the information to compute the answer

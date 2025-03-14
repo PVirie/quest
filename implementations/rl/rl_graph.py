@@ -15,15 +15,11 @@ class RL_Node_List(Node_List, Direction_List):
         return len(self.nodes)
 
     def get(self):
-        return [(node.get_quest(), node.get_response()) for node in self.nodes]
-    
+        return [node for node in self.nodes]
 
 
 class RL_Node(Node, Direction):
-    def __init__(self, is_fulfilled, quest, response):
-        self.is_fulfilled = is_fulfilled
-        self.quest = quest
-        self.response = response
+    def __init__(self):
         self.parent = None
         self.children = []
 
@@ -37,12 +33,7 @@ class RL_Node(Node, Direction):
             return directions
         
     def set(self, other):
-        if other.is_fulfilled is not None:
-            self.is_fulfilled = other.is_fulfilled
-        if other.quest is not None:
-            self.quest = other.quest
-        if other.response is not None:
-            self.response = other.response
+        pass
 
     def attach_to(self, others):
         for other in others:
@@ -54,14 +45,67 @@ class RL_Node(Node, Direction):
 
     def get_children(self):
         return RL_Node_List(self.children)
+    
+
+class Quest_Node(RL_Node):
+    def __init__(self, quest=None, result=None):
+        super().__init__()
+        self.quest = quest
+        self.result = result
+
+    def set(self, another):
+        # check same class
+        if not isinstance(another, self.__class__):
+            return
+        if another.quest is not None:
+            self.quest = another.quest
+        if another.result is not None:
+            self.result = another.result
 
     def is_fulfilled(self):
-        return self.is_fulfilled
+        return self.result is not None
     
-    def get_quest(self):
-        return self.quest
-    
-    def get_response(self):
-        return self.response
+
+class Status_Node(RL_Node):
+    def __init__(self, status=None, result=None):
+        super().__init__()
+        self.status = status
+        self.result = result
+
+    def set(self, another):
+        # check same class
+        if not isinstance(another, self.__class__):
+            return
+        if another.status is not None:
+            self.status = another.status
+        if another.result is not None:
+            self.result = another.result
 
 
+class Thought_Node(RL_Node):
+    def __init__(self, thought=None):
+        super().__init__()
+        self.thought = thought
+
+    def set(self, another):
+        # check same class
+        if not isinstance(another, self.__class__):
+            return
+        if another.thought is not None:
+            self.thought = another.thought
+
+
+class Observation_Node(RL_Node):
+    def __init__(self, action=None, observation=None):
+        super().__init__()
+        self.action = action
+        self.observation = observation
+
+    def set(self, another):
+        # check same class
+        if not isinstance(another, self.__class__):
+            return
+        if another.action is not None:
+            self.action = another.action
+        if another.observation is not None:
+            self.observation = another.observation

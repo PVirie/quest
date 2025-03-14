@@ -62,3 +62,17 @@ class Vector_Text_Dictionary:
 
     def get_metadata(self, para_index):
         return self.metadata[para_index]
+    
+
+class Hippocampus:
+
+    def __init__(self):
+        self.memory = {}
+
+
+    def store(self, key, value):
+        self.memory[key] = value
+
+
+    def retrieve(self, key):
+        return self.memory[key]

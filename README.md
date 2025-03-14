@@ -74,6 +74,7 @@ Apart from the above environment variables, you must also include third-party AP
     -   [x] vector dictionary (simulate hippocampus)
 -   [x] ReAct
 -   [ ] ReAct with dynamic hierarchy (similar to Least-to-most prompting)
+-   [ ] RL module
 
 ### Backends
 
@@ -81,6 +82,8 @@ Apart from the above environment variables, you must also include third-party AP
 -   [x] ROCm support
 -   [x] LiteLLM
 -   [x] vLLM API
+-   [ ] Flash Attention
+-   [ ] GPTQ
 
 ### Experiments
 
