@@ -3,7 +3,9 @@ import os
 import torch
 from pydantic import BaseModel
 from typing import List
-
+import json
+import time
+import logging
 
 class Chat_Message(BaseModel):
     role: str
@@ -82,6 +84,44 @@ elif deployment_type == "cloud-api-raw":
 
     cloud_endpoint = os.getenv("CLOUD_ENDPOINT", None)
     cloud_api_key = os.getenv("CLOUD_API_KEY", None)
+    cloud_status_endpoint = os.getenv("CLOUD_STATUS_ENDPOINT", None)
+
+
+    def wait_for_result(response):
+        poll_interval = 1
+        try:
+            response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+            job = response.json()
+            job_id = job["id"]
+
+            headers = {
+                "Authorization": f"Bearer {cloud_api_key}",
+                "Content-Type": "application/json",
+            }
+            for i in range(60):
+                status_response = requests.get(cloud_status_endpoint + job_id, headers=headers)
+                status_response.raise_for_status()
+                job_status = status_response.json()
+
+                if job_status["status"] == "COMPLETED":
+                    return job_status["output"]
+                elif job_status["status"] == "FAILED":
+                    raise Exception(f"RunPod job failed: {job_status['error']}")
+                elif job_status["status"] == "IN_QUEUE" or job_status["status"] == "IN_PROGRESS":
+                    logging.info(f"Job status: {job_status['status']}. Polling again in {poll_interval} seconds.")
+                    time.sleep(poll_interval)
+                else:
+                    raise Exception(f"Unexpected job status: {job_status['status']}")
+                
+                poll_interval = min(2 * poll_interval, 10)
+
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Request error: {e}")
+        except json.JSONDecodeError as e:
+            raise Exception(f"JSON decode error: {e}")
+
+        raise Exception(f"Job did not complete in time. Last status: {job_status['status']}")
+
 
     class Language_Model:
         def __init__(self, max_length=1024, top_p=0.95, temperature=0.6):
@@ -100,9 +140,10 @@ elif deployment_type == "cloud-api-raw":
                 "input": {"prompt": user_prompt},
                 "sampling_params": self.sampling_params
             })
-            text = response.json()['output'][0]['choices'][0]['tokens'][0]
-            return text
+            output = wait_for_result(response)
+            return output[0]['choices'][0]['tokens'][0]
         
+
         def complete_chat(self, chat: Chat):
             messages = chat.serialize()
             response = requests.post(cloud_endpoint, headers={
@@ -112,7 +153,8 @@ elif deployment_type == "cloud-api-raw":
                 "input": {"messages": messages},
                 "sampling_params": self.sampling_params
             })
-            text = response.json()['output'][0]['choices'][0]['tokens'][0]
+            output = wait_for_result(response)
+            text = output[0]['choices'][0]['tokens'][0]
             return text
 
 elif deployment_type == "local-hf":

@@ -92,3 +92,22 @@ Apart from the above environment variables, you must also include third-party AP
 -   [x] Reinforcement learning
     -   [x] [TextWorld](https://github.com/microsoft/TextWorld) environment
     -   [x] [ALFWorld](https://github.com/alfworld/alfworld) environment
+
+## Note
+
+### Language models
+
+These models seem to work with the given instructions:
+
+-   openai/gpt-4o
+-   Qwen/Qwen2.5-7B-Instruct
+-   deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+
+### Embedding models
+
+-   text-embedding-3-large
+-   ibm-granite/granite-embedding-125m-english
+
+Test
+
+-   [ ] intfloat/multilingual-e5-large-instruct
