@@ -39,13 +39,7 @@ if deployment_type == "cloud-api-litellm":
     import litellm
     from litellm import text_completion, completion, embedding
 
-    cloud_endpoint = os.getenv("CLOUD_ENDPOINT", None)
-    cloud_api_key = os.getenv("CLOUD_API_KEY", None)
-
-    if cloud_endpoint is not None:
-        litellm.api_base = cloud_endpoint
-    if cloud_api_key is not None:
-        litellm.api_key = cloud_api_key
+    provider_api_key = os.getenv("QUEST_LM_API_KEY", None)
 
     class Language_Model:
         def __init__(self, max_length=1024, top_p=0.95, temperature=0.6):
@@ -61,7 +55,8 @@ if deployment_type == "cloud-api-litellm":
                 max_tokens=self.max_length,
                 top_p=self.top_p,
                 temperature=self.temperature,
-                stop=["\n"]
+                stop=["\n"],
+                api_key=provider_api_key
             )
             text = response.choices[0].text
             return text
@@ -73,19 +68,20 @@ if deployment_type == "cloud-api-litellm":
                 messages=messages,
                 max_tokens=self.max_length,
                 top_p=self.top_p,
-                temperature=self.temperature
+                temperature=self.temperature,
+                api_key=provider_api_key
             )
             text = response.choices[0].message.content
             return text
 
-elif deployment_type == "cloud-api-raw":
+elif deployment_type == "cloud-api-runpod":
     install("requests")
     import requests
 
-    cloud_endpoint = os.getenv("CLOUD_ENDPOINT", None)
-    cloud_api_key = os.getenv("CLOUD_API_KEY", None)
-    cloud_status_endpoint = os.getenv("CLOUD_STATUS_ENDPOINT", None)
-
+    runpod_api_key = os.getenv("QUEST_LM_API_KEY", None)
+    model_name = os.getenv("QUEST_LM_MODEL")
+    runpod_endpoint = f"https://api.runpod.ai/v2/{model_name}/run"
+    runpod_status_endpoint = f"https://api.runpod.ai/v2/{model_name}/status/"
 
     def wait_for_result(response):
         poll_interval = 1
@@ -95,11 +91,11 @@ elif deployment_type == "cloud-api-raw":
             job_id = job["id"]
 
             headers = {
-                "Authorization": f"Bearer {cloud_api_key}",
+                "Authorization": f"Bearer {runpod_api_key}",
                 "Content-Type": "application/json",
             }
             for i in range(60):
-                status_response = requests.get(cloud_status_endpoint + job_id, headers=headers)
+                status_response = requests.get(runpod_status_endpoint + job_id, headers=headers)
                 status_response.raise_for_status()
                 job_status = status_response.json()
 
@@ -133,9 +129,9 @@ elif deployment_type == "cloud-api-raw":
             }
 
         def complete_text(self, user_prompt):
-            response = requests.post(cloud_endpoint, headers={
+            response = requests.post(runpod_endpoint, headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {cloud_api_key}"
+                "Authorization": f"Bearer {runpod_api_key}"
             }, json={
                 "input": {"prompt": user_prompt},
                 "sampling_params": self.sampling_params
@@ -146,9 +142,9 @@ elif deployment_type == "cloud-api-raw":
 
         def complete_chat(self, chat: Chat):
             messages = chat.serialize()
-            response = requests.post(cloud_endpoint, headers={
+            response = requests.post(runpod_endpoint, headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {cloud_api_key}"
+                "Authorization": f"Bearer {runpod_api_key}"
             }, json={
                 "input": {"messages": messages},
                 "sampling_params": self.sampling_params

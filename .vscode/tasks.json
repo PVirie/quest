@@ -54,7 +54,7 @@
             "type": "pickString",
             "id": "configuration",
             "description": "Select configuration",
-            "options": ["torch-cpu", "torch-cuda", "torch-rocm", "torch-rocm-gptq"],
+            "options": ["torch-cpu", "torch-cuda", "torch-rocm"],
             "default": "torch-cpu"
         }
     ]

@@ -54,16 +54,16 @@ An implementation of agentic systems with quest graphs.
 
 ### Environment Variables
 
-| Environment Variables        | Description                          | Values                                                                     |
-| ---------------------------- | ------------------------------------ | -------------------------------------------------------------------------- |
-| `QUEST_LM_DEPLOYMENT`        | Use language model via API vs local. | "cloud-api-litellm", "cloud-api-raw", "local-hf"                           |
-| `QUEST_LM_MODEL`             | Language model name.                 | Ex. "openai/gpt-4", "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"            |
-| `QUEST_EMBEDDING_DEPLOYMENT` | Use embedding model via API.         | "cloud-api-litellm", "local-hf"                                            |
-| `QUEST_EMBEDDING_MODEL`      | Embedding model name.                | Ex. "text-embedding-3-small", "ibm-granite/granite-embedding-125m-english" |
-| `CLOUD_ENDPOINT`             | Override service provider API.       | URI                                                                        |
-| `CLOUD_API_KEY`              | Service provider API key.            | string                                                                     |
+| Environment Variables        | Description                                                              | Values                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `QUEST_LM_DEPLOYMENT`        | Use language model via API vs local.                                     | "cloud-api-litellm", "cloud-api-runpod", "local-hf"                         |
+| `QUEST_LM_MODEL`             | Language model name.                                                     | e.g. "openai/gpt-4", "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"            |
+| `QUEST_LM_API_KEY`           | Language model service provider API key. (Or use provider' own variable) | string                                                                      |
+| `QUEST_EMBEDDING_DEPLOYMENT` | Use embedding model via API.                                             | "cloud-api-litellm", "local-hf"                                             |
+| `QUEST_EMBEDDING_MODEL`      | Embedding model name.                                                    | e.g. "text-embedding-3-small", "ibm-granite/granite-embedding-125m-english" |
+| `QUEST_EMBEDDING_API_KEY`    | Embedding service provider API key. (Or use provider' own variable)      | string                                                                      |
 
-Apart from the above environment variables, you must also include third-party API keys in the `secrets.env` file in order to use their services.
+Apart from the above environment variables, you must also include _third-party API_ keys in the `secrets.env` file in order to use their services.
 
 ## To do
 
@@ -73,7 +73,7 @@ Apart from the above environment variables, you must also include third-party AP
     -   [x] manual flow
     -   [x] vector dictionary (simulate hippocampus)
 -   [x] ReAct
--   [ ] ReAct with dynamic hierarchy (similar to Least-to-most prompting)
+-   [x] ReAct with dynamic hierarchy
 -   [ ] RL module
 
 ### Backends
@@ -82,7 +82,7 @@ Apart from the above environment variables, you must also include third-party AP
 -   [x] ROCm support
 -   [x] LiteLLM
 -   [x] vLLM API
--   [ ] GPTQ
+-   [ ] GPTQ (The model outputs NaNs. Need to wait for support. When it arrives and is tested, just add `torch-rocm-gptq` to the `tasks.json` list of input configurations.)
 
 ### Experiments
 
@@ -99,14 +99,11 @@ Apart from the above environment variables, you must also include third-party AP
 These models seem to work with the given instructions:
 
 -   openai/gpt-4o, openai/gpt-4o-mini
--   Qwen/Qwen2.5-7B-Instruct, Qwen/Qwen2.5-7B-Instruct-GPTQ-Int8
+-   Qwen/Qwen2.5-7B-Instruct
 -   deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B, deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
 
 ### Embedding models
 
 -   text-embedding-3-large
 -   ibm-granite/granite-embedding-125m-english
-
-Test
-
--   [ ] intfloat/multilingual-e5-large-instruct
+-   intfloat/multilingual-e5-large-instruct
