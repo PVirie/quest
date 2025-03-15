@@ -14,7 +14,7 @@ from quest_interface import Quest_Graph, Action
 from implementations.thoughts import agent_functions, text_graph
 from implementations.thoughts.persona import Persona
 
-with open("/app/prompt_directory/react.txt", "r") as file:
+with open("/app/prompt_directory/react_tree.txt", "r") as file:
     prompt = file.read()
 
 from utilities import musique_classes, install

@@ -106,16 +106,3 @@ class Thought_Node(Text_Node):
             return
         if another.thought is not None:
             self.thought = another.thought
-
-
-class Observation_Node(Text_Node):
-    def __init__(self, observation=None):
-        super().__init__()
-        self.observation = observation
-
-    def set(self, another):
-        # check same class
-        if not isinstance(another, self.__class__):
-            return
-        if another.observation is not None:
-            self.observation = another.observation
