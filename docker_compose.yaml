@@ -13,6 +13,7 @@ services:
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
             - ./implementations:/app/implementations
+            - ./prompt_directory:/app/prompt_directory
             - ./utilities:/app/utilities
             - ./tasks:/app/tasks
         environment:
@@ -40,6 +41,7 @@ services:
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
             - ./implementations:/app/implementations
+            - ./prompt_directory:/app/prompt_directory
             - ./utilities:/app/utilities
             - ./tasks:/app/tasks
         environment:
@@ -74,6 +76,7 @@ services:
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
             - ./implementations:/app/implementations
+            - ./prompt_directory:/app/prompt_directory
             - ./utilities:/app/utilities
             - ./tasks:/app/tasks
         environment:
@@ -106,6 +109,7 @@ services:
             - ./artifacts/pip_modules:/app/pip_modules
             - ./quest_interface:/app/quest_interface
             - ./implementations:/app/implementations
+            - ./prompt_directory:/app/prompt_directory
             - ./utilities:/app/utilities
             - ./tasks:/app/tasks
         environment:

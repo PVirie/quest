@@ -14,6 +14,9 @@ from quest_interface import Quest_Graph, Action
 from implementations.thoughts import agent_functions, text_graph
 from implementations.thoughts.persona import Persona
 
+with open("/app/prompt_directory/react.txt", "r") as file:
+    prompt = file.read()
+
 from utilities import musique_classes, install
 
 musique_path = "/app/cache/musique_data"
@@ -49,11 +52,10 @@ def evaluate(answer_path, dev_file_path):
     return json_obj
 
 
-
 def compute(record, verbose=False):
 
     working_memory = Quest_Graph(text_graph.Question_Node(record.question, None))
-    persona = Persona(record.paragraphs)
+    persona = Persona(record.paragraphs, prompt)
     while True:
         action, param_1, param_2 = agent_functions.basic_tree(persona, working_memory.query())
         if action == Action.ANSWER:

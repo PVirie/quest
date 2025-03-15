@@ -1,8 +1,4 @@
 from enum import Enum
-import os
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
-
 from utilities.language_models import Language_Model, Chat, Chat_Message
 from utilities.contextual_memory import Vector_Text_Dictionary
 from .text_graph import Question_Node, Search_Node, Thought_Node, Observation_Node
@@ -17,13 +13,11 @@ class Sub_Action_Type(Enum):
 
 
 class Persona:
-    def __init__(self, paragraphs):
+    def __init__(self, paragraphs, prompt):
         self.paragraphs = paragraphs
         self.long_lm = Language_Model(max_length=256, top_p=1, temperature=0)
         self.hippocampus = Vector_Text_Dictionary([p.paragraph_text for p in paragraphs], metadata=[p.idx for p in paragraphs])
-
-        with open(os.path.join(dir_path, "prompt.txt"), "r") as file:
-            self.prompt = file.read()
+        self.prompt = prompt
 
 
     def think(self, question, supports):
