@@ -4,7 +4,35 @@ services:
         build:
             dockerfile: ./Dockerfile.pure-python
             context: .
-        container_name: quest-python-cpu
+        container_name: thinking-pure-python
+        restart: no
+        volumes:
+            - ./artifacts/log:/app/log
+            - ./artifacts/cache:/app/cache
+            - ./artifacts/experiments:/app/experiments
+            - ./artifacts/pip_modules:/app/pip_modules
+            - ./quest_interface:/app/quest_interface
+            - ./implementations:/app/implementations
+            - ./prompt_directory:/app/prompt_directory
+            - ./utilities:/app/utilities
+            - ./tasks:/app/tasks
+        environment:
+            - ERROR_LOG=/app/log/error.log
+            - LOG_LEVEL=info
+            - PYTHONUNBUFFERED=TRUE
+            - TF_CPP_MIN_LOG_LEVEL=0
+        env_file:
+            - ./secrets.env
+        ports:
+            - "127.0.0.1:43690:43690"
+        networks:
+            - app_network
+    torch-cpu-service:
+        profiles: ["torch-cpu"]
+        build:
+            dockerfile: ./Dockerfile.torch-cpu
+            context: .
+        container_name: thinking-torch-cpu
         restart: no
         volumes:
             - ./artifacts/log:/app/log
@@ -32,7 +60,7 @@ services:
         build:
             dockerfile: ./Dockerfile.torch-cuda
             context: .
-        container_name: thinking-cuda-torch
+        container_name: thinking-torch-cuda
         restart: no
         volumes:
             - ./artifacts/log:/app/log
@@ -67,7 +95,7 @@ services:
         build:
             dockerfile: ./Dockerfile.torch-rocm
             context: .
-        container_name: thinking-rocm-torch
+        container_name: thinking-torch-rocm
         restart: no
         volumes:
             - ./artifacts/log:/app/log
@@ -95,12 +123,12 @@ services:
             - /dev/dri
         security_opt:
             - seccomp:unconfined
-    torch-cpu-service:
-        profiles: ["torch-cpu"]
+    torch-rocm-gptq-service:
+        profiles: ["torch-rocm"]
         build:
-            dockerfile: ./Dockerfile.torch-cpu
+            dockerfile: ./Dockerfile.torch-rocm-gptq
             context: .
-        container_name: thinking-cpu-torch
+        container_name: thinking-torch-rocm-gptq
         restart: no
         volumes:
             - ./artifacts/log:/app/log
@@ -123,6 +151,11 @@ services:
             - "127.0.0.1:43690:43690"
         networks:
             - app_network
+        devices:
+            - /dev/kfd
+            - /dev/dri
+        security_opt:
+            - seccomp:unconfined
 networks:
     app_network:
         driver: bridge

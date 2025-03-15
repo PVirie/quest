@@ -162,26 +162,30 @@ elif deployment_type == "local-hf":
     os.environ['HF_HOME'] = '/app/cache/hf_home'
     install("transformers")
 
-    from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+    from transformers import AutoTokenizer, AutoModelForCausalLM, TextGenerationPipeline
 
     class Language_Model:
 
         def __init__(self, max_length=1024, top_p=0.95, temperature=0.6):
+            
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.model_name = os.getenv("QUEST_LM_MODEL")
+            
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name, 
                 trust_remote_code=True,
-                # torch_dtype=torch.float16,
-                # use_flash_attention_2=True
+                torch_dtype=torch.float16
+            ).to(self.device)
+
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self.model_name, 
+                trust_remote_code=True,
+                use_fast=True
             )
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
-            
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            self.generator = pipeline(
-                'text-generation',
+
+            self.generator = TextGenerationPipeline(
                 model=self.model,
-                tokenizer=self.tokenizer,
-                device=device
+                tokenizer=self.tokenizer
             )
 
             self.generation_args = {
@@ -198,7 +202,7 @@ elif deployment_type == "local-hf":
         def complete_chat(self, chat: Chat):
             messages = chat.serialize()
             obj = self.generator(messages, **self.generation_args)
-            return obj[0]['generated_text'][-1]['content']
+            return obj[0]['generated_text']
         
         def complete_text(self, user_prompt:str):
             return self.generator(user_prompt, **self.generation_args)[0]['generated_text']

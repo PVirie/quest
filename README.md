@@ -82,7 +82,6 @@ Apart from the above environment variables, you must also include third-party AP
 -   [x] ROCm support
 -   [x] LiteLLM
 -   [x] vLLM API
--   [ ] Flash Attention
 -   [ ] GPTQ
 
 ### Experiments
@@ -99,9 +98,9 @@ Apart from the above environment variables, you must also include third-party AP
 
 These models seem to work with the given instructions:
 
--   openai/gpt-4o
--   Qwen/Qwen2.5-7B-Instruct
--   deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+-   openai/gpt-4o, openai/gpt-4o-mini
+-   Qwen/Qwen2.5-7B-Instruct, Qwen/Qwen2.5-7B-Instruct-GPTQ-Int8
+-   deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B, deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
 
 ### Embedding models
 

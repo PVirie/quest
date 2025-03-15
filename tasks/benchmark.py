@@ -45,7 +45,7 @@ loop_selu_jit(x)
 print(f"JITted loop SELUs took {time.time() - start_time:.4f} seconds")
 
 
-if torch.cuda.is_available():
+if torch.cuda.is_available() and torch.__version__ >= "2.4.0":
     # test torch compile
     loop_selu_compiled = torch.compile(loop_selu)
     loop_selu_compiled(x) # compiles on first call
