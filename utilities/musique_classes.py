@@ -11,7 +11,7 @@ class Paragraph(Serializable):
         self.idx = idx
         self.title = title
         self.paragraph_text = paragraph_text
-        if "is_supporting" is not None:
+        if is_supporting is not None:
             self.is_supporting = is_supporting
         else:
             self.is_supporting = None
@@ -37,7 +37,7 @@ class Question_Record(Record):
         self.paragraphs = [Paragraph(**paragraph) for paragraph in paragraphs]
         self.question = question
 
-        if "answer" is not None:
+        if answer is not None:
             self.question_decomposition = [Support(**support) for support in question_decomposition]
             self.answer = answer
             self.answer_aliases = answer_aliases
