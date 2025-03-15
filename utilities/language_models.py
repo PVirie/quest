@@ -170,6 +170,7 @@ elif deployment_type == "local-hf":
             
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.model_name = os.getenv("QUEST_LM_MODEL")
+            self.is_gptq = "gptq" in self.model_name.lower()
             
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name, 
@@ -195,15 +196,23 @@ elif deployment_type == "local-hf":
                 "do_sample": True,
                 "stop_strings": ["\n"],
                 "tokenizer": self.tokenizer,
-                "truncation": True,
-                "return_full_text": False,
             }
         
         def complete_chat(self, chat: Chat):
             messages = chat.serialize()
-            obj = self.generator(messages, **self.generation_args)
-            return obj[0]['generated_text']
+            if self.is_gptq:
+                text = self.tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True
+                )
+                return self.tokenizer.decode(self.model.generate(**self.tokenizer(text, return_tensors="pt").to(self.model.device), **self.generation_args)[0])
+            else:
+                return self.generator(messages, return_full_text=False, **self.generation_args)[0]['generated_text']
             
         def complete_text(self, user_prompt:str):
-            return self.generator(user_prompt, **self.generation_args)[0]['generated_text']
+            if self.is_gptq:
+                return self.tokenizer.decode(self.model.generate(**self.tokenizer(user_prompt, return_tensors="pt").to(self.model.device), **self.generation_args)[0])
+            else:
+                return self.generator(user_prompt, return_full_text=False, **self.generation_args)[0]['generated_text']
         
