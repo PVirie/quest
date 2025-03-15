@@ -34,5 +34,15 @@ Result: Jeremy McKinnon age is 40 Years, his date of birth Dec 17, 1985, horosco
 Thought: From the result, we can infer that Gainsville, Florida is the city Jeremy McKinnon was born in. Now, we can answer the question.
 Final Answer: Gainsville, Florida
 ##
+Question: Whose navigator father explored the east coast of the region where Steve Roger was later born?
+Thought: To answer the final question, we need to know the region where Steve Roger was born. Because this is a simple question, we can search directly.
+Search: Where Steve Roger was born?
+Result: When Steve Roger was born on 31 July 1932, in England.
+Thought: From the result, we can infer that Steve Roger was born in England. Now we need to find out whose navigator father explored the east coast of England. Because this is a compound question, we need to use use Sub-Question.
+Sub-Question: Who is the navigator that his father explored the east coast of England?
+Result: James Picard
+Thought: From the result we can infer that James Picard is the navigator whose father explored the east coast of England. Now, we can answer the question.
+Final Answer: James Picard
+##
 Question: {question}
 {transcripts}

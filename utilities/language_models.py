@@ -192,19 +192,18 @@ elif deployment_type == "local-hf":
                 "max_new_tokens": max_length,
                 "temperature": temperature + 0.01,
                 "top_p": top_p,
-                "truncation": True,
                 "do_sample": True,
                 "stop_strings": ["\n"],
                 "tokenizer": self.tokenizer,
-                "return_full_text": False
+                "truncation": True,
+                "return_full_text": False,
             }
         
         def complete_chat(self, chat: Chat):
             messages = chat.serialize()
             obj = self.generator(messages, **self.generation_args)
             return obj[0]['generated_text']
-        
+            
         def complete_text(self, user_prompt:str):
             return self.generator(user_prompt, **self.generation_args)[0]['generated_text']
-
-
+        

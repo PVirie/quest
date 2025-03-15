@@ -30,11 +30,15 @@ if len(os.listdir(musique_path)) == 0:
 
 
 def load_data_records(data_path):
-    data_records = []
+    data_records = {}
     # jsonl file
     with open(data_path, 'r') as f:
         for line in f:
-            data_records.append(musique_classes.Question_Record(json.loads(line)))
+            json_line = json.loads(line)
+            record = musique_classes.Question_Record(**json_line)
+            # if not record.id.startswith("4hop"):
+            #     continue
+            data_records[record.id] = record
     return data_records
 
 
@@ -104,24 +108,27 @@ if __name__ == "__main__":
     # use musique_ans_v1.0_train.jsonl to train
     # use musique_ans_v1.0_test.jsonl to generate submission results
     data_records = load_data_records(f"{musique_data_path}/musique_ans_v1.0_dev.jsonl")
-    # print(data_records[10])
+    total = len(data_records)
 
-    start = 0
     if not args.reset and os.path.exists(answer_path):
         # continue from the last record
         with open(answer_path, 'r') as f:
             for line in f:
-                start += 1
+                line_json = json.loads(line)
+                record = musique_classes.Answer_Record(**line_json)
+                data_records.pop(record.id, None)
 
-    for i, record in enumerate(data_records[start:], start):
+    while len(data_records) > 0:
+        record_id, record = data_records.popitem()
         # generate answer here
         answer_record = compute(record, verbose=False)
         with open(answer_path, 'a') as f:
             f.write(json.dumps(answer_record.to_json()) + "\n")
 
+        i = total - len(data_records)
         # print every 100 records
         if i % 100 == 0:
-            logging.info(f"Record {i}/{len(data_records)} done")
+            logging.info(f"Record {i}/{total} done")
 
     # evaluate result
     result = evaluate(answer_path, f"{musique_data_path}/musique_ans_v1.0_dev.jsonl")

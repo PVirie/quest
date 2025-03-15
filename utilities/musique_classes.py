@@ -7,41 +7,41 @@ class Serializable:
 
 
 class Paragraph(Serializable):
-    def __init__(self, json_obj):
-        self.idx = json_obj["idx"]
-        self.title = json_obj["title"]
-        self.paragraph_text = json_obj["paragraph_text"]
-        if "is_supporting" in json_obj:
-            self.is_supporting = json_obj["is_supporting"]
+    def __init__(self, idx: int, title: str, paragraph_text: str, is_supporting: bool = None):
+        self.idx = idx
+        self.title = title
+        self.paragraph_text = paragraph_text
+        if "is_supporting" is not None:
+            self.is_supporting = is_supporting
         else:
             self.is_supporting = None
 
 
 class Support(Serializable):
-    def __init__(self, json_obj):
-        self.id = json_obj["id"]
-        self.question = json_obj["question"]
-        self.answer = json_obj["answer"]
-        self.paragraph_support_idx = json_obj["paragraph_support_idx"]
+    def __init__(self, id: int, question: str, answer: str, paragraph_support_idx: int):
+        self.id = id
+        self.question = question
+        self.answer = answer
+        self.paragraph_support_idx = paragraph_support_idx
 
 
 class Record(Serializable):
-    def __init__(self, id):
+    def __init__(self, id: str):
         self.id = id
 
 
 # {"id": "2hop__640262_122868", "question": "...", "paragraphs": [{"idx": 19, "title": "Chevrolet Camaro", "paragraph_text": "The Chevrolet..."}], "question_decomposition": [{"id": 640262, "question": "1967: The Last Good Year >> author", "answer": "Pierre Berton", "paragraph_support_idx": 0}, {"id": 122868, "question": "What is the university where #1 went?", "answer": "University of British Columbia", "paragraph_support_idx": 2}], "answer": "University of British Columbia", "answer_aliases": ["The University of British Columbia"], "answerable": true}
 class Question_Record(Record):
-    def __init__(self, json_obj):
-        super().__init__(json_obj["id"])
-        self.paragraphs = [Paragraph(paragraph) for paragraph in json_obj["paragraphs"]]
-        self.question = json_obj["question"]
+    def __init__(self, id: str, question: str, paragraphs: List[dict], answer: str = None, answer_aliases: List[str] = None, answerable: bool = None, question_decomposition: List[dict] = None):
+        super().__init__(id)
+        self.paragraphs = [Paragraph(**paragraph) for paragraph in paragraphs]
+        self.question = question
 
-        if "answer" in json_obj:
-            self.question_decomposition = [Support(support) for support in json_obj["question_decomposition"]]
-            self.answer = json_obj["answer"]
-            self.answer_aliases = json_obj["answer_aliases"]
-            self.answerable = json_obj["answerable"]
+        if "answer" is not None:
+            self.question_decomposition = [Support(**support) for support in question_decomposition]
+            self.answer = answer
+            self.answer_aliases = answer_aliases
+            self.answerable = answerable
         else:
             self.answer = None
             self.question_decomposition = None

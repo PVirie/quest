@@ -11,6 +11,12 @@ class Sub_Action_Type(Enum):
     Sub_Question = 5
 
 
+def extract_detail(text):
+    detail = text.split(":")[1].strip()
+    # remove space and '#'
+    return detail.strip().replace("#", "")
+
+
 class Persona:
     def __init__(self, paragraphs, prompt):
         self.paragraphs = paragraphs
@@ -31,10 +37,7 @@ class Persona:
         for node in supports:
             if isinstance(node, Question_Node):
                 transcripts.append(f"Sub-Question: {node.question}")
-                if node.is_answered():
-                    transcripts.append(f"Result: {node.answer}")
-                else:
-                    transcripts.append("Result: Failed to answer")
+                transcripts.append(f"Result: {node.answer}")
             elif isinstance(node, Search_Node):
                 transcripts.append(f"Search: {node.search_query}")
                 transcripts.append(f"Result: {node.search_result}")
@@ -45,16 +48,16 @@ class Persona:
         text_response = self.long_lm.complete_text(self.prompt.format(question=question, transcripts="\n".join(transcripts)))
         # get the first part before newline
         text_response = text_response.split("\n")[0]
-        if text_response.startswith("Final Answer:"):
-            return Sub_Action_Type.Answer, text_response[13:]
-        elif text_response.startswith("Search:"):
-            return Sub_Action_Type.Search, text_response[7:]
-        elif text_response.startswith("Thought:"):
-            return Sub_Action_Type.Thought, text_response[8:]
-        elif text_response.startswith("Sub-Question:"):
-            return Sub_Action_Type.Sub_Question, text_response[13:]
+        if text_response.startswith("Final Answer"):
+            return Sub_Action_Type.Answer, extract_detail(text_response)
+        elif text_response.startswith("Search"):
+            return Sub_Action_Type.Search, extract_detail(text_response)
+        elif text_response.startswith("Thought"):
+            return Sub_Action_Type.Thought, extract_detail(text_response)
+        elif text_response.startswith("Sub-Question"):
+            return Sub_Action_Type.Sub_Question, extract_detail(text_response)
         
-        return None, None
+        return Sub_Action_Type.Answer, "Failed to find an answer due to invalid tool invocation."
 
 
     def search(self, search_term):
