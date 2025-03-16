@@ -18,7 +18,7 @@ def basic_tree(persona, nodes: Node_List) -> Tuple[Action, Node, Union[Direction
         
     subact, detail = persona.think(focus_node.question, child_nodes.get())
     if len(child_nodes) >= 10:
-        return Action.ANSWER, None, focus_node.get_parent()
+        return Action.ANSWER, Question_Node(None, "Failed to find an answer."), focus_node.get_parent()
     elif subact == Sub_Action_Type.Answer:
         return Action.ANSWER, Question_Node(None, detail), focus_node.get_parent()
     elif subact == Sub_Action_Type.Search:
@@ -29,4 +29,4 @@ def basic_tree(persona, nodes: Node_List) -> Tuple[Action, Node, Union[Direction
     elif subact == Sub_Action_Type.Sub_Question:
         return Action.DISCOVER, Question_Node(detail, None), Text_Node_List([focus_node])
     else:
-        return Action.ANSWER, None, focus_node.get_parent()
+        return Action.ANSWER, Question_Node(None, "Failed to find an answer."), focus_node.get_parent()
