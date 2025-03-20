@@ -3,13 +3,15 @@ import sys
 import subprocess
 import numpy as np
 from typing import Any, Mapping
-import yaml
 
 import torch
 
 import utilities
 
 utilities.install('alfworld')
+utilities.install('yaml')
+
+import yaml
 
 from alfworld.agents.environment import get_environment
 import alfworld.agents.modules.generic as generic

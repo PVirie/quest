@@ -1,10 +1,35 @@
 import subprocess
+import os
 import sys
 import logging
 import importlib.util
 import re
  
-sys.path.append('/app/pip_modules')
+# get python version
+python_version = sys.version_info
+
+# add the path to the local pip modules
+pip_modules_paths = []
+pip_modules_paths.append('/app/pip_modules/local/bin')
+pip_modules_paths.append('/app/pip_modules/local/lib/python{0}/site-packages'.format(python_version.major))
+pip_modules_paths.append('/app/pip_modules/local/lib/python{0}/dist-packages'.format(python_version.major))
+pip_modules_paths.append('/app/pip_modules/local/lib/python{0}.{1}/site-packages'.format(python_version.major, python_version.minor))
+pip_modules_paths.append('/app/pip_modules/local/lib/python{0}.{1}/dist-packages'.format(python_version.major, python_version.minor))
+
+for path in pip_modules_paths:
+    if path not in sys.path:
+        sys.path.append(path)
+
+# also append to PYTHONPATH
+os.environ['PYTHONPATH'] = os.environ.get('PYTHONPATH', '') + ":" + ":".join(pip_modules_paths)
+
+# also append bin path to PATH
+os.environ['PATH'] = os.environ.get('PATH', '') + ":" + pip_modules_paths[0]
+
+# add link from python to python3
+if not os.path.exists('/usr/bin/python'):
+    os.symlink('/usr/bin/python3', '/usr/bin/python')
+
 logging.basicConfig(level=logging.INFO)
 
 def install(package):
@@ -46,4 +71,4 @@ def install(package):
 
     if not matched:
         logging.warning(f"Installing: {package}")
-        subprocess.check_call(["pip3", "install", package, "--target", "/app/pip_modules"])
+        subprocess.check_call(["pip3", "install", package, "--prefix", "/app/pip_modules"])

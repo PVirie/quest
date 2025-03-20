@@ -35,6 +35,7 @@ An implementation of agentic systems with quest graphs.
 ## Run experiments
 
 -   By default, use program script `./run_manual.sh {configuration} {path to file} {optional flags}` to execute the python file with the selected configuration. (See table below.)
+    -   The program **may fail** to run on the first attempt due to the failure to find package directories. If this happens, run the program again.
     -   To clear the cache and reset the experiment, use `./run_manual.sh {configuration} {path to file} --reset`.
 -   For VSCode, press `F5` to run the selected configuration:
     -   launch `torch-cpu` for torch in cpu environment
