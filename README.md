@@ -38,9 +38,10 @@ An implementation of agentic systems with quest graphs.
     -   The program **may fail** to run on the first attempt due to the failure to find package directories. If this happens, run the program again.
     -   To clear the cache and reset the experiment, use `./run_manual.sh {configuration} {path to file} --reset`.
 -   For VSCode, press `F5` to run the selected configuration:
-    -   launch `torch-cpu` for torch in cpu environment
-    -   launch `torch-cuda` for torch in CUDA environment.
-    -   launch `torch-rocm` for torch in ROCm environment.
+    -   launch `pytorch current file` to run the experiment in the opening file. You will also need to choose the configuration from the dropdown list.
+        -   `torch-cpu` for torch in cpu environment
+        -   `torch-cuda` for torch in CUDA environment.
+        -   `torch-rocm` for torch in ROCm environment.
     -   launch `reset` to clear the cache and reset the experiment.
 -   Running on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
@@ -49,8 +50,8 @@ An implementation of agentic systems with quest graphs.
 | ---------------- | ------------------------------------------------------- | --------------------------------------- | ----------------------- |
 | **Test devices** | Run the test to compare the performance of the devices. | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/benchmark.py`    |
 | **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/qa_multihop.py`  |
-| **TextWorld**    | Run the TextWorld RL experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_textworld.py` |
-| **ALFWorld**     | Run the ALFWorld RL experiment.                         | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_alfworld.py`  |
+| **TextWorld**    | Run the TextWorld experiment.                           | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_textworld.py` |
+| **ALFWorld**     | Run the ALFWorld experiment.                            | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_alfworld.py`  |
 | **Any**          | Reset the selected experiment.                          | `reset`                                 | Any task                |
 
 ### Environment Variables
@@ -75,7 +76,7 @@ Apart from the above environment variables, you must also include _third-party A
     -   [x] vector dictionary (simulate hippocampus)
 -   [x] ReAct
 -   [x] ReAct with dynamic hierarchy
--   [ ] RL module
+-   [ ] Non-markovian RL module
 
 ### Backends
 
@@ -89,7 +90,7 @@ Apart from the above environment variables, you must also include _third-party A
 
 -   [x] Multi-hop Q&A
     -   [x] [Musique Dataset](https://github.com/StonyBrookNLP/musique) loader
--   [x] Reinforcement learning
+-   [x] Non-Markovian Reinforcement learning
     -   [x] [TextWorld](https://github.com/microsoft/TextWorld) environment
     -   [x] [ALFWorld](https://github.com/alfworld/alfworld) environment
 

@@ -21,7 +21,10 @@ os.makedirs(textworld_path, exist_ok=True)
 
 if len(os.listdir(textworld_path)) == 0:
     # tw-make custom --world-size 5 --nb-objects 10 --quest-length 5 --seed 1234 --output tw_games/custom_game.z8
-    subprocess.run(["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_path}/games/default/custom_game.z8"])
+    # subprocess.run(["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_path}/games/default/custom_game.z8"])
+    # tw-make tw-simple --rewards dense  --goal detailed --seed 18 --test --silent -f --output tw_games/tw-rewardsDense_goalDetailed.z8
+    subprocess.run(["tw-make", "tw-simple", "--rewards", "dense", "--goal", "detailed", "--seed", "18", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsDense_goalDetailed_18.z8"])
+    subprocess.run(["tw-make", "tw-simple", "--rewards", "dense", "--goal", "detailed", "--seed", "19", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsDense_goalDetailed_19.z8"])
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -34,9 +37,21 @@ class RandomAgent(textworld.gym.Agent):
     def act(self, obs: str, score: int, done: bool, infos: Mapping[str, Any]) -> str:
         return self.rng.choice(infos["admissible_commands"])
 
+MAX_VOCAB_SIZE = 1000
+tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device)
 
 def play(env, agent, nb_episodes=10, verbose=True):
     torch.manual_seed(20211021)  # For reproducibility when using action sampling.
+
+    def prepare_tensors(obs, infos):
+        # Build agent's observation: feedback + look + inventory.
+        input_ = "{}\n{}\n{}".format(obs, infos["description"], infos["inventory"])
+
+        # Tokenize and pad the input and the commands to chose from.
+        state_tensor = tokenizer([input_])
+        action_list_tensor = tokenizer(infos["admissible_commands"])
+
+        return state_tensor, action_list_tensor
 
     # Collect some statistics: nb_steps, final reward.
     avg_moves, avg_scores, avg_norm_scores = [], [], []
@@ -47,11 +62,13 @@ def play(env, agent, nb_episodes=10, verbose=True):
         done = False
         nb_moves = 0
         while not done:
-            command = agent.act(obs, score, done, infos)
+            state_tensor, action_list_tensor = prepare_tensors(obs, infos)
+            command = agent.act(state_tensor, action_list_tensor, score, done, infos)
             obs, score, done, infos = env.step(command)
             nb_moves += 1
 
-        agent.act(obs, score, done, infos)  # Let the agent know the game is done.
+        state_tensor, action_list_tensor = prepare_tensors(obs, infos)
+        agent.act(state_tensor, action_list_tensor, score, done, infos)  # Let the agent know the game is done.
 
         if verbose:
             print(".", end="")
@@ -67,7 +84,7 @@ def play(env, agent, nb_episodes=10, verbose=True):
 
 if __name__ == "__main__":
 
-    game_path = f"{textworld_path}/games/default/custom_game.z8"
+    game_path = f"{textworld_path}/games/default/tw-rewardsDense_goalDetailed_18.z8"
 
     request_infos = textworld.EnvInfos(
         facts=True,  # All the facts that are currently true about the world.
@@ -87,10 +104,10 @@ if __name__ == "__main__":
     from implementations.example_tw_agents.agent_neural import NeuralAgent
 
     # agent = RandomAgent()
-    agent = NeuralAgent()
+    agent = NeuralAgent(input_size=MAX_VOCAB_SIZE, device=device)
     play(env, agent, nb_episodes=100, verbose=True)
     agent.train()
-    play(env, agent, nb_episodes=1000, verbose=False)
+    play(env, agent, nb_episodes=500, verbose=False)
     agent.test()
     play(env, agent, nb_episodes=100, verbose=True)
     env.close()
