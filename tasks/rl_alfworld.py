@@ -78,8 +78,8 @@ def play(env, agent, nb_episodes=10, verbose=True):
         avg_scores.append(score)
 
     if verbose:
-        msg = "  \tavg. steps: {:5.1f}; avg. score: {:4.1f} / {}."
-        print(msg.format(np.mean(avg_moves), np.mean(avg_scores), infos["max_score"]))
+        msg = "  \tavg. steps: {:5.1f}; avg. score: {:4.1f}."
+        print(msg.format(np.mean(avg_moves), np.mean(avg_scores)))
 
 
 if __name__ == "__main__":

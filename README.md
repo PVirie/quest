@@ -46,13 +46,13 @@ An implementation of agentic systems with quest graphs.
 -   Running on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
 
-| Experiment       | Description                                             | Valid configurations (pick one)         | Path to file (--flags)  |
+| Experiment       | Description                                             | Valid configurations (pick one)         | Path to file (+flags)   |
 | ---------------- | ------------------------------------------------------- | --------------------------------------- | ----------------------- |
 | **Test devices** | Run the test to compare the performance of the devices. | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/benchmark.py`    |
 | **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/qa_multihop.py`  |
 | **TextWorld**    | Run the TextWorld experiment.                           | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_textworld.py` |
 | **ALFWorld**     | Run the ALFWorld experiment.                            | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_alfworld.py`  |
-| **Any**          | Reset the selected experiment.                          | `reset`                                 | Any task                |
+| **Any**          | Reset the selected experiment.                          | Any                                     | Any with `--reset`      |
 
 ### Environment Variables
 

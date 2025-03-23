@@ -1,14 +1,23 @@
 
 
-
+"""
+Batched version of the Persona class.
+Now size = 1
+"""
 
 def prepare_tensors(tokenizer, obs, infos):
     # Build agent's observation: feedback + look + inventory.
-    input_ = "{}\n{}\n{}".format(obs, infos["description"], infos["inventory"])
+    # input_ = "{}\n{}\n{}".format(obs, infos["description"], infos["inventory"])
+    if isinstance(obs, str):
+        input_ = obs
+        commands = infos["admissible_commands"]
+    elif isinstance(obs, tuple):
+        input_ = obs[0]
+        commands = infos["admissible_commands"][0]
 
     # Tokenize and pad the input and the commands to chose from.
     state_tensor = tokenizer([input_])
-    action_list_tensor = tokenizer(infos["admissible_commands"])
+    action_list_tensor = tokenizer(commands)
 
     return state_tensor, action_list_tensor
 
@@ -30,12 +39,14 @@ class Persona:
 
 
     def summarize(self, quest, supports):
+        # use LM
         return False, None
 
 
     def act(self, action):
         # forward to the environment and get observation
-        obs, score, done, infos = self.env.step(action)
+        # batch version, action is a list of size 1
+        obs, score, done, infos = self.env.step([action])
         return done, (obs, score, done, infos)
 
 

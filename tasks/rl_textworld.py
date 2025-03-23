@@ -100,7 +100,7 @@ if __name__ == "__main__":
         lost=True,                 # Whether the player has lost.
     )
 
-    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100)
+    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
     env = textworld.gym.make(env_id)
 
     from implementations.example_tw_agents.agent_neural import RandomAgent, NeuralAgent
