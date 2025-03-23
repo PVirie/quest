@@ -67,7 +67,7 @@ class NeuralAgent:
 
         # Get our next action and value prediction.
         outputs, indexes, values = self.model(state_tensor, action_list_tensor)
-        action = infos["admissible_commands"][0][indexes[0]]
+        action = infos["admissible_commands"][indexes[0]]
 
         if self.mode == "test":
             if done:

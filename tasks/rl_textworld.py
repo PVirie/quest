@@ -40,12 +40,22 @@ tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device)
 def play(env, agent, nb_episodes=10, verbose=True):
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
 
-    persona = Persona(env, agent, tokenizer)
+    def flatten_batch(infos):
+        return {k: v[0] for k, v in infos.items()}
+
+    def env_step(action):
+        # adapter between non-batched and batched environment
+        obs, score, done, infos = env.step([action])
+        return obs[0], score[0], done[0], flatten_batch(infos)
+
+    persona = Persona(env_step, agent, tokenizer)
     
     # Collect some statistics: nb_steps, final reward.
     avg_moves, avg_scores = [], []
     for no_episode in range(nb_episodes):
         obs, infos = env.reset()  # Start new episode.
+        obs = obs[0]
+        infos = flatten_batch(infos)
         score = 0
         done = False
         nb_moves = 0

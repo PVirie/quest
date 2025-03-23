@@ -38,11 +38,18 @@ An implementation of agentic systems with quest graphs.
     -   The program **may fail** to run on the first attempt due to the failure to find package directories. If this happens, run the program again.
     -   To clear the cache and reset the experiment, use `./run_manual.sh {configuration} {path to file} --reset`.
 -   For VSCode, press `F5` to run the selected configuration:
-    -   launch `pytorch current file` to run the experiment in the opening file. You will also need to choose the configuration from the dropdown list.
+    -   Launch `pytorch current file` to run the experiment in the opening file. You will also need to choose the configuration from the dropdown list.
         -   `torch-cpu` for torch in cpu environment
         -   `torch-cuda` for torch in CUDA environment.
         -   `torch-rocm` for torch in ROCm environment.
-    -   launch `reset` to clear the cache and reset the experiment.
+    -   Launch `reset` to clear the cache and reset the experiment.
+    -   To assist pylance, add paths to local install python packages in `.vscode/settings.json`:
+        ```json
+        {
+            "python.analysis.extraPaths": [...]
+        }
+        ```
+        -   Note that when building docker, python packages required for the experiment will be installed under `artifacts/pip_modules` directory. Except for pytorch, which will be installed in the docker image. To fix pylance, either refer to local install pytorch or use virtual environment on top.
 -   Running on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
 
