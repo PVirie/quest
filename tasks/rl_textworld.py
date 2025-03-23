@@ -28,53 +28,55 @@ if len(os.listdir(textworld_path)) == 0:
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-class RandomAgent(textworld.gym.Agent):
-    """ Agent that randomly selects a command from the admissible ones. """
-    def __init__(self, seed=1234):
-        self.seed = seed
-        self.rng = np.random.RandomState(self.seed)
 
-    def act(self, obs: str, score: int, done: bool, infos: Mapping[str, Any]) -> str:
-        return self.rng.choice(infos["admissible_commands"])
+from quest_interface import Quest_Graph, Action
+from implementations.rl_torch import agent_functions, rl_graph
+from implementations.rl_torch.persona import Persona
+
 
 MAX_VOCAB_SIZE = 1000
 tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device)
 
 def play(env, agent, nb_episodes=10, verbose=True):
-    torch.manual_seed(20211021)  # For reproducibility when using action sampling.
+    torch.manual_seed(20250301)  # For reproducibility when using action sampling.
 
-    def prepare_tensors(obs, infos):
-        # Build agent's observation: feedback + look + inventory.
-        input_ = "{}\n{}\n{}".format(obs, infos["description"], infos["inventory"])
-
-        # Tokenize and pad the input and the commands to chose from.
-        state_tensor = tokenizer([input_])
-        action_list_tensor = tokenizer(infos["admissible_commands"])
-
-        return state_tensor, action_list_tensor
-
+    persona = Persona(env, agent, tokenizer)
+    
     # Collect some statistics: nb_steps, final reward.
-    avg_moves, avg_scores, avg_norm_scores = [], [], []
+    avg_moves, avg_scores = [], []
     for no_episode in range(nb_episodes):
         obs, infos = env.reset()  # Start new episode.
-
         score = 0
         done = False
         nb_moves = 0
-        while not done:
-            state_tensor, action_list_tensor = prepare_tensors(obs, infos)
-            command = agent.act(state_tensor, action_list_tensor, score, done, infos)
-            obs, score, done, infos = env.step(command)
-            nb_moves += 1
 
-        state_tensor, action_list_tensor = prepare_tensors(obs, infos)
-        agent.act(state_tensor, action_list_tensor, score, done, infos)  # Let the agent know the game is done.
+        root_node = rl_graph.Quest_Node(None, None)
+        working_memory = Quest_Graph(root_node)
+        working_memory.discover(rl_graph.Observation_Node(None, (obs, score, done, infos)), root_node)
+
+        while True:
+            action, param_1, param_2 = agent_functions.basic_tree(persona, working_memory.query())
+            if action == Action.ANSWER:
+                working_memory.respond(param_1, param_2)
+                if param_2 is None:
+                    if param_1 is None:
+                        break
+            elif action == Action.DISCOVER:
+                working_memory.discover(param_1, param_2)
+                if len(working_memory) > 100:
+                    break
+                nb_moves += 1
+            else:
+                raise ValueError("Invalid action")
 
         if verbose:
             print(".", end="")
+
+        last_observation = root_node.get_last_child().observation
+        score = last_observation[1]
+
         avg_moves.append(nb_moves)
         avg_scores.append(score)
-        avg_norm_scores.append(score / infos["max_score"])
 
     if verbose:
         msg = "  \tavg. steps: {:5.1f}; avg. score: {:4.1f} / {}."
@@ -101,8 +103,7 @@ if __name__ == "__main__":
     env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100)
     env = textworld.gym.make(env_id)
 
-    from implementations.example_tw_agents.agent_neural import NeuralAgent
-
+    from implementations.example_tw_agents.agent_neural import RandomAgent, NeuralAgent
     # agent = RandomAgent()
     agent = NeuralAgent(input_size=MAX_VOCAB_SIZE, device=device)
     play(env, agent, nb_episodes=100, verbose=True)

@@ -10,6 +10,16 @@ from torch import optim
 import torch.nn.functional as F
 
 
+class RandomAgent:
+    """ Agent that randomly selects a command from the admissible ones. """
+    def __init__(self, seed=1234):
+        self.seed = seed
+        self.rng = np.random.RandomState(self.seed)
+
+    def act(self, obs: str, score: int, done: bool, infos: Mapping[str, Any]) -> str:
+        return self.rng.choice(infos["admissible_commands"])
+
+
 class NeuralAgent:
     """ Simple Neural Agent for playing TextWorld games. """
     UPDATE_FREQUENCY = 10
