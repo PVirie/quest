@@ -36,9 +36,14 @@ from implementations.rl_torch.persona import Persona
 MAX_VOCAB_SIZE = 1000
 tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device)
 
-def play(env, agent, nb_episodes=10, verbose=True):
+def play(env, agent, nb_episodes=10, verbose=True, train=False):
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
 
+    if train:
+        agent.train()
+    else:
+        agent.test()
+        
     def flatten_batch(infos):
         return {k: v[0] for k, v in infos.items()}
 

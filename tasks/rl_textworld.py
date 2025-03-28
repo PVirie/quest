@@ -37,8 +37,13 @@ from implementations.rl_torch.persona import Persona
 MAX_VOCAB_SIZE = 1000
 tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device)
 
-def play(env, agent, nb_episodes=10, verbose=True):
+def play(env, agent, nb_episodes=10, verbose=True, train=False):
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
+
+    if train:
+        agent.train()
+    else:
+        agent.test()
 
     def flatten_batch(infos):
         return {k: v[0] for k, v in infos.items()}
@@ -117,8 +122,6 @@ if __name__ == "__main__":
     # agent = RandomAgent()
     agent = NeuralAgent(input_size=MAX_VOCAB_SIZE, device=device)
     play(env, agent, nb_episodes=100, verbose=True)
-    agent.train()
-    play(env, agent, nb_episodes=500, verbose=False)
-    agent.test()
+    play(env, agent, nb_episodes=500, verbose=False, train=True)
     play(env, agent, nb_episodes=100, verbose=True)
     env.close()
