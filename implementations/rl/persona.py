@@ -57,7 +57,7 @@ class Persona:
         infos = None
         for node in supports:
             if isinstance(node, Quest_Node):
-                contexts.append(f"Sub-Task: {node.quest}")
+                contexts.append(f"Sub Task: {node.quest}")
                 if node.is_fulfilled():
                     contexts.append(f"Result: {node.result}")
                 else:
@@ -69,27 +69,34 @@ class Persona:
                 obs, score, done, infos = node.observation
                 contexts.append(f"Observation: {obs}")
 
+        lm_response = ""
         if self.use_lm:
             text_response = self.long_lm.complete_text(self.prompt.format(quest=quest, contexts="\n".join(contexts)))
-            text_response = text_response.split("\n")[0]
-        else:
-            text_response = f"Action: {random.choice(infos["admissible_commands"])}"
+            # get the first part before newline
+            lm_response = text_response.split("\n")[0]
 
-        # get the first part before newline
-        if text_response.startswith("Final Respond"):
-            return Sub_Action_Type.Fulfill, extract_detail(text_response)
-        elif text_response.startswith("Thought"):
-            return Sub_Action_Type.Thought, extract_detail(text_response)
-        elif text_response.startswith("Sub-Task"):
-            return Sub_Action_Type.Relegate, extract_detail(text_response)
-        elif text_response.startswith("Action"):
-            if self.use_rl:
-                state_tensor, action_list_tensor = prepare_tensors(self.tokenizer, contexts, infos)
-                action = self.agent.act(state_tensor, action_list_tensor, score, done, infos)
-                return Sub_Action_Type.Act, action
+        rl_response = ""
+        if self.use_rl:
+            state_tensor, action_list_tensor = prepare_tensors(self.tokenizer, contexts, infos)
+            action = self.agent.act(state_tensor, action_list_tensor, score, done, infos)
+            if action.startswith("Sub Task"):
+                rl_response = action
             else:
-                return Sub_Action_Type.Act, extract_detail(text_response)
+                rl_response = f"Action: {action}"
         
+        if lm_response.startswith("Final Respond"):
+            return Sub_Action_Type.Fulfill, extract_detail(lm_response)
+        elif lm_response.startswith("Thought"):
+            return Sub_Action_Type.Thought, extract_detail(lm_response)
+        elif rl_response.startswith("Sub Task"):
+            return Sub_Action_Type.Relegate, extract_detail(rl_response)
+        elif rl_response.startswith("Action"):
+            return Sub_Action_Type.Act, extract_detail(rl_response)
+        elif lm_response.startswith("Sub Task"):
+            return Sub_Action_Type.Relegate, extract_detail(lm_response)
+        elif lm_response.startswith("Action"):
+            return Sub_Action_Type.Act, extract_detail(lm_response)
+
         return None, ""
 
 

@@ -30,8 +30,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 from quest_interface import Quest_Graph, Action
-from implementations.rl_torch import agent_functions, rl_graph
-from implementations.rl_torch.persona import Persona
+from implementations.rl import agent_functions, rl_graph
+from implementations.rl.persona import Persona
 
 
 MAX_VOCAB_SIZE = 1000
@@ -122,6 +122,6 @@ if __name__ == "__main__":
     # agent = RandomAgent()
     agent = NeuralAgent(input_size=MAX_VOCAB_SIZE, device=device)
     play(env, agent, nb_episodes=100, verbose=True)
-    # play(env, agent, nb_episodes=500, verbose=False, train=True)
-    # play(env, agent, nb_episodes=100, verbose=True)
+    play(env, agent, nb_episodes=500, verbose=False, train=True)
+    play(env, agent, nb_episodes=100, verbose=True)
     env.close()

@@ -29,8 +29,8 @@ if len(os.listdir(alfworld_path)) == 0:
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from quest_interface import Quest_Graph, Action
-from implementations.rl_torch import agent_functions, rl_graph
-from implementations.rl_torch.persona import Persona
+from implementations.rl import agent_functions, rl_graph
+from implementations.rl.persona import Persona
 
 
 MAX_VOCAB_SIZE = 1000
