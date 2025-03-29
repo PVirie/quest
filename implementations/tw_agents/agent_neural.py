@@ -2,7 +2,7 @@ from typing import List, Mapping, Any, Optional
 from collections import defaultdict
 import numpy as np
 
-from implementations.core.torch.recurrent import CommandScorer
+from implementations.core.torch.recurrent import Command_Scorer
 
 import torch
 import torch.nn as nn
@@ -30,7 +30,7 @@ class NeuralAgent:
         self._initialized = False
         self._epsiode_has_started = False
 
-        self.model = CommandScorer(input_size=input_size, hidden_size=128, device=device)
+        self.model = Command_Scorer(input_size=input_size, hidden_size=128, device=device)
         self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
 
         self.mode = "test"
@@ -62,7 +62,7 @@ class NeuralAgent:
 
     def act(self, state_tensor: Any, action_list_tensor: Any, score: int, done: bool, infos: Mapping[str, Any]) -> Optional[str]:
 
-        state_tensor = state_tensor.permute(1, 0) # Batch x Seq => Seq x Batch
+        state_tensor = state_tensor[0:1, :].permute(1, 0) # Batch x Seq => Seq x Batch
         action_list_tensor = action_list_tensor.permute(1, 0) # Batch x Seq => Seq x Batch
 
         # Get our next action and value prediction.

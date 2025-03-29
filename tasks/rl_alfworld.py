@@ -108,7 +108,7 @@ if __name__ == "__main__":
     # now quest graph does not support batched version
     env = env.init_env(batch_size=1)
 
-    from implementations.example_tw_agents.agent_neural import RandomAgent, NeuralAgent
+    from implementations.tw_agents.agent_neural import RandomAgent, NeuralAgent
     # agent = RandomAgent()
     agent = NeuralAgent(input_size=MAX_VOCAB_SIZE, device=device)
     play(env, agent, nb_episodes=100, verbose=True)

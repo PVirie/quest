@@ -6,9 +6,9 @@ import torch.nn.functional as F
 from .base import Q_Table
 
 
-class CommandScorer(nn.Module, Q_Table):
+class Command_Scorer(nn.Module, Q_Table):
     def __init__(self, input_size, hidden_size, device):
-        super(CommandScorer, self).__init__()
+        super(Command_Scorer, self).__init__()
 
         self.device = device
 

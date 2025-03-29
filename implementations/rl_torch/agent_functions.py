@@ -20,7 +20,8 @@ def basic_tree(persona, focus_node):
     else:
         is_env_done, observation = persona.act(request_action)
         if is_env_done:
-            persona.close(observation)
+            # Let the agent know the game is done.
+            is_compound_action, request_action = persona.think(focus_node, child_nodes + [Observation_Node(None, observation)])
             return Action.ANSWER, None, parent_node
         else:
             return Action.DISCOVER, Observation_Node(request_action, observation), focus_node

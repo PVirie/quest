@@ -122,6 +122,6 @@ if __name__ == "__main__":
     # agent = RandomAgent()
     agent = NeuralAgent(input_size=MAX_VOCAB_SIZE, device=device)
     play(env, agent, nb_episodes=100, verbose=True)
-    play(env, agent, nb_episodes=500, verbose=False, train=True)
-    play(env, agent, nb_episodes=100, verbose=True)
+    # play(env, agent, nb_episodes=500, verbose=False, train=True)
+    # play(env, agent, nb_episodes=100, verbose=True)
     env.close()
