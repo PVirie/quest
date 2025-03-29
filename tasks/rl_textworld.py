@@ -118,7 +118,7 @@ if __name__ == "__main__":
     env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
     env = textworld.gym.make(env_id)
 
-    from implementations.example_tw_agents.agent_neural import RandomAgent, NeuralAgent
+    from implementations.tw_agents.agent_neural import RandomAgent, NeuralAgent
     # agent = RandomAgent()
     agent = NeuralAgent(input_size=MAX_VOCAB_SIZE, device=device)
     play(env, agent, nb_episodes=100, verbose=True)

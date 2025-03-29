@@ -53,6 +53,19 @@ class Quest_Node(RL_Node):
         return self.result is not None
     
 
+class Thought_Node(RL_Node):
+    def __init__(self, thought=None):
+        super().__init__()
+        self.thought = thought
+
+    def set(self, another):
+        # check same class
+        if not isinstance(another, self.__class__):
+            return
+        if another.thought is not None:
+            self.thought = another.thought
+
+
 class Observation_Node(RL_Node):
     def __init__(self, action=None, observation=None):
         super().__init__()

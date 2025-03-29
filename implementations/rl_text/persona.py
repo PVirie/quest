@@ -62,7 +62,7 @@ class Persona:
             return Sub_Action_Type.Thought, text_response[8:]
         elif text_response.startswith("Act:"):
             return Sub_Action_Type.Act, text_response[4:]
-        elif text_response.startswith("Relegate:"):
+        elif text_response.startswith("Sub-Quest:"):
             return Sub_Action_Type.Relegate, text_response[9:]
         
         return None, None
