@@ -6,6 +6,8 @@ from typing import Any, Mapping
 
 import torch
 
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import utilities
 
 utilities.install('textworld')
@@ -13,8 +15,6 @@ utilities.install('textworld.gym')
 
 import textworld
 import textworld.gym
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 textworld_path = "/app/cache/textworld_data"
 os.makedirs(textworld_path, exist_ok=True)

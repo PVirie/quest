@@ -6,6 +6,8 @@ from typing import Any, Mapping
 
 import torch
 
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import utilities
 
 utilities.install('alfworld')
@@ -15,8 +17,6 @@ import yaml
 
 from alfworld.agents.environment import get_environment
 import alfworld.agents.modules.generic as generic
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 alfworld_path = "/app/cache/alfworld_data"
 os.environ['ALFWORLD_DATA'] = alfworld_path

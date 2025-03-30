@@ -86,13 +86,14 @@ class Hierarchy_Agent:
             entropy          = (-probs * log_probs).sum()
             loss            += policy_loss + 0.5 * value_loss - 0.1 * entropy
 
-        self.ave_loss = self.LOG_ALPHA * self.ave_loss + (1 - self.LOG_ALPHA) * loss.item()
+        if isinstance(loss, torch.Tensor):
+            self.ave_loss = self.LOG_ALPHA * self.ave_loss + (1 - self.LOG_ALPHA) * loss.item()
 
-        loss.backward()
-        nn.utils.clip_grad_norm_(self.model.parameters(), 40)
-        self.optimizer.step()
-        self.optimizer.zero_grad()
-        self.iteration += 1
+            loss.backward()
+            nn.utils.clip_grad_norm_(self.model.parameters(), 40)
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+            self.iteration += 1
 
         for _, tf in transitions:
             tf.release()
