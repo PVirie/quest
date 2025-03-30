@@ -13,12 +13,13 @@ torch.autograd.set_detect_anomaly(True)
 
 
 class Tensors_Ref:
-    def __init__(self, indexes, outputs, values):
+    def __init__(self, indexes, outputs, values, iteration=0):
         self.indexes = indexes
         self.outputs = outputs
         self.values = values
 
         self.has_released = False
+        self.iteration = iteration
 
     def release(self):
         self.indexes = None
@@ -33,10 +34,11 @@ class Hierarchy_Agent:
     GAMMA = 0.9
 
     def __init__(self, input_size, device) -> None:
-        self.model = Command_Scorer(input_size=input_size, hidden_size=128, device=device)
+        self.model = Command_Scorer(input_size=input_size, hidden_size=64, device=device)
         self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
 
         self.ave_loss = 0
+        self.iteration = 0
 
 
     def act(self, state_tensor: Any, action_list_tensor: Any, infos: Mapping[str, Any]) -> Optional[str]:
@@ -50,7 +52,7 @@ class Hierarchy_Agent:
         values = values[0, -1, :]
         action = infos["admissible_commands"][indexes]
 
-        return action, Tensors_Ref(indexes, outputs, values)
+        return action, Tensors_Ref(indexes, outputs, values, self.iteration)
 
 
     def _discount_rewards(self, last_values, transitions):
@@ -72,6 +74,9 @@ class Hierarchy_Agent:
         loss = 0
         for transition, ret, adv in zip(transitions, returns, advantages):
             reward_, tf = transition
+            if tf.iteration != self.iteration:
+                # skip
+                continue
             
             probs            = F.softmax(tf.outputs, dim=0)
             log_probs        = torch.log(probs)
@@ -87,6 +92,7 @@ class Hierarchy_Agent:
         nn.utils.clip_grad_norm_(self.model.parameters(), 40)
         self.optimizer.step()
         self.optimizer.zero_grad()
+        self.iteration += 1
 
         for _, tf in transitions:
             tf.release()

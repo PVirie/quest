@@ -138,8 +138,10 @@ class Persona:
                 if self.train:
                     if infos["won"]:
                         final_value = 100
-                    if infos["lost"]:
+                    elif infos["lost"]:
                         final_value = -100
+                    else:
+                        final_value = tf.values.item()
                     self.agent.train(final_value, transitions)
                 return Sub_Action_Type.Done, Quest_Node(None, "End", None, observation)
             else:
