@@ -11,49 +11,35 @@ import torch.nn.functional as F
 
 torch.autograd.set_detect_anomaly(True)
 
+
+class Tensors_Ref:
+    def __init__(self, indexes, outputs, values):
+        self.indexes = indexes
+        self.outputs = outputs
+        self.values = values
+
+        self.has_released = False
+
+    def release(self):
+        self.indexes = None
+        self.outputs = None
+        self.values = None
+
+        self.has_released = True
+
+
 class Hierarchy_Agent:
-    UPDATE_FREQUENCY = 10
-    LOG_FREQUENCY = 1000
     LOG_ALPHA=0.99
     GAMMA = 0.9
 
     def __init__(self, input_size, device) -> None:
-        self._initialized = False
-        self._epsiode_has_started = False
-
         self.model = Command_Scorer(input_size=input_size, hidden_size=128, device=device)
         self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
 
-        self.mode = "test"
-
-    def train(self):
-        self.mode = "train"
-        self.no_train_step = 1
         self.ave_loss = 0
 
-    def test(self):
-        self.mode = "test"
 
-
-    def _discount_rewards(self, last_values, transitions):
-        returns, advantages = [], []
-        R = last_values.item()
-        last_score = 0
-        rewards = []
-        for t in transitions:
-            rewards.append(t[0] - last_score)
-            last_score = t[0]
-        for t, r in zip(reversed(transitions), reversed(rewards)):
-            _, _, _, values = t
-            R = r + self.GAMMA * R
-            adv = (R - values).detach()
-            returns.append(R)
-            advantages.append(adv)
-
-        return returns[::-1], advantages[::-1]
-
-    def act(self, state_tensor: Any, action_list_tensor: Any, transitions: List[Any], infos: Mapping[str, Any]) -> Optional[str]:
-        # transitions is a list of (score, indexes, outputs, values)
+    def act(self, state_tensor: Any, action_list_tensor: Any, infos: Mapping[str, Any]) -> Optional[str]:
         state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
         action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
 
@@ -64,37 +50,50 @@ class Hierarchy_Agent:
         values = values[0, -1, :]
         action = infos["admissible_commands"][indexes]
 
-        if self.mode == "train":
-            self.no_train_step += 1
+        return action, Tensors_Ref(indexes, outputs, values)
 
-            if self.no_train_step % self.UPDATE_FREQUENCY == 0:
-                # Update model
-                returns, advantages = self._discount_rewards(values, transitions)
 
-                loss = 0
-                for transition, ret, advantage in zip(transitions, returns, advantages):
-                    score_, indexes_, outputs_, values_ = transition
+    def _discount_rewards(self, last_values, transitions):
+        # transitions is a list of (reward, Tensors_Ref(indexes, outputs, values))
+        returns, advantages = [], []
+        R = last_values.item() if isinstance(last_values, torch.Tensor) else last_values
+        for t in reversed(transitions):
+            r, tf = t
+            R = r + self.GAMMA * R
+            adv = R - tf.values.item()
+            returns.append(R)
+            advantages.append(adv)
 
-                    advantage        = advantage.detach() # Block gradients flow here.
-                    probs            = F.softmax(outputs_, dim=0)
-                    log_probs        = torch.log(probs)
-                    log_action_probs = log_probs[indexes_]
-                    policy_loss      = (-log_action_probs * advantage).sum()
-                    value_loss       = (.5 * (values_ - ret) ** 2.).sum()
-                    entropy     = (-probs * log_probs).sum()
-                    loss += policy_loss + 0.5 * value_loss - 0.1 * entropy
+        return returns[::-1], advantages[::-1]
 
-                self.ave_loss = self.LOG_ALPHA * self.ave_loss + (1 - self.LOG_ALPHA) * loss.item()
-                if self.no_train_step % self.LOG_FREQUENCY == 0:
-                    msg = "{:6d}. ".format(self.no_train_step)
-                    msg += "loss: {:5.2f}; ".format(self.ave_loss)
-                    print(msg)
-                
-                loss.backward()
-                nn.utils.clip_grad_norm_(self.model.parameters(), 40)
-                self.optimizer.step()
-                self.optimizer.zero_grad()
 
-            return action, indexes, outputs, values
-        else:
-            return action, None, None, None
+    def train(self, last_values, transitions: List[Any]):
+        returns, advantages = self._discount_rewards(last_values, transitions)
+        loss = 0
+        for transition, ret, adv in zip(transitions, returns, advantages):
+            reward_, tf = transition
+            
+            probs            = F.softmax(tf.outputs, dim=0)
+            log_probs        = torch.log(probs)
+            log_action_probs = log_probs[tf.indexes]
+            policy_loss      = (-log_action_probs * adv).sum()
+            value_loss       = (.5 * (tf.values - ret) ** 2.).sum()
+            entropy          = (-probs * log_probs).sum()
+            loss            += policy_loss + 0.5 * value_loss - 0.1 * entropy
+
+        self.ave_loss = self.LOG_ALPHA * self.ave_loss + (1 - self.LOG_ALPHA) * loss.item()
+
+        loss.backward()
+        nn.utils.clip_grad_norm_(self.model.parameters(), 40)
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+
+        for _, tf in transitions:
+            tf.release()
+
+
+    def print(self, step):
+        msg = "{:6d}. ".format(step)
+        msg += "loss: {:5.2f}; ".format(self.ave_loss)
+        print(msg)
+        

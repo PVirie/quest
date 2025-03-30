@@ -44,13 +44,17 @@ def extract_detail(text):
 
 
 class Persona:
-    def __init__(self, env_step, agent, tokenizer, prompt=None, use_rl=True):
+    TRAIN_STEP=10
+    PRINT_STEP=1000
+
+    def __init__(self, env_step, agent, tokenizer, prompt=None, use_rl=True, train=False):
         self.env_step = env_step
         self.agent = agent
         self.tokenizer = tokenizer
 
         self.use_rl = use_rl
         self.use_lm = False
+        self.train = train
 
         self.long_lm = None
         self.prompt = None
@@ -59,13 +63,16 @@ class Persona:
             self.long_lm = Language_Model(max_length=256, top_p=1, temperature=0)
             self.prompt = prompt
 
+        self.step = 0
+
 
     def think(self, quest_node, supports):
         # supports is a list of nodes
         quest = quest_node.quest
-        obs, score, done, infos, indexes, outputs, values = quest_node.start_observation
+        obs, score, done, infos, _ = quest_node.start_observation
         contexts = [f"Observation: {obs}"]
         transitions = []
+        last_score = score
         for node in supports:
             if isinstance(node, Quest_Node):
                 contexts.append(f"Sub Task: {node.quest}")
@@ -74,16 +81,20 @@ class Persona:
                 else:
                     contexts.append("Result: Failed")
                 # score, done, infos are the last score from the sub task
-                obs, score, done, infos, indexes, outputs, values = node.end_observation
-                transitions.append((score, indexes, outputs, values))
+                obs, score, done, infos, tf = node.end_observation
                 contexts.append(f"Observation: {obs}")
+                if not tf.has_released:
+                    transitions.append((score - last_score, tf))
+                last_score = score
             elif isinstance(node, Thought_Node):
                 contexts.append(f"Thought: {node.thought}")
             elif isinstance(node, Observation_Node):
                 contexts.append(f"Action: {node.action}")
-                obs, score, done, infos, indexes, outputs, values = node.observation
-                transitions.append((score, indexes, outputs, values))
+                obs, score, done, infos, tf = node.observation
                 contexts.append(f"Observation: {obs}")
+                if not tf.has_released:
+                    transitions.append((score - last_score, tf))
+                last_score = score
 
         lm_response = ""
         if self.use_lm:
@@ -94,7 +105,18 @@ class Persona:
         rl_response = ""
         if self.use_rl:
             state_tensor, action_list_tensor = prepare_tensors(self.tokenizer, [quest] + contexts, infos)
-            action, indexes, outputs, values = self.agent.act(state_tensor, action_list_tensor, transitions, infos)
+            action, tf = self.agent.act(state_tensor, action_list_tensor, infos)
+
+            if self.train:
+                self.step += 1
+                if len(transitions) >= self.TRAIN_STEP:
+                    self.agent.train(tf.values, transitions)
+
+                if self.step % self.PRINT_STEP == 0:
+                    self.agent.print(self.step)
+            else:
+                tf.release()
+
             if action.startswith("Sub Task"):
                 rl_response = action
             else:
@@ -111,18 +133,14 @@ class Persona:
         elif rl_response.startswith("Action"):
             action = extract_detail(rl_response)
             obs, score, done, infos = self.env_step(action)
-            observation = (obs, score, done, infos, indexes, outputs, values)
+            observation = (obs, score, done, infos, tf)
             if done:
-                return Sub_Action_Type.Done, Quest_Node(None, "End", None, observation)
-            else:
-                return Sub_Action_Type.Act, Observation_Node(action, observation)
-        elif lm_response.startswith("Sub Task"):
-            return Sub_Action_Type.Relegate, extract_detail(lm_response)
-        elif lm_response.startswith("Action"):
-            action = extract_detail(lm_response)
-            obs, score, done, infos = self.env_step(action)
-            observation = (obs, score, done, infos, None, None, None)
-            if done:
+                if self.train:
+                    if infos["won"]:
+                        final_value = 100
+                    if infos["lost"]:
+                        final_value = -100
+                    self.agent.train(final_value, transitions)
                 return Sub_Action_Type.Done, Quest_Node(None, "End", None, observation)
             else:
                 return Sub_Action_Type.Act, Observation_Node(action, observation)

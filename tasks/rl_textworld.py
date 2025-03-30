@@ -40,11 +40,6 @@ tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
 def play(env, agent, nb_episodes=10, verbose=True, train=False):
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
 
-    if train:
-        agent.train()
-    else:
-        agent.test()
-
     def flatten_batch(infos):
         return {k: v[0] for k, v in infos.items()}
 
@@ -53,7 +48,7 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         obs, score, done, infos = env.step([action])
         return obs[0], score[0], done[0], flatten_batch(infos)
 
-    persona = Persona(env_step, agent, tokenizer)
+    persona = Persona(env_step, agent, tokenizer, train=train)
     
     # Collect some statistics: nb_steps, final reward.
     avg_moves, avg_scores = [], []
@@ -65,7 +60,7 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         done = False
         nb_moves = 0
 
-        root_node = rl_graph.Quest_Node(infos["objective"], None, (obs, score, done, infos, None, None, None), None)
+        root_node = rl_graph.Quest_Node(infos["objective"], None, (obs, score, done, infos, None), None)
         working_memory = Quest_Graph(root_node)
 
         while True:
@@ -121,7 +116,7 @@ if __name__ == "__main__":
     # agent = Neural_Agent(input_size=MAX_VOCAB_SIZE, device=device)
     from implementations.tw_agents.hierarchy_agent import Hierarchy_Agent
     agent = Hierarchy_Agent(input_size=MAX_VOCAB_SIZE, device=device)
-    # play(env, agent, nb_episodes=100, verbose=True)
+    play(env, agent, nb_episodes=100, verbose=True)
     play(env, agent, nb_episodes=500, verbose=False, train=True)
     play(env, agent, nb_episodes=100, verbose=True)
     env.close()
