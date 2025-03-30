@@ -19,10 +19,10 @@ def prepare_tensors(tokenizer, obs_list, infos):
     # input_ = "{}\n{}\n{}".format(obs, infos["description"], infos["inventory"])
 
     # Tokenize and pad the input and the commands to chose from.
-    state_tensor = tokenizer(obs_list)
-    action_list_tensor = tokenizer(infos["admissible_commands"])
+    state_tensors = tokenizer(obs_list, stack=True)
+    action_list_tensor = tokenizer(infos["admissible_commands"], stack=True)
 
-    return state_tensor, action_list_tensor
+    return state_tensors, action_list_tensor
 
 
 def extract_detail(text):
@@ -77,7 +77,7 @@ class Persona:
 
         rl_response = ""
         if self.use_rl:
-            state_tensor, action_list_tensor = prepare_tensors(self.tokenizer, contexts, infos)
+            state_tensor, action_list_tensor = prepare_tensors(self.tokenizer, [quest] + contexts, infos)
             action = self.agent.act(state_tensor, action_list_tensor, score, done, infos)
             if action.startswith("Sub Task"):
                 rl_response = action

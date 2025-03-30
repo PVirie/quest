@@ -30,13 +30,18 @@ class Text_Tokenizer:
     def __len__(self):
         return len(self.id2word)
     
-    def __call__(self, texts):
+    def __call__(self, texts, stack=True):
         texts = list(map(self._tokenize, texts))
-        max_len = max(len(l) for l in texts)
-        padded = np.ones((len(texts), max_len)) * self.word2id["<PAD>"]
 
-        for i, text in enumerate(texts):
-            padded[i, :len(text)] = text
+        if stack:
+            max_len = max(len(l) for l in texts)
+            padded = np.ones((len(texts), max_len)) * self.word2id["<PAD>"]
 
-        padded_tensor = torch.from_numpy(padded).type(torch.long).to(self.device)
-        return padded_tensor
+            for i, text in enumerate(texts):
+                padded[i, :len(text)] = text
+
+            padded_tensor = torch.from_numpy(padded).type(torch.long).to(self.device)
+            return padded_tensor
+        else:
+            # return list of tensors instead
+            return [torch.from_numpy(np.array(text)).type(torch.long).to(self.device) for text in texts]

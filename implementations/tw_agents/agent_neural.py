@@ -10,7 +10,7 @@ from torch import optim
 import torch.nn.functional as F
 
 
-class RandomAgent:
+class Random_Agent:
     """ Agent that randomly selects a command from the admissible ones. """
     def __init__(self, seed=1234):
         self.seed = seed
@@ -20,7 +20,7 @@ class RandomAgent:
         return self.rng.choice(infos["admissible_commands"])
 
 
-class NeuralAgent:
+class Neural_Agent:
     """ Simple Neural Agent for playing TextWorld games. """
     UPDATE_FREQUENCY = 10
     LOG_FREQUENCY = 1000

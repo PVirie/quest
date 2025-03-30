@@ -35,7 +35,7 @@ from implementations.rl.persona import Persona
 
 
 MAX_VOCAB_SIZE = 1000
-tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device)
+tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
 
 def play(env, agent, nb_episodes=10, verbose=True, train=False):
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
@@ -59,13 +59,13 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
     avg_moves, avg_scores = [], []
     for no_episode in range(nb_episodes):
         obs, infos = env.reset()  # Start new episode.
-        obs = obs[0]
         infos = flatten_batch(infos)
+        obs = infos["description"]
         score = 0
         done = False
         nb_moves = 0
 
-        root_node = rl_graph.Quest_Node(None, None)
+        root_node = rl_graph.Quest_Node(infos["objective"], None)
         working_memory = Quest_Graph(root_node)
         working_memory.discover(rl_graph.Observation_Node(None, (obs, score, done, infos)), root_node)
 
@@ -118,9 +118,11 @@ if __name__ == "__main__":
     env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
     env = textworld.gym.make(env_id)
 
-    from implementations.tw_agents.agent_neural import RandomAgent, NeuralAgent
+    # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
     # agent = RandomAgent()
-    agent = NeuralAgent(input_size=MAX_VOCAB_SIZE, device=device)
+    # agent = Neural_Agent(input_size=MAX_VOCAB_SIZE, device=device)
+    from implementations.tw_agents.hierarchy_agent import Hierarchy_Agent
+    agent = Hierarchy_Agent(input_size=MAX_VOCAB_SIZE, device=device)
     play(env, agent, nb_episodes=100, verbose=True)
     play(env, agent, nb_episodes=500, verbose=False, train=True)
     play(env, agent, nb_episodes=100, verbose=True)
