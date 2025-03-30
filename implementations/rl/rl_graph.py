@@ -35,10 +35,12 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
     
 
 class Quest_Node(RL_Node):
-    def __init__(self, quest=None, result=None):
+    def __init__(self, quest=None, result=None, start_observation=None, end_observation=None):
         super().__init__()
         self.quest = quest
         self.result = result
+        self.start_observation = start_observation
+        self.end_observation = end_observation
 
     def set(self, another):
         # check same class
@@ -48,7 +50,11 @@ class Quest_Node(RL_Node):
             self.quest = another.quest
         if another.result is not None:
             self.result = another.result
-
+        if another.start_observation is not None:
+            self.start_observation = another.start_observation
+        if another.end_observation is not None:
+            self.end_observation = another.end_observation
+        
     def is_fulfilled(self):
         return self.result is not None
     

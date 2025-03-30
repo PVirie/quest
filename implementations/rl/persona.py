@@ -12,6 +12,18 @@ class Sub_Action_Type(Enum):
     Thought = 3
     Act = 4
     Relegate = 5
+    Done = 6
+
+
+def get_last_observation(focus_node):
+    child_nodes = focus_node.get_children()
+    # reverse iterate
+    for node in reversed(child_nodes):
+        if isinstance(node, Observation_Node):
+            return node.observation
+        elif isinstance(node, Quest_Node):
+            return node.end_observation
+    return None
 
 
 def prepare_tensors(tokenizer, obs_list, infos):
@@ -51,22 +63,26 @@ class Persona:
     def think(self, quest_node, supports):
         # supports is a list of nodes
         quest = quest_node.quest
-        contexts = []
-        score = None
-        done = None
-        infos = None
+        obs, score, done, infos, indexes, outputs, values = quest_node.start_observation
+        contexts = [f"Observation: {obs}"]
+        transitions = []
         for node in supports:
             if isinstance(node, Quest_Node):
                 contexts.append(f"Sub Task: {node.quest}")
                 if node.is_fulfilled():
                     contexts.append(f"Result: {node.result}")
                 else:
-                    contexts.append("Result: Failed to fulfill")
+                    contexts.append("Result: Failed")
+                # score, done, infos are the last score from the sub task
+                obs, score, done, infos, indexes, outputs, values = node.end_observation
+                transitions.append((score, indexes, outputs, values))
+                contexts.append(f"Observation: {obs}")
             elif isinstance(node, Thought_Node):
                 contexts.append(f"Thought: {node.thought}")
             elif isinstance(node, Observation_Node):
                 contexts.append(f"Action: {node.action}")
-                obs, score, done, infos = node.observation
+                obs, score, done, infos, indexes, outputs, values = node.observation
+                transitions.append((score, indexes, outputs, values))
                 contexts.append(f"Observation: {obs}")
 
         lm_response = ""
@@ -78,30 +94,38 @@ class Persona:
         rl_response = ""
         if self.use_rl:
             state_tensor, action_list_tensor = prepare_tensors(self.tokenizer, [quest] + contexts, infos)
-            action = self.agent.act(state_tensor, action_list_tensor, score, done, infos)
+            action, indexes, outputs, values = self.agent.act(state_tensor, action_list_tensor, transitions, infos)
             if action.startswith("Sub Task"):
                 rl_response = action
             else:
                 rl_response = f"Action: {action}"
         
+        observation = get_last_observation(quest_node)
+
         if lm_response.startswith("Final Respond"):
-            return Sub_Action_Type.Fulfill, extract_detail(lm_response)
+            return Sub_Action_Type.Fulfill, Quest_Node(None, extract_detail(lm_response), None, observation)
         elif lm_response.startswith("Thought"):
-            return Sub_Action_Type.Thought, extract_detail(lm_response)
+            return Sub_Action_Type.Thought, Thought_Node(extract_detail(lm_response))
         elif rl_response.startswith("Sub Task"):
-            return Sub_Action_Type.Relegate, extract_detail(rl_response)
+            return Sub_Action_Type.Relegate, Quest_Node(extract_detail(rl_response), None, observation, None)
         elif rl_response.startswith("Action"):
-            return Sub_Action_Type.Act, extract_detail(rl_response)
+            action = extract_detail(rl_response)
+            obs, score, done, infos = self.env_step(action)
+            observation = (obs, score, done, infos, indexes, outputs, values)
+            if done:
+                return Sub_Action_Type.Done, Quest_Node(None, "End", None, observation)
+            else:
+                return Sub_Action_Type.Act, Observation_Node(action, observation)
         elif lm_response.startswith("Sub Task"):
             return Sub_Action_Type.Relegate, extract_detail(lm_response)
         elif lm_response.startswith("Action"):
-            return Sub_Action_Type.Act, extract_detail(lm_response)
+            action = extract_detail(lm_response)
+            obs, score, done, infos = self.env_step(action)
+            observation = (obs, score, done, infos, None, None, None)
+            if done:
+                return Sub_Action_Type.Done, Quest_Node(None, "End", None, observation)
+            else:
+                return Sub_Action_Type.Act, Observation_Node(action, observation)
 
         return None, ""
 
-
-    def act(self, action):
-        # forward to the environment and get observation
-        # batch version, action is a list of size 1
-        obs, score, done, infos = self.env_step(action)
-        return done, (obs, score, done, infos)

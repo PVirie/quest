@@ -9,10 +9,12 @@ import torch.nn as nn
 from torch import optim
 import torch.nn.functional as F
 
+torch.autograd.set_detect_anomaly(True)
 
 class Hierarchy_Agent:
     UPDATE_FREQUENCY = 10
     LOG_FREQUENCY = 1000
+    LOG_ALPHA=0.99
     GAMMA = 0.9
 
     def __init__(self, input_size, device) -> None:
@@ -26,96 +28,73 @@ class Hierarchy_Agent:
 
     def train(self):
         self.mode = "train"
-        self.stats = {"max": defaultdict(list), "mean": defaultdict(list)}
-        self.transitions = []
-        self.last_score = 0
-        self.no_train_step = 0
+        self.no_train_step = 1
+        self.ave_loss = 0
 
     def test(self):
         self.mode = "test"
 
 
-    def _discount_rewards(self, last_values):
+    def _discount_rewards(self, last_values, transitions):
         returns, advantages = [], []
-        R = last_values.data
-        for t in reversed(range(len(self.transitions))):
-            rewards, _, _, values = self.transitions[t]
-            R = rewards + self.GAMMA * R
-            adv = R - values
+        R = last_values.item()
+        last_score = 0
+        rewards = []
+        for t in transitions:
+            rewards.append(t[0] - last_score)
+            last_score = t[0]
+        for t, r in zip(reversed(transitions), reversed(rewards)):
+            _, _, _, values = t
+            R = r + self.GAMMA * R
+            adv = (R - values).detach()
             returns.append(R)
             advantages.append(adv)
 
         return returns[::-1], advantages[::-1]
 
-    def act(self, state_tensor: Any, action_list_tensor: Any, score: int, done: bool, infos: Mapping[str, Any]) -> Optional[str]:
-
+    def act(self, state_tensor: Any, action_list_tensor: Any, transitions: List[Any], infos: Mapping[str, Any]) -> Optional[str]:
+        # transitions is a list of (score, indexes, outputs, values)
         state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
         action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
 
         # Get our next action and value prediction.
         outputs, indexes, values = self.model(state_tensor, action_list_tensor)
         outputs = outputs[0, -1, :]
-        indexes = indexes[0, -1, :]
+        indexes = indexes[0, -1, :].item()
         values = values[0, -1, :]
         action = infos["admissible_commands"][indexes]
 
-        if self.mode == "test":
-            return action
+        if self.mode == "train":
+            self.no_train_step += 1
 
-        self.no_train_step += 1
+            if self.no_train_step % self.UPDATE_FREQUENCY == 0:
+                # Update model
+                returns, advantages = self._discount_rewards(values, transitions)
 
-        if self.transitions:
-            reward = score - self.last_score  # Reward is the gain/loss in score.
-            self.last_score = score
-            if infos["won"]:
-                reward += 100
-            if infos["lost"]:
-                reward -= 100
+                loss = 0
+                for transition, ret, advantage in zip(transitions, returns, advantages):
+                    score_, indexes_, outputs_, values_ = transition
 
-            self.transitions[-1][0] = reward  # Update reward information.
+                    advantage        = advantage.detach() # Block gradients flow here.
+                    probs            = F.softmax(outputs_, dim=0)
+                    log_probs        = torch.log(probs)
+                    log_action_probs = log_probs[indexes_]
+                    policy_loss      = (-log_action_probs * advantage).sum()
+                    value_loss       = (.5 * (values_ - ret) ** 2.).sum()
+                    entropy     = (-probs * log_probs).sum()
+                    loss += policy_loss + 0.5 * value_loss - 0.1 * entropy
 
-        self.stats["max"]["score"].append(score)
-        if self.no_train_step % self.UPDATE_FREQUENCY == 0:
-            # Update model
-            returns, advantages = self._discount_rewards(values)
+                self.ave_loss = self.LOG_ALPHA * self.ave_loss + (1 - self.LOG_ALPHA) * loss.item()
+                if self.no_train_step % self.LOG_FREQUENCY == 0:
+                    msg = "{:6d}. ".format(self.no_train_step)
+                    msg += "loss: {:5.2f}; ".format(self.ave_loss)
+                    print(msg)
+                
+                loss.backward()
+                nn.utils.clip_grad_norm_(self.model.parameters(), 40)
+                self.optimizer.step()
+                self.optimizer.zero_grad()
 
-            loss = 0
-            for transition, ret, advantage in zip(self.transitions, returns, advantages):
-                reward, indexes_, outputs_, values_ = transition
-
-                advantage        = advantage.detach() # Block gradients flow here.
-                probs            = F.softmax(outputs_, dim=0)
-                log_probs        = torch.log(probs)
-                log_action_probs = log_probs.gather(0, indexes_)
-                policy_loss      = (-log_action_probs * advantage).sum()
-                value_loss       = (.5 * (values_ - ret) ** 2.).sum()
-                entropy     = (-probs * log_probs).sum()
-                loss += policy_loss + 0.5 * value_loss - 0.1 * entropy
-
-                self.stats["mean"]["reward"].append(reward)
-                self.stats["mean"]["policy"].append(policy_loss.item())
-                self.stats["mean"]["value"].append(value_loss.item())
-                self.stats["mean"]["entropy"].append(entropy.item())
-                self.stats["mean"]["confidence"].append(torch.exp(log_action_probs).item())
-
-            if self.no_train_step % self.LOG_FREQUENCY == 0:
-                msg = "{:6d}. ".format(self.no_train_step)
-                msg += "  ".join("{}: {: 3.3f}".format(k, np.mean(v)) for k, v in self.stats["mean"].items())
-                msg += "  " + "  ".join("{}: {:2d}".format(k, np.max(v)) for k, v in self.stats["max"].items())
-                print(msg)
-                self.stats = {"max": defaultdict(list), "mean": defaultdict(list)}
-
-            loss.backward()
-            nn.utils.clip_grad_norm_(self.model.parameters(), 40)
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-
-            self.transitions = []
+            return action, indexes, outputs, values
         else:
-            # Keep information about transitions for Truncated Backpropagation Through Time.
-            self.transitions.append([None, indexes, outputs, values])  # Reward will be set on the next call
-
-        if done:
-            self.last_score = 0  # Will be starting a new episode. Reset the last score.
-
-        return action
+            return action, None, None, None

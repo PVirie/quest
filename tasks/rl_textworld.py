@@ -65,17 +65,15 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         done = False
         nb_moves = 0
 
-        root_node = rl_graph.Quest_Node(infos["objective"], None)
+        root_node = rl_graph.Quest_Node(infos["objective"], None, (obs, score, done, infos, None, None, None), None)
         working_memory = Quest_Graph(root_node)
-        working_memory.discover(rl_graph.Observation_Node(None, (obs, score, done, infos)), root_node)
 
         while True:
             action, param_1, param_2 = agent_functions.basic_tree(persona, working_memory.query())
             if action == Action.ANSWER:
                 working_memory.respond(param_1, param_2)
                 if param_2 is None:
-                    if param_1 is None:
-                        break
+                    break
             elif action == Action.DISCOVER:
                 working_memory.discover(param_1, param_2)
                 if len(working_memory) > 100:
@@ -87,7 +85,7 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         if verbose:
             print(".", end="")
 
-        last_observation = root_node.get_last_child().observation
+        last_observation = root_node.end_observation
         score = last_observation[1]
 
         avg_moves.append(nb_moves)
@@ -123,7 +121,7 @@ if __name__ == "__main__":
     # agent = Neural_Agent(input_size=MAX_VOCAB_SIZE, device=device)
     from implementations.tw_agents.hierarchy_agent import Hierarchy_Agent
     agent = Hierarchy_Agent(input_size=MAX_VOCAB_SIZE, device=device)
-    play(env, agent, nb_episodes=100, verbose=True)
+    # play(env, agent, nb_episodes=100, verbose=True)
     play(env, agent, nb_episodes=500, verbose=False, train=True)
     play(env, agent, nb_episodes=100, verbose=True)
     env.close()
