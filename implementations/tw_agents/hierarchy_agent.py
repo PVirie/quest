@@ -22,9 +22,8 @@ class Tensors_Ref:
         self.iteration = iteration
 
     def release(self):
-        self.indexes = None
-        self.outputs = None
-        self.values = None
+        self.outputs = self.outputs.detach().clone()
+        self.values = self.values.detach().clone()
 
         self.has_released = True
 
