@@ -21,6 +21,11 @@ class Tensors_Ref:
         self.has_released = False
         self.iteration = iteration
 
+
+    def override(self, indexes):
+        self.indexes = indexes
+
+
     def release(self):
         self.outputs = self.outputs.detach().clone()
         self.values = self.values.detach().clone()
