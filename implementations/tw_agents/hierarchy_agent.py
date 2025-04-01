@@ -45,7 +45,7 @@ class Hierarchy_Agent:
         self.iteration = 0
 
 
-    def act(self, state_tensor: Any, action_list_tensor: Any, infos: Mapping[str, Any]) -> Optional[str]:
+    def act(self, state_tensor: Any, action_list_tensor: Any) -> Optional[str]:
         state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
         action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
 
@@ -54,9 +54,8 @@ class Hierarchy_Agent:
         outputs = outputs[0, -1, :]
         indexes = indexes[0, -1, :].item()
         values = values[0, -1, :]
-        action = infos["admissible_commands"][indexes]
 
-        return action, Tensors_Ref(indexes, outputs, values, self.iteration)
+        return Tensors_Ref(indexes, outputs, values, self.iteration)
 
 
     def _discount_rewards(self, last_values, transitions):

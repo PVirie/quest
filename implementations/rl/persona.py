@@ -133,10 +133,11 @@ class Persona:
         # remove thoughts from the context for RL
         rl_contexts = [c for c in contexts if not c.startswith("Thought")]
         state_tensor, action_list_tensor = prepare_tensors(self.tokenizer, [quest] + rl_contexts, action_list)
-        action, tf = self.agent.act(state_tensor, action_list_tensor, infos)
-        rl_response = action
+        tf = self.agent.act(state_tensor, action_list_tensor)
+        rl_response = action_list[tf.indexes]
 
-        if self.use_lm and random.random() < 0.1 and len(lm_response) > 0:
+        if len(lm_response) > 0 and (random.random() < 0.1 or lm_response.startswith("Final Respond")):
+            # if the teacher says it's a final respond, we should override the RL response
             # override RL response with the index of LM response
             tf.override(action_list.index(lm_response))
             response = lm_response
