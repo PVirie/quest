@@ -1,0 +1,263 @@
+You are a helpful and knowledgeable agent. To achieve your goal of performing complex tasks correctly, you have to select an action from the list. In a rare case, you may need to come up with a new action.
+To complete a task, you'll need to go through multiple steps involving step-by-step thinking and selecting appropriate actions; action will follow with observations. When you are ready for a final response, respond with the `Final Response:`
+Examples:
+##
+Task: Welcome to TextWorld! Here is your task for today. First of all, you could, like, open the chest drawer. Then, pick up the old key from the chest drawer. After picking up the old key, assure that the wooden door is unlocked. Then, ensure that the wooden door is open. After pulling open the wooden door, take a trip east. And then, make sure that the screen door is wide open. After that, make an effort to move east. With that done, attempt to take a trip south. Then, pick-up the carrot from the floor of the garden. And then, attempt to go to the north. If you can succeed at that, make an effort to take a trip west. And then, rest the carrot on the stove. Got that? Good!
+Observation: -= Bedroom =-
+You are in a bedroom. A standard kind of place.
+
+You can make out a chest drawer. There's something strange about this being here, but you can't put your finger on it. You see a closed antique trunk close by. Look over there! a king-size bed. The king-size bed appears to be empty.
+
+There is a closed wooden door leading east.
+Action: open chest drawer
+Observation: You open the chest drawer, revealing an old key.
+
+
+Your score has just gone up by one point.
+
+Action: take old key from chest drawer
+Observation: You take the old key from the chest drawer.
+
+
+
+Your score has just gone up by one point.
+
+Action: unlock wooden door with old key
+Observation: You unlock wooden door.
+
+
+Your score has just gone up by one point.
+
+Action: open wooden door
+Observation: You open wooden door.
+
+
+Your score has just gone up by one point.
+
+Action: go east
+Observation: 
+-= Kitchen =-
+You arrive in a kitchen. A standard one.
+
+You see a refrigerator. You check the price tag that's still affixed to the refrigerator. 100 bucks? What a deal! You'll have to ask where they got this! You see a counter. The counter is typical. But the thing hasn't got anything on it. Look out! It's a- oh, never mind, it's just a stove. But there isn't a thing on it. Look over there! a kitchen island. You wonder idly who left that here. The kitchen island is usual. On the kitchen island you see a note.
+
+There is a closed screen door leading east. There is an open wooden door leading west. You need an unblocked exit? You should try going north. You don't like doors? Why not try going south, that entranceway is unblocked.
+
+
+
+Your score has just gone up by one point.
+
+Action: open screen door
+Observation: You open screen door.
+
+
+Your score has just gone up by one point.
+
+Action: examine screen door
+Observation: it is what it is, a screen door It is open.
+
+
+
+Action: go east
+Observation: 
+-= Backyard =-
+You've entered a backyard. You can barely contain your excitement.
+
+You scan the room for a set of chairs, and you find a set of chairs! The set of chairs is typical. But the thing is empty. What, you think everything in TextWorld should have stuff on it? What's that over there? It looks like it's a bbq. I guess it's true what they say, if you're looking for a bbq, go to TextWorld. However, the bbq, like an empty bbq, has nothing on it. You can see a patio table. The patio table is normal. But oh no! there's nothing on this piece of junk.
+
+There is an open screen door leading west. You need an unguarded exit? You should try going south.
+
+
+
+Your score has just gone up by one point.
+
+Action: go south
+Observation: 
+-= Garden =-
+I am so happy to announce that you are now in the garden. You begin to take stock of what's here.
+
+
+
+You don't like doors? Why not try going north, that entranceway is unblocked.
+
+There is a half of a bag of chips, a carrot, an apple and a shovel on the floor.
+
+
+Your score has just gone up by one point.
+
+Action: take half of a bag of chips
+Observation: You pick up the half of a bag of chips from the ground.
+
+
+
+Action: take apple
+Observation: You pick up the apple from the ground.
+
+
+
+Action: eat apple
+Observation: You eat the apple. Not bad.
+
+
+Action: examine carrot
+Observation: that's a standard carrot!
+
+
+
+Action: drop half of a bag of chips
+Observation: You drop the half of a bag of chips on the ground.
+
+
+Action: examine half of a bag of chips
+Observation: The half of a bag of chips looks inviting.
+
+
+
+Action: examine half of a bag of chips
+Observation: The half of a bag of chips looks inviting.
+
+
+
+Action: examine shovel
+Observation: The shovel looks to fit in here
+
+
+
+Action: inventory
+Observation: You are carrying: an old key.
+
+
+
+Action: take half of a bag of chips
+Observation: You pick up the half of a bag of chips from the ground.
+
+
+
+Action: inventory
+Observation: You are carrying: a half of a bag of chips and an old key.
+
+
+
+Action: go north
+Observation: 
+-= Backyard =-
+You've entered a backyard. You can barely contain your excitement.
+
+You scan the room for a set of chairs, and you find a set of chairs! The set of chairs is typical. But the thing is empty. What, you think everything in TextWorld should have stuff on it? What's that over there? It looks like it's a bbq. I guess it's true what they say, if you're looking for a bbq, go to TextWorld. However, the bbq, like an empty bbq, has nothing on it. You can see a patio table. The patio table is normal. But oh no! there's nothing on this piece of junk.
+
+There is an open screen door leading west. You need an unguarded exit? You should try going south.
+
+
+
+Action: go west
+Observation: 
+-= Kitchen =-
+You arrive in a kitchen. A standard one.
+
+You see a refrigerator. You check the price tag that's still affixed to the refrigerator. 100 bucks? What a deal! You'll have to ask where they got this! You see a counter. The counter is typical. But the thing hasn't got anything on it. Look out! It's a- oh, never mind, it's just a stove. But there isn't a thing on it. Look over there! a kitchen island. You wonder idly who left that here. The kitchen island is usual. On the kitchen island you see a note.
+
+There is an open screen door leading east. There is an open wooden door leading west. You need an unblocked exit? You should try going north. You don't like doors? Why not try going south, that entranceway is unblocked.
+
+
+
+Action: go east
+Observation: 
+-= Backyard =-
+You've entered a backyard. You can barely contain your excitement.
+
+You scan the room for a set of chairs, and you find a set of chairs! The set of chairs is typical. But the thing is empty. What, you think everything in TextWorld should have stuff on it? What's that over there? It looks like it's a bbq. I guess it's true what they say, if you're looking for a bbq, go to TextWorld. However, the bbq, like an empty bbq, has nothing on it. You can see a patio table. The patio table is normal. But oh no! there's nothing on this piece of junk.
+
+There is an open screen door leading west. You need an unguarded exit? You should try going south.
+
+
+
+Action: eat half of a bag of chips
+Observation: You eat the half of a bag of chips. Not bad.
+
+
+Action: go south
+Observation: 
+-= Garden =-
+I am so happy to announce that you are now in the garden. You begin to take stock of what's here.
+
+
+
+You don't like doors? Why not try going north, that entranceway is unblocked.
+
+There is a carrot and a shovel on the floor.
+
+
+Action: go north
+Observation: 
+-= Backyard =-
+You've entered a backyard. You can barely contain your excitement.
+
+You scan the room for a set of chairs, and you find a set of chairs! The set of chairs is typical. But the thing is empty. What, you think everything in TextWorld should have stuff on it? What's that over there? It looks like it's a bbq. I guess it's true what they say, if you're looking for a bbq, go to TextWorld. However, the bbq, like an empty bbq, has nothing on it. You can see a patio table. The patio table is normal. But oh no! there's nothing on this piece of junk.
+
+There is an open screen door leading west. You need an unguarded exit? You should try going south.
+
+
+
+Action: put old key on bbq
+Observation: You put the old key on the bbq.
+
+
+Action: examine screen door
+Observation: it is what it is, a screen door It is open.
+
+
+
+Action: look
+Observation: -= Backyard =-
+You've entered a backyard. You can barely contain your excitement.
+
+You scan the room for a set of chairs, and you find a set of chairs! The set of chairs is typical. But the thing is empty. What, you think everything in TextWorld should have stuff on it? What's that over there? It looks like it's a bbq. I guess it's true what they say, if you're looking for a bbq, go to TextWorld. On the bbq you see an old key. You can see a patio table. The patio table is normal. But oh no! there's nothing on this piece of junk.
+
+There is an open screen door leading west. You need an unguarded exit? You should try going south.
+
+
+
+Action: examine screen door
+Observation: it is what it is, a screen door It is open.
+
+
+
+Action: go south
+Observation: 
+-= Garden =-
+I am so happy to announce that you are now in the garden. You begin to take stock of what's here.
+
+
+
+You don't like doors? Why not try going north, that entranceway is unblocked.
+
+There is a carrot and a shovel on the floor.
+
+
+Action: examine carrot
+Observation: that's a standard carrot!
+
+
+
+Action: inventory
+Observation: You are carrying nothing.
+
+
+
+Action: examine shovel
+Observation: The shovel looks to fit in here
+
+
+
+Action: take carrot
+Observation: You pick up the carrot from the ground.
+
+
+
+Your score has just gone up by one point.
+
+Admissible Commands: ['drop carrot', 'eat carrot', 'examine carrot', 'examine shovel', 'go north', 'inventory', 'look', 'take shovel']
+Extra Actions: []
+##
+Task: {quest}
+{contexts}

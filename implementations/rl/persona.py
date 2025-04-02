@@ -83,6 +83,31 @@ class Persona:
             self.extra_actions = [line.strip() for line in f.readlines()]
 
 
+    def print_context(self, quest_node):
+        children = quest_node.get_children()
+        obs, score, done, infos, _ = quest_node.start_observation
+        contexts = [f"Task: {quest_node.quest}", f"Observation: {obs}"]
+        for node in children:
+            if isinstance(node, Quest_Node):
+                contexts.append(f"Sub Task: {node.quest}")
+                if node.is_fulfilled():
+                    contexts.append(f"Result: {node.result}")
+                else:
+                    contexts.append("Result: Failed")
+                # score, done, infos are the last score from the sub task
+                obs, score, done, infos, _ = node.end_observation
+                contexts.append(f"Observation: {obs}")
+            elif isinstance(node, Thought_Node):
+                contexts.append(f"Thought: {node.thought}")
+            elif isinstance(node, Observation_Node):
+                contexts.append(f"Action: {node.action}")
+                obs, score, done, infos, _ = node.observation
+                contexts.append(f"Observation: {obs}")
+        contexts.append(f"Admissible Commands: {infos['admissible_commands']}")
+        contexts.append(f"Extra Actions: {self.extra_actions}")
+        return "\n".join(contexts)
+
+
     def think(self, quest_node, supports):
         # supports is a list of nodes
         quest = quest_node.quest

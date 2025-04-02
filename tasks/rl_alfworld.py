@@ -3,6 +3,7 @@ import sys
 import subprocess
 import numpy as np
 from typing import Any, Mapping
+import argparse
 
 import torch
 
@@ -91,6 +92,18 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--reset", "-r", action="store_true")
+    args = parser.parse_args()
+
+    experiment_path = "/app/experiments/rl_alfworld"
+    if args.reset:
+        # clear the experiment path
+        if os.path.exists(experiment_path):
+            shutil.rmtree(experiment_path)
+        exit()
+    os.makedirs(experiment_path, exist_ok=True)
+
     # load config
     with open(f"{alfworld_path}/alfworld/configs/base_config.yaml", 'r') as f:
         config = yaml.safe_load(f)

@@ -3,6 +3,8 @@ import sys
 import subprocess
 import numpy as np
 from typing import Any, Mapping
+import argparse
+import shutil
 
 import torch
 
@@ -90,9 +92,25 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         msg = "  \tavg. steps: {:5.1f}; avg. score: {:4.1f} / {}."
         print(msg.format(np.mean(avg_moves), np.mean(avg_scores), infos["max_score"]))
 
+        with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
+            data = persona.print_context(root_node)
+            f.write(f"Episode {no_episode}\n")
+            f.write(data)
+            f.write("\n\n")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--reset", "-r", action="store_true")
+    args = parser.parse_args()
+
+    experiment_path = "/app/experiments/rl_textworld"
+    if args.reset:
+        # clear the experiment path
+        if os.path.exists(experiment_path):
+            shutil.rmtree(experiment_path)
+        exit()
+    os.makedirs(experiment_path, exist_ok=True)
 
     game_path = f"{textworld_path}/games/default/tw-rewardsDense_goalDetailed_18.z8"
 
