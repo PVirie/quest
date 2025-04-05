@@ -57,20 +57,29 @@ class Command_Scorer(nn.Module, Q_Table):
         # actions has shape batch x n_actions x action_size
         n_contexts = observations.size(1)
         n_actions = actions.size(1)
+
+        values, state_internal = self.evaluate_state(observations, **kwargs)
+        scores = self.evaluate_actions(state_internal, actions, **kwargs)
+
+        probs = F.softmax(scores, dim=2)  # batch x n_contexts x n_actions
+        indices = torch.multinomial(torch.reshape(probs, (-1, n_actions)), num_samples=1)
+        indices = torch.reshape(indices, (-1, n_contexts, 1))
+
+        # indices has shape batch x n_contexts x 1; is the indices of the actions chosen along the context length
+        # scores has shape batch x n_contexts x n_actions; is the scores of individual actions along the context length
+        # values has shape batch x n_contexts x 1; is the values of the states
+        # state_internal has shape batch x n_contexts x hidden; is the internal representation of the state
+        return indices, scores, values, state_internal
+
+
+    def evaluate_state(self, observations, **kwargs):
+        n_contexts = observations.size(1)
         context_size = observations.size(2)
-        action_size = actions.size(2)
-
+    
         obs_embedding = self.embedding(observations) # batch x n_contexts x context_size x hidden
-        action_embedding = self.embedding(actions) # batch x n_actions x action_size x hidden
-
         obs_embedding = obs_embedding + self.pe[:context_size, :] # add positional encoding
-        action_embedding = action_embedding + self.pe[:action_size, :] # add positional encoding
-
         obs_embedding = apply_transformer(torch.reshape(obs_embedding, (-1, context_size, self.hidden_size)), self.context_decoder, tgt_mask=causal_mask(context_size, self.device), tgt_is_causal=True)
         obs_embedding = torch.reshape(obs_embedding[:, -1, :], (-1, n_contexts, self.hidden_size)) # batch x n_contexts x hidden
-
-        action_embedding = apply_transformer(torch.reshape(action_embedding, (-1, action_size, self.hidden_size)), self.action_decoder, tgt_mask=causal_mask(action_size, self.device), tgt_is_causal=True) 
-        action_embedding = torch.reshape(action_embedding[:, -1, :], (-1, n_actions, self.hidden_size)) # batch x n_actions x hidden
 
         # accept (sequence_length, batch_size, d_model)
         obs_embedding = obs_embedding.permute(1, 0, 2)
@@ -78,16 +87,20 @@ class Command_Scorer(nn.Module, Q_Table):
         state_internal = state_internal.permute(1, 0, 2) # batch x n_contexts x hidden
         values = self.critic(state_internal)
 
+        return values, state_internal
+
+
+    def evaluate_actions(self, state_internal, actions, **kwargs):
+        n_actions = actions.size(1)
+        action_size = actions.size(2)
+
+        action_embedding = self.embedding(actions) # batch x n_actions x action_size x hidden
+        action_embedding = action_embedding + self.pe[:action_size, :] # add positional encoding
+        action_embedding = apply_transformer(torch.reshape(action_embedding, (-1, action_size, self.hidden_size)), self.action_decoder, tgt_mask=causal_mask(action_size, self.device), tgt_is_causal=True) 
+        action_embedding = torch.reshape(action_embedding[:, -1, :], (-1, n_actions, self.hidden_size)) # batch x n_actions x hidden
+
         # now cross product between the state_internal and the action_embedding
         pre_actions = self.actor(state_internal) # batch x n_contexts x hidden
         scores = torch.matmul(pre_actions, action_embedding.permute(0, 2, 1)) # batch x n_contexts x n_actions
 
-        probs = F.softmax(scores, dim=2)  # batch x n_contexts x n_actions
-        indices = torch.multinomial(torch.reshape(probs, (-1, n_actions)), num_samples=1)
-        indices = torch.reshape(indices, (-1, n_contexts, 1))
-
-        # scores has shape batch x n_contexts x n_actions; is the scores of individual actions along the context length
-        # indices has shape batch x n_contexts x 1; is the indices of the actions chosen along the context length
-        # values has shape batch x n_contexts x 1; is the values of the states
-        return scores, indices, values
-
+        return scores

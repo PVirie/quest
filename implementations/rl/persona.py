@@ -164,7 +164,7 @@ class Persona:
         if len(lm_response) > 0 and (random.random() < 0.1 or lm_response.startswith("Final Respond")):
             # if the teacher says it's a final respond, we should override the RL response
             # override RL response with the index of LM response
-            tf.override(action_list.index(lm_response))
+            tf.override_selected_action(action_list.index(lm_response))
             response = lm_response
         else:
             response = rl_response

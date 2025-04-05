@@ -13,22 +13,24 @@ torch.autograd.set_detect_anomaly(True)
 
 
 class Tensors_Ref:
-    def __init__(self, indexes, outputs, values, iteration=0):
+    def __init__(self, indexes, action_scores, values, internal_states, iteration=0):
         self.indexes = indexes
-        self.outputs = outputs
+        self.action_scores = action_scores
         self.values = values
+        self.internal_states = internal_states
 
         self.has_released = False
         self.iteration = iteration
 
 
-    def override(self, indexes):
+    def override_selected_action(self, indexes):
         self.indexes = indexes
 
 
     def release(self):
-        self.outputs = self.outputs.detach().clone()
+        self.action_scores = self.action_scores.detach().clone()
         self.values = self.values.detach().clone()
+        self.internal_states = self.internal_states.detach().clone()
 
         self.has_released = True
 
@@ -50,12 +52,19 @@ class Hierarchy_Agent:
         action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
 
         # Get our next action and value prediction.
-        outputs, indexes, values = self.model(state_tensor, action_list_tensor)
-        outputs = outputs[0, -1, :]
+        indexes, action_scores, values, internal_states = self.model(state_tensor, action_list_tensor)
         indexes = indexes[0, -1, :].item()
+        action_scores = action_scores[0, -1, :]
         values = values[0, -1, :]
+        internal_states = internal_states[0, -1, :]
 
-        return Tensors_Ref(indexes, outputs, values, self.iteration)
+        return Tensors_Ref(indexes, action_scores, values, internal_states, self.iteration)
+
+
+    def append_action(self, tf: Tensors_Ref, new_action_list_tensor: Any) -> Optional[str]:
+        action_scores = self.model.evaluate_actions(tf.internal_states.unsqueeze(1), new_action_list_tensor)
+        action_scores = action_scores[0, -1, :]
+        tf.action_scores = torch.concat([tf.action_scores, action_scores], dim=1)
 
 
     def _discount_rewards(self, last_values, transitions):
@@ -81,7 +90,7 @@ class Hierarchy_Agent:
                 # skip
                 continue
             
-            probs            = F.softmax(tf.outputs, dim=0)
+            probs            = F.softmax(tf.action_scores, dim=0)
             log_probs        = torch.log(probs)
             log_action_probs = log_probs[tf.indexes]
             policy_loss      = (-log_action_probs * adv).sum()
