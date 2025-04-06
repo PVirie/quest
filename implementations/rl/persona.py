@@ -93,17 +93,20 @@ class Persona:
         if not force_train_last and self.step % self.TRAIN_STEP != 0:
             return
 
-        obs, score, done, infos, _ = quest_node.start_observation
+        _, score, _, _, _ = quest_node.start_observation
         transitions = []
         last_score = score
         for node in supports:
             if isinstance(node, Quest_Node):
-                obs, score, done, infos, tf = node.end_observation
+                # tf must be taken from the last tensor from the previous node
+                _, _, _, _, tf = node.start_observation
+                # score must be taken from the sub task
+                _, score, _, _, _ = node.end_observation
                 if tf is not None and not tf.has_released:
                     transitions.append((score - last_score, tf))
                 last_score = score
             elif isinstance(node, Observation_Node):
-                obs, score, done, infos, tf = node.observation
+                _, score, _, _, tf = node.observation
                 if tf is not None and not tf.has_released:
                     transitions.append((score - last_score, tf))
 
@@ -116,7 +119,7 @@ class Persona:
 
                 last_score = score
 
-        obs, score, done, infos, tf = last_observation
+        _, score, _, _, tf = last_observation
         if force_train_last and tf is not None and not tf.has_released:
             transitions.append((score - last_score, tf))
 
@@ -138,8 +141,10 @@ class Persona:
             if isinstance(node, Quest_Node):
                 contexts.append(f"Sub Task: {node.quest["objective"]}")
                 contexts.append(f"Result: {node.result}")
-                # score, done, infos are the last score from the sub task
-                obs, score, done, infos, tf = node.end_observation
+                # tf must be taken from the last tensor from the previous node
+                _, _, _, _, tf = node.start_observation
+                # score, done, infos must be taken from the sub task
+                obs, score, done, infos, _ = node.end_observation
                 contexts.append(f"Observation: {obs}")
                 count_non_thought_steps += 1
             elif isinstance(node, Thought_Node):
@@ -175,7 +180,7 @@ class Persona:
         tf = self.agent.act(state_tensor, action_list_tensor)
         rl_response = action_list[tf.indexes]
 
-        if not self.training_mode:
+        if not self.training_mode and tf is not None:
             tf.release()
 
         if len(lm_response) > 0 and random.random() < 0.1:
@@ -206,7 +211,7 @@ class Persona:
                     },
                     result="Failed duplicate work",
                     start_observation=last_observation,
-                    end_observation=last_observation
+                    end_observation=(obs, score, done, infos, None)
                 )
             else:
                 return_sub_action = Sub_Action_Type.Relegate 
