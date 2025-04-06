@@ -90,7 +90,7 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         
         # can also check score here
 
-        return len(differences) >= 1, "and ".join(differences)
+        return len(differences) >= 1, " and ".join(differences)
 
     persona = Persona(env_step, agent, tokenizer, observation_differnce, train=train)
     
