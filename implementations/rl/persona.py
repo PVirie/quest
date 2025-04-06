@@ -94,6 +94,7 @@ class Persona:
             return
 
         _, score, _, _, _ = quest_node.start_observation
+        _, _, carry = self.observation_differnce(quest_node.start_observation, last_observation, None)
         transitions = []
         last_score = score
         for node in supports:
@@ -111,7 +112,7 @@ class Persona:
                     transitions.append((score - last_score, tf))
 
                     # compute diff with the last_observation
-                    has_diff, diff_str = self.observation_differnce(last_observation, node.observation)
+                    has_diff, diff_str, carry = self.observation_differnce(node.observation, last_observation, carry)
                     if has_diff:
                         fold_action = f"Sub Task: {diff_str}"
                         self.extra_actions.add(fold_action)

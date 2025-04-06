@@ -50,7 +50,7 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         obs, score, done, infos = env.step([action])
         return obs[0], score[0], done[0], flatten_batch(infos)
     
-    def observation_differnce(obs1, obs2):
+    def observation_differnce(obs1, obs2, carry):
         return False, ""
     
     persona = Persona(env_step, agent, tokenizer, observation_differnce, train=train)

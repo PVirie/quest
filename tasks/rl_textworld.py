@@ -51,7 +51,13 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         obs, score, done, infos = env.step([action])
         return obs[0], score[0], done[0], flatten_batch(infos)
     
-    def observation_differnce(to_obs, from_obs):
+    def observation_differnce(from_obs, to_obs, carry):
+        if carry is None:
+            carry = {
+                "current_location": None,
+                "current_inventory": set()
+            }
+
         # Compare the two observations and return the difference.
         # First check location: "-= Kitchen =-" - anything else = "Move to Kitchen" 
         # Second check inventory: "You are carrying: a half of a bag of chips and an old key" - "You are carrying: an old key" = "Find and Take: a half of a bag of chips"
@@ -59,38 +65,42 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         to_obs, _, _, to_infos, _ = to_obs
         from_obs, _, _, from_infos, _ = from_obs
         # first find location pattern -= {location} =-
-        result = re.search(r"-= (.*?) =-", to_obs)
-        to_location = None
-        if result is not None:
-            to_location = result.group(1)
-        result = re.search(r"-= (.*?) =-", from_obs)
-        from_location = None
-        if result is not None:
-            from_location = result.group(1)
+        def extract_location(obs):
+            result = re.search(r"-= (.*?) =-", obs)
+            location = None
+            if result is not None:
+                location = result.group(1)
+            return location
+        to_location = extract_location(to_obs)
+        from_location = extract_location(from_obs)
+        if from_location is not None:
+            carry["current_location"] = from_location
+
+        # next check inventory
+        # find anything after "You are carrying:"" and split using "and"
+        def extract_inventory(infos):
+            if "nothing" in infos:
+                return set()
+            inv_str = infos["inventory"].replace("You are carrying:", "").strip()
+            return set([item.strip() for item in inv_str.split("and") if item.strip() != ""])
+        to_inv = extract_inventory(to_infos)
+        from_inv = extract_inventory(from_infos)
+        carry["current_inventory"] = from_inv
 
         differences = []
-        if to_location is not None and to_location != from_location:
-            differences.append(f"Move to {to_location}")
-
-        # check inventory
-        # find anything after "You are carrying:"" and split using "and"
-        to_inv = to_infos["inventory"].replace("You are carrying:", "").replace("You are carrying nothing.", "").strip()
-        to_inv = set([item.strip() for item in to_inv.split("and") if item.strip() != ""])
-        from_inv = from_infos["inventory"].replace("You are carrying:", "").replace("You are carrying nothing.", "").strip()
-        from_inv = set([item.strip() for item in from_inv.split("and") if item.strip() != ""])
+        if to_location is not None and to_location != carry["current_location"]:
+            differences.append(f"Go to {to_location}")
 
         to_from_diff = to_inv - from_inv
         from_to_diff = from_inv - to_inv
         if len(to_from_diff) > 0:
-            for item in to_from_diff:
-                differences.append(f"Find and Take: {item}")
+            differences.append(f"Find and Take: {', '.join(to_from_diff)}")
         if len(from_to_diff) > 0:
-            for item in from_to_diff:
-                differences.append(f"Find a place to use: {item}")
+            differences.append(f"Use: {', '.join(from_to_diff)}")
         
         # can also check score here
 
-        return len(differences) >= 1, " and ".join(differences)
+        return len(differences) >= 1, " and ".join(differences), carry
 
     persona = Persona(env_step, agent, tokenizer, observation_differnce, train=train)
     
