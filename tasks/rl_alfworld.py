@@ -4,6 +4,8 @@ import subprocess
 import numpy as np
 from typing import Any, Mapping
 import argparse
+import shutil
+import re
 
 import torch
 
@@ -48,7 +50,10 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         obs, score, done, infos = env.step([action])
         return obs[0], score[0], done[0], flatten_batch(infos)
     
-    persona = Persona(env_step, agent, tokenizer, train=train)
+    def observation_differnce(obs1, obs2):
+        return False, ""
+    
+    persona = Persona(env_step, agent, tokenizer, observation_differnce, train=train)
     
     # Collect some statistics: nb_steps, final reward.
     avg_moves, avg_scores = [], []
@@ -60,7 +65,12 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         done = False
         nb_moves = 0
 
-        root_node = rl_graph.Quest_Node(infos["objective"], None, (obs, score, done, infos, None), None)
+        root_node = rl_graph.Quest_Node(
+            quest = {
+                "objective": infos["objective"],
+            }, 
+            start_observation = (obs, score, done, infos, None)
+        )
         working_memory = Quest_Graph(root_node)
 
         while True:
@@ -80,8 +90,18 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         if verbose:
             print(".", end="")
 
-        last_observation = root_node.end_observation
-        score = last_observation[1]
+        if root_node.end_observation is not None:
+            score = root_node.end_observation[1]
+        else:
+            score = 0
+            for node in reversed(root_node.get_children()):
+                if isinstance(node, rl_graph.Quest_Node):
+                    if node.end_observation is not None:
+                        score = node.end_observation[1]
+                        break
+                elif isinstance(node, rl_graph.Observation_Node):
+                    score = node.observation[1]
+                    break
 
         avg_moves.append(nb_moves)
         avg_scores.append(score)

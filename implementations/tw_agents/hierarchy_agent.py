@@ -62,9 +62,12 @@ class Hierarchy_Agent:
 
 
     def append_action(self, tf: Tensors_Ref, new_action_list_tensor: Any) -> Optional[str]:
-        action_scores = self.model.evaluate_actions(tf.internal_states.unsqueeze(1), new_action_list_tensor)
+        # return the original size and the new size
+        action_scores = self.model.evaluate_actions(tf.internal_states.unsqueeze(0), new_action_list_tensor.unsqueeze(0))
         action_scores = action_scores[0, -1, :]
-        tf.action_scores = torch.concat([tf.action_scores, action_scores], dim=1)
+        original_size = tf.action_scores.size(0)
+        tf.action_scores = torch.concat([tf.action_scores, action_scores], dim=0)
+        return original_size, tf.action_scores.size(0)
 
 
     def _discount_rewards(self, last_values, transitions):

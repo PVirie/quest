@@ -5,6 +5,7 @@ import numpy as np
 from typing import Any, Mapping
 import argparse
 import shutil
+import re
 
 import torch
 
@@ -49,8 +50,49 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         # adapter between non-batched and batched environment
         obs, score, done, infos = env.step([action])
         return obs[0], score[0], done[0], flatten_batch(infos)
+    
+    def observation_differnce(to_obs, from_obs):
+        # Compare the two observations and return the difference.
+        # First check location: "-= Kitchen =-" - anything else = "Move to Kitchen" 
+        # Second check inventory: "You are carrying: a half of a bag of chips and an old key" - "You are carrying: an old key" = "Find and Take: a half of a bag of chips"
+        # If inventory size is reduce use command: "Find a place to use: a half of a bag of chips"
+        to_obs, _, _, to_infos, _ = to_obs
+        from_obs, _, _, from_infos, _ = from_obs
+        # first find location pattern -= {location} =-
+        result = re.search(r"-= (.*?) =-", to_obs)
+        to_location = None
+        if result is not None:
+            to_location = result.group(1)
+        result = re.search(r"-= (.*?) =-", from_obs)
+        from_location = None
+        if result is not None:
+            from_location = result.group(1)
 
-    persona = Persona(env_step, agent, tokenizer, train=train)
+        differences = []
+        if to_location is not None and to_location != from_location:
+            differences.append(f"Move to {to_location}")
+
+        # check inventory
+        # find anything after "You are carrying:"" and split using "and"
+        to_inv = to_infos["inventory"].replace("You are carrying:", "").replace("You are carrying nothing.", "").strip()
+        to_inv = set([item.strip() for item in to_inv.split("and") if item.strip() != ""])
+        from_inv = from_infos["inventory"].replace("You are carrying:", "").replace("You are carrying nothing.", "").strip()
+        from_inv = set([item.strip() for item in from_inv.split("and") if item.strip() != ""])
+
+        to_from_diff = to_inv - from_inv
+        from_to_diff = from_inv - to_inv
+        if len(to_from_diff) > 0:
+            for item in to_from_diff:
+                differences.append(f"Find and Take: {item}")
+        if len(from_to_diff) > 0:
+            for item in from_to_diff:
+                differences.append(f"Find a place to use: {item}")
+        
+        # can also check score here
+
+        return len(differences) >= 1, "and ".join(differences)
+
+    persona = Persona(env_step, agent, tokenizer, observation_differnce, train=train)
     
     # Collect some statistics: nb_steps, final reward.
     avg_moves, avg_scores = [], []
@@ -62,7 +104,12 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         done = False
         nb_moves = 0
 
-        root_node = rl_graph.Quest_Node(infos["objective"], None, (obs, score, done, infos, None), None)
+        root_node = rl_graph.Quest_Node(
+            quest = {
+                "objective": infos["objective"],
+            }, 
+            start_observation = (obs, score, done, infos, None)
+        )
         working_memory = Quest_Graph(root_node)
 
         while True:
@@ -82,8 +129,18 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         if verbose:
             print(".", end="")
 
-        last_observation = root_node.end_observation
-        score = last_observation[1]
+        if root_node.end_observation is not None:
+            score = root_node.end_observation[1]
+        else:
+            score = 0
+            for node in reversed(root_node.get_children()):
+                if isinstance(node, rl_graph.Quest_Node):
+                    if node.end_observation is not None:
+                        score = node.end_observation[1]
+                        break
+                elif isinstance(node, rl_graph.Observation_Node):
+                    score = node.observation[1]
+                    break
 
         avg_moves.append(nb_moves)
         avg_scores.append(score)
@@ -134,7 +191,7 @@ if __name__ == "__main__":
     # agent = Neural_Agent(input_size=MAX_VOCAB_SIZE, device=device)
     from implementations.tw_agents.hierarchy_agent import Hierarchy_Agent
     agent = Hierarchy_Agent(input_size=MAX_VOCAB_SIZE, device=device)
-    play(env, agent, nb_episodes=100, verbose=True)
+    # play(env, agent, nb_episodes=100, verbose=True)
     play(env, agent, nb_episodes=500, verbose=False, train=True)
     play(env, agent, nb_episodes=100, verbose=True)
     env.close()

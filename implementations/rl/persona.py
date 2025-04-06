@@ -10,36 +10,15 @@ Non-Batched version of the Persona class.
 
 class Sub_Action_Type(Enum):
     Fulfill = 1
+    Relegate = 2
     Thought = 3
     Act = 4
-    Relegate = 5
-    Done = 6
-
-
-def get_last_observation(focus_node):
-    child_nodes = focus_node.get_children()
-    # reverse iterate
-    for node in reversed(child_nodes):
-        if isinstance(node, Observation_Node):
-            return node.observation
-        elif isinstance(node, Quest_Node):
-            return node.end_observation
-    return None
-
-
-def prepare_tensors(tokenizer, obs_list, action_list):
-    # Build agent's observation: feedback + look + inventory.
-    # input_ = "{}\n{}\n{}".format(obs, infos["description"], infos["inventory"])
-
-    # Tokenize and pad the input and the commands to chose from.
-    state_tensors = tokenizer(obs_list, stack=True)
-    action_list_tensor = tokenizer(action_list, stack=True)
-
-    return state_tensors, action_list_tensor
+    Done = 5
 
 
 def extract_detail(text):
-    detail = text.split(":")[1].strip()
+    parts = text.split(":")
+    detail = ":".join(parts[1:]).strip()
     # remove space and '#'
     return detail.strip().replace("#", "")
 
@@ -48,14 +27,14 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, env_step, agent, tokenizer, train_prompt=None, train=False):
+    def __init__(self, env_step, agent, tokenizer, observation_differnce, train_prompt=None, train=False):
         self.env_step = env_step
         self.agent = agent
         self.tokenizer = tokenizer
-        self.extra_actions = []
+        self.observation_differnce = observation_differnce
+        self.extra_actions = set()
 
         self.training_mode = train
-        # training use LM to randomly generate action with RL
 
         self.use_lm = False
         self.long_lm = None
@@ -80,16 +59,16 @@ class Persona:
         # load the agent and the extra actions
         self.agent.load(os.path.join(path, "agent"))
         with open(os.path.join(path, "extra_actions.txt"), "r") as f:
-            self.extra_actions = [line.strip() for line in f.readlines()]
+            self.extra_actions = set([line.strip() for line in f.readlines()])
 
 
     def print_context(self, quest_node):
         children = quest_node.get_children()
         obs, score, done, infos, _ = quest_node.start_observation
-        contexts = [f"Task: {quest_node.quest}", f"Observation: {obs}"]
+        contexts = [f"Task: {quest_node.quest["objective"]}", f"Observation: {obs}"]
         for node in children:
             if isinstance(node, Quest_Node):
-                contexts.append(f"Sub Task: {node.quest}")
+                contexts.append(f"Sub Task: {node.quest["objective"]}")
                 if node.is_fulfilled():
                     contexts.append(f"Result: {node.result}")
                 else:
@@ -103,12 +82,16 @@ class Persona:
                 contexts.append(f"Action: {node.action}")
                 obs, score, done, infos, _ = node.observation
                 contexts.append(f"Observation: {obs}")
-        contexts.append(f"Admissible Commands: {infos['admissible_commands']}")
-        contexts.append(f"Extra Actions: {self.extra_actions}")
+        contexts.append(f"Admissible Commands: {",".join(infos['admissible_commands'])}")
+        contexts.append(f"Extra Actions: {",".join(self.extra_actions)}")
         return "\n".join(contexts)
 
 
-    def train(self, current_value, quest_node, supports):
+    def train(self, current_value, quest_node, supports, last_observation, force_train: bool = False):
+        self.step += 1
+        if not force_train and self.step % self.TRAIN_STEP != 0:
+            return
+
         obs, score, done, infos, _ = quest_node.start_observation
         transitions = []
         last_score = score
@@ -124,41 +107,58 @@ class Persona:
                     transitions.append((score - last_score, tf))
                 last_score = score
 
+                # compute diff with the last_observation
+                has_diff, diff_str = self.observation_differnce(node.observation, last_observation)
+                if has_diff:
+                    fold_action = f"Sub Task: {diff_str}"
+                    self.extra_actions.add(fold_action)
+                    self.agent.append_action(tf, self.tokenizer([fold_action], stack=True))
+
         self.agent.train(current_value, transitions)
+
+        if self.step % self.PRINT_STEP == 0:
+            self.agent.print(self.step)
 
 
     def think(self, quest_node, supports):
         # supports is a list of nodes
-        quest = quest_node.quest
+        objective = quest_node.quest["objective"]
+        max_steps = quest_node.quest["max_steps"] if "max_steps" in quest_node.quest else None
+        count_non_thought_steps = 0
         obs, score, done, infos, _ = quest_node.start_observation
+        last_observation = quest_node.start_observation
         contexts = [f"Observation: {obs}"]
         for node in supports:
             if isinstance(node, Quest_Node):
-                contexts.append(f"Sub Task: {node.quest}")
+                contexts.append(f"Sub Task: {node.quest["objective"]}")
                 if node.is_fulfilled():
                     contexts.append(f"Result: {node.result}")
                 else:
                     contexts.append("Result: Failed")
                 # score, done, infos are the last score from the sub task
                 obs, score, done, infos, tf = node.end_observation
+                last_observation = node.end_observation
                 contexts.append(f"Observation: {obs}")
+                count_non_thought_steps += 1
             elif isinstance(node, Thought_Node):
                 contexts.append(f"Thought: {node.thought}")
             elif isinstance(node, Observation_Node):
                 contexts.append(f"Action: {node.action}")
                 obs, score, done, infos, tf = node.observation
+                last_observation = node.observation
                 contexts.append(f"Observation: {obs}")
+                count_non_thought_steps += 1
 
-        action_list = [f"Action: {ac}" for ac in infos["admissible_commands"]] + self.extra_actions
+        action_list = [f"Action: {ac}" for ac in infos["admissible_commands"]] + list(self.extra_actions)
 
         lm_response = ""
         if self.use_lm:
-            text_response = self.long_lm.complete_text(self.prompt.format(quest=quest, action_list=",".join(action_list), contexts="\n".join(contexts)))
+            text_response = self.long_lm.complete_text(self.prompt.format(quest=objective, action_list=",".join(action_list), contexts="\n".join(contexts)))
             # get the first part before newline
             lm_response = text_response.split("\n")[0]
             if lm_response.startswith("Thought"):
                 return Sub_Action_Type.Thought, Thought_Node(extract_detail(response))
-            elif not lm_response.startswith("Action") and not lm_response.startswith("Sub Task") and not lm_response.startswith("Final Respond"):
+            elif not lm_response.startswith("Action") and not lm_response.startswith("Sub Task"):
                 # if the response is not an action, sub task or final respond, ignore it
                 lm_response = ""
             else:
@@ -168,59 +168,67 @@ class Persona:
         rl_response = ""
         # remove thoughts from the context for RL
         rl_contexts = [c for c in contexts if not c.startswith("Thought")]
-        state_tensor, action_list_tensor = prepare_tensors(self.tokenizer, [quest] + rl_contexts, action_list)
+        state_tensor = self.tokenizer([objective] + rl_contexts, stack=True)
+        action_list_tensor = self.tokenizer(action_list, stack=True)
         tf = self.agent.act(state_tensor, action_list_tensor)
         rl_response = action_list[tf.indexes]
 
-        if len(lm_response) > 0 and (random.random() < 0.1 or lm_response.startswith("Final Respond")):
-            # if the teacher says it's a final respond, we should override the RL response
+        if len(lm_response) > 0 and random.random() < 0.1:
             # override RL response with the index of LM response
             tf.override_selected_action(action_list.index(lm_response))
             response = lm_response
         else:
             response = rl_response
 
-        observation = get_last_observation(quest_node)
-
         should_train = False
         current_value = tf.values.item()
-        if response.startswith("Final Respond"):
-            result = extract_detail(response)
-            should_train = True
-            if result == "Success":
-                current_value = 100
-            else:
-                current_value = -100
-            return_sub_action, return_node = Sub_Action_Type.Fulfill, Quest_Node(None, result, None, observation)
-        elif response.startswith("Sub Task"):
-            return_sub_action, return_node = Sub_Action_Type.Relegate, Quest_Node(extract_detail(response), None, observation, None)
+        return_sub_action = None
+        return_node = None
+        if response.startswith("Sub Task"):
+            return_sub_action = Sub_Action_Type.Relegate 
+            return_node = Quest_Node(
+                quest = {
+                    "objective": extract_detail(response),
+                    "max_steps": self.TRAIN_STEP
+                },
+                start_observation=last_observation
+            )
         elif response.startswith("Action"):
             action = extract_detail(response)
             obs, score, done, infos = self.env_step(action)
             observation = (obs, score, done, infos, tf)
+
             if done:
                 should_train = True
+                return_sub_action = Sub_Action_Type.Done
                 if infos["won"]:
                     current_value = 100
+                    return_node = Quest_Node(result = "Success", end_observation=observation)
                 elif infos["lost"]:
                     current_value = -100
-                return_sub_action, return_node = Sub_Action_Type.Done, Quest_Node(None, "End", None, observation)
+                    return_node = Quest_Node(result = "Failed", end_observation=observation)
+                else:
+                    return_node = Quest_Node(result = "Failed", end_observation=observation)
+            elif obs == objective:
+                should_train = True
+                current_value = 10
+                return_sub_action = Sub_Action_Type.Fulfill
+                return_node = Quest_Node(result = "Success", end_observation=observation)
+            elif max_steps is not None and count_non_thought_steps > max_steps:
+                should_train = True
+                current_value = -10
+                return_sub_action = Sub_Action_Type.Fulfill
+                return_node = Quest_Node(result = "Failed", end_observation=observation)
             else:
-                return_sub_action, return_node = Sub_Action_Type.Act, Observation_Node(action, observation)
-        else:
-            return_sub_action, return_node = None, None
+                return_sub_action = Sub_Action_Type.Act
+                return_node = Observation_Node(action, observation)
 
 
         if self.training_mode:
-            self.step += 1
-
-            if should_train or self.step % self.TRAIN_STEP == 0:
-                self.train(current_value, quest_node, supports)
-
-            if self.step % self.PRINT_STEP == 0:
-                self.agent.print(self.step)
+            self.train(current_value, quest_node, supports, last_observation, force_train=should_train)
         else:
             tf.release()
+
 
         return return_sub_action, return_node
 
