@@ -83,7 +83,12 @@ Apart from the above environment variables, you must also include _third-party A
     -   [x] vector dictionary (simulate hippocampus)
 -   [x] ReAct
 -   [x] ReAct with dynamic hierarchy
--   [ ] Non-markovian RL module
+-   [x] Transformer RL
+-   [ ] RoPE
+-   [ ] Reduce VRAM usage (increase training time)
+    -   [x] Disentangle gradient
+    -   [ ] Sample action sets
+-   [ ] Hierarchical RL
 
 ### Backends
 
