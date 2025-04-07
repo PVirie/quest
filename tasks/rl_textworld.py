@@ -79,7 +79,7 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         # next check inventory
         # find anything after "You are carrying:"" and split using "and"
         def extract_inventory(infos):
-            if "nothing" in infos:
+            if "inventory" not in infos or "nothing" in infos["inventory"]:
                 return set()
             inv_str = infos["inventory"].replace("You are carrying:", "").strip()
             return set([item.strip() for item in inv_str.split("and") if item.strip() != ""])
@@ -100,7 +100,11 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         
         # can also check score here
 
-        return len(differences) >= 1, " and ".join(differences), carry
+        # reduce memory overflow
+        # return len(differences) >= 1, " and ".join(differences), carry
+        # if len(differences) >= 1:
+        #     return True, differences[0], carry
+        return False, "", carry
 
     persona = Persona(env_step, agent, tokenizer, observation_differnce, train=train)
     
