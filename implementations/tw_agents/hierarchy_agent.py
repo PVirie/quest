@@ -32,7 +32,7 @@ class Hierarchy_Agent:
     def __init__(self, input_size, device) -> None:
         self.device = device
         self.model = Command_Scorer(input_size=input_size, hidden_size=64, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
+        self.optimizer = optim.Adam(self.model.parameters(), 0.0001)
 
         self.ave_value = 0
         self.iteration = 0
@@ -56,7 +56,7 @@ class Hierarchy_Agent:
         returns, advantages = [], []
         R = last_values.item() if isinstance(last_values, torch.Tensor) else last_values
         for i in range(len(transitions) - 1, -1, -1):
-            r, _ = transitions[i]
+            r, _, _ = transitions[i]
             R = r + self.GAMMA * R
             adv = R - values[i].item()
             returns.append(R)
@@ -69,8 +69,8 @@ class Hierarchy_Agent:
 
         # selected_action_set = set([va.selected_action for _, va, _ in transitions])
         # unused_actions = set(action_list) - selected_action_set
-        # # make a new list that contain twice the size of the selected actions, fill the rest with unused actions
-        # action_list = list(selected_action_set) + random.sample(list(unused_actions), min(len(selected_action_set), len(unused_actions)))
+        # # make a new list that contains 20, fill the rest with unused actions
+        # action_list = list(selected_action_set) + random.sample(list(unused_actions), min(max(0, 20 - len(selected_action_set)), len(unused_actions)))
 
         context_marks = torch.tensor([m for _, _, m in transitions], dtype=torch.int64, device=self.device)
 
@@ -80,8 +80,8 @@ class Hierarchy_Agent:
         # Get our next action and value prediction.
         _, action_scores, values = self.model(state_tensor, action_list_tensor)
 
-        action_scores = torch.take_along_dim(action_scores[0, :, :], context_marks, dim=0)
-        values = torch.take_along_dim(values[0, :, 0], context_marks, dim=0)
+        action_scores = torch.gather(action_scores[0, :, :], 0, torch.unsqueeze(context_marks, 1).expand(-1, action_scores.size(2)))
+        values = torch.gather(values[0, :, 0], 0, context_marks)
 
         action_indexes = torch.reshape(torch.tensor([action_list.index(va.selected_action) for _, va, _ in transitions], dtype=torch.int64, device=self.device), (-1, 1))
 
@@ -106,7 +106,7 @@ class Hierarchy_Agent:
 
         # use vector instead of loops
         probs = F.softmax(action_scores, dim=1)
-        log_probs = torch.log(probs)
+        log_probs = torch.log(torch.clip(probs, min=1e-6))
         log_action_probs = torch.gather(log_probs, 1, action_indexes)
         log_action_probs = log_action_probs.flatten()
         policy_loss = (-log_action_probs * advantages).sum()
@@ -116,7 +116,7 @@ class Hierarchy_Agent:
 
 
         if isinstance(loss, torch.Tensor):
-            self.ave_value = self.LOG_ALPHA * self.ave_value + (1 - self.LOG_ALPHA) * last_values
+            self.ave_value = self.LOG_ALPHA * self.ave_value + (1 - self.LOG_ALPHA) * loss.item()
 
             loss.backward()
             nn.utils.clip_grad_norm_(self.model.parameters(), 40)
@@ -124,13 +124,13 @@ class Hierarchy_Agent:
             self.optimizer.zero_grad()
             self.iteration += 1
 
-        for _, va in transitions:
+        for _, va, _ in transitions:
             if va is not None and not va.has_released:
                 va.release()
 
 
     def print(self, step):
         msg = "{:6d}. ".format(step)
-        msg += "value: {:5.2f}; ".format(self.ave_value)
+        msg += "loss: {:5.2f}; ".format(self.ave_value)
         print(msg)
         
