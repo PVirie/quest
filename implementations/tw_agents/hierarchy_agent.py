@@ -68,10 +68,10 @@ class Hierarchy_Agent:
 
     def train(self, last_values, transitions: List[Any], state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
 
-        selected_action_set = set([va.selected_action for _, va in transitions])
-        unused_actions = set(action_list) - selected_action_set
-        # make a new list that contain twice the size of the selected actions, fill the rest with unused actions
-        action_list = list(selected_action_set) + random.sample(list(unused_actions), min(len(selected_action_set), len(unused_actions)))
+        # selected_action_set = set([va.selected_action for _, va in transitions])
+        # unused_actions = set(action_list) - selected_action_set
+        # # make a new list that contain twice the size of the selected actions, fill the rest with unused actions
+        # action_list = list(selected_action_set) + random.sample(list(unused_actions), min(len(selected_action_set), len(unused_actions)))
 
         len_transitions = len(transitions)
 

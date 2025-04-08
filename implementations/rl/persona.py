@@ -136,7 +136,7 @@ class Persona:
         _, score, _, info, va = end_observation
         all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
         # add extra actions
-        all_action_list = all_action_set.union(self.extra_actions)
+        all_action_list = list(all_action_set.union(self.extra_actions))
 
         if force_train_last: 
             if va is not None and not va.has_released:
