@@ -68,8 +68,7 @@ class Command_Scorer(nn.Module, Q_Table):
         # indices has shape batch x n_contexts x 1; is the indices of the actions chosen along the context length
         # scores has shape batch x n_contexts x n_actions; is the scores of individual actions along the context length
         # values has shape batch x n_contexts x 1; is the values of the states
-        # state_internal has shape batch x n_contexts x hidden; is the internal representation of the state
-        return indices, scores, values, state_internal
+        return indices, scores, values
 
 
     def evaluate_state(self, observations, **kwargs):

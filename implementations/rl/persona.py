@@ -93,6 +93,7 @@ class Persona:
         _, score, _, info, _ = start_observation
         _, _, carry = self.observation_differnce(start_observation, end_observation, None)
         rl_contexts = [objective]
+        last_context_mark = 0
         transitions = []
         last_score = score
         all_action_set = set([f"Action: {ac}" for ac in info["admissible_commands"]])
@@ -130,7 +131,8 @@ class Persona:
                 if goal_pursue:
                     # if goal pursue, every step is penalized
                     score = last_score - 1
-                transitions.append((score - last_score, va))
+                transitions.append((score - last_score, va, last_context_mark))
+            last_context_mark = len(rl_contexts) - 1
             last_score = score
         
         _, score, _, info, va = end_observation
@@ -142,7 +144,7 @@ class Persona:
             if va is not None and not va.has_released:
                 if goal_pursue:
                     score = last_score - 1
-                transitions.append((score - last_score, va))
+                transitions.append((score - last_score, va, last_context_mark))
 
         if len(transitions) > 0:
             state_tensor = self.tokenizer(rl_contexts, stack=True)

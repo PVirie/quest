@@ -43,11 +43,10 @@ class Hierarchy_Agent:
         action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
 
         # Get our next action and value prediction.
-        indexes, action_scores, values, internal_states = self.model(state_tensor, action_list_tensor)
+        indexes, action_scores, values = self.model(state_tensor, action_list_tensor)
         indexes = indexes[0, -1, :].item()
         action_scores = action_scores[0, -1, :]
         values = values[0, -1, :].item()
-        internal_states = internal_states[0, -1, :]
 
         return Value_Action(values, action_list[indexes], self.iteration)
 
@@ -68,24 +67,25 @@ class Hierarchy_Agent:
 
     def train(self, last_values, transitions: List[Any], state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
 
-        # selected_action_set = set([va.selected_action for _, va in transitions])
+        # selected_action_set = set([va.selected_action for _, va, _ in transitions])
         # unused_actions = set(action_list) - selected_action_set
         # # make a new list that contain twice the size of the selected actions, fill the rest with unused actions
         # action_list = list(selected_action_set) + random.sample(list(unused_actions), min(len(selected_action_set), len(unused_actions)))
 
-        len_transitions = len(transitions)
+        context_marks = torch.tensor([m for _, _, m in transitions], dtype=torch.int64, device=self.device)
 
         state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
         action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
 
         # Get our next action and value prediction.
-        _, action_scores, values, internal_states = self.model(state_tensor, action_list_tensor)
-        action_scores = action_scores[0, -len_transitions:, :]
-        values = values[0, -len_transitions:, 0]
+        _, action_scores, values = self.model(state_tensor, action_list_tensor)
 
-        indexes = torch.reshape(torch.tensor([action_list.index(va.selected_action) for _, va in transitions], dtype=torch.int64, device=self.device), (-1, 1))
+        action_scores = torch.take_along_dim(action_scores[0, :, :], context_marks, dim=0)
+        values = torch.take_along_dim(values[0, :, 0], context_marks, dim=0)
 
-        returns, advantages = self._discount_rewards(last_values, values.flatten(), transitions)
+        action_indexes = torch.reshape(torch.tensor([action_list.index(va.selected_action) for _, va, _ in transitions], dtype=torch.int64, device=self.device), (-1, 1))
+
+        returns, advantages = self._discount_rewards(last_values, values.flatten().detach(), transitions)
         returns = torch.tensor(returns, dtype=torch.float32, device=self.device)
         advantages = torch.tensor(advantages, dtype=torch.float32, device=self.device)
 
@@ -107,7 +107,7 @@ class Hierarchy_Agent:
         # use vector instead of loops
         probs = F.softmax(action_scores, dim=1)
         log_probs = torch.log(probs)
-        log_action_probs = torch.gather(log_probs, 1, indexes)
+        log_action_probs = torch.gather(log_probs, 1, action_indexes)
         log_action_probs = log_action_probs.flatten()
         policy_loss = (-log_action_probs * advantages).sum()
         value_loss = (.5 * (values - returns) ** 2.).sum()
