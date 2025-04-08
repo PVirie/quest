@@ -141,7 +141,7 @@ class Persona:
                     _, _, _, _, tf = end_observation
                     tf.selection_string = fold_action
                     force_train_last = True
-                    self.sub_train(diff_str, node.observation, [n for n in supports[i:]], end_observation, 10, force_train_last=True, goal_pursue=True)
+                    self.train(diff_str, node.observation, [n for n in supports[i:]], end_observation, 10, force_train_last=True, goal_pursue=True)
                     break
             else:
                 continue
@@ -297,7 +297,7 @@ class Persona:
         if self.training_mode:
             self.step += 1
             if force_train_last or self.step % self.TRAIN_STEP == 0:
-                self.sub_train(objective, quest_node.start_observation, supports, last_observation, current_value, force_train_last=force_train_last)
+                self.train(objective, quest_node.start_observation, supports, last_observation, current_value, force_train_last=force_train_last)
 
             if self.step % self.PRINT_STEP == 0:
                 self.agent.print(self.step)
