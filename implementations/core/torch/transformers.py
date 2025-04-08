@@ -82,6 +82,7 @@ class Command_Scorer(nn.Module, Q_Table):
         obs_embedding = torch.reshape(obs_embedding[:, -1, :], (-1, n_contexts, self.hidden_size)) # batch x n_contexts x hidden
 
         # accept (sequence_length, batch_size, d_model)
+        obs_embedding = obs_embedding + self.pe[:n_contexts, :] # add positional encoding
         obs_embedding = obs_embedding.permute(1, 0, 2) # n_contexts x batch x hidden
         state_internal = self.state_decoder(obs_embedding, obs_embedding, tgt_mask=causal_mask(n_contexts, self.device), tgt_is_causal=True) # n_contexts x batch x hidden
         state_internal = state_internal.permute(1, 0, 2) # batch x n_contexts x hidden

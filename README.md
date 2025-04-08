@@ -87,7 +87,7 @@ Apart from the above environment variables, you must also include _third-party A
 -   [ ] RoPE
 -   [ ] Reduce VRAM usage (increase training time)
     -   [x] Disentangle gradient
-    -   [ ] Sample action sets
+    -   [x] Sample action sets
 -   [ ] Hierarchical RL
 
 ### Backends
