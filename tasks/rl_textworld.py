@@ -51,7 +51,7 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         obs, score, done, infos = env.step([action])
         return obs[0], score[0], done[0], flatten_batch(infos)
     
-    def observation_differnce(from_obs, to_obs, carry):
+    def observation_difference(from_obs, to_obs, carry):
         if carry is None:
             carry = {
                 "current_location": None,
@@ -106,7 +106,7 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         #     return True, differences[0], carry
         return False, "", carry
 
-    persona = Persona(env_step, agent, tokenizer, observation_differnce, train=train)
+    persona = Persona(env_step, agent, tokenizer, observation_difference, train=train)
     
     # Collect some statistics: nb_steps, final reward.
     avg_moves, avg_scores = [], []

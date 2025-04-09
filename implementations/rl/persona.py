@@ -28,11 +28,11 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, env_step, agent, tokenizer, observation_differnce, train_prompt=None, train=False):
+    def __init__(self, env_step, agent, tokenizer, observation_difference, train_prompt=None, train=False):
         self.env_step = env_step
         self.agent = agent
         self.tokenizer = tokenizer
-        self.observation_differnce = observation_differnce
+        self.observation_difference = observation_difference
         self.extra_actions = set()
 
         self.training_mode = train
@@ -97,7 +97,7 @@ class Persona:
         transitions = []
         last_score = score
         all_action_set = set([f"Action: {ac}" for ac in info["admissible_commands"]])
-        # run first round to gather all action list
+        fold_exit = False
         for i, node in enumerate(supports):
             if isinstance(node, Quest_Node):
                 rl_contexts.append(f"Sub Task: {node.quest["objective"]}")
@@ -108,21 +108,24 @@ class Persona:
                 obs, score, _, info, _ = node.end_observation
                 rl_contexts.append(f"Observation: {obs}")
             elif isinstance(node, Observation_Node):
-                rl_contexts.append(f"Action: {node.action}")
-                obs, score, _, info, va = node.observation
-                rl_contexts.append(f"Observation: {obs}")
-
-                has_diff, diff_str, carry = self.observation_differnce(node.observation, end_observation, carry)
+                last_node = supports[-1]
+                last_node_observation = last_node.observation if isinstance(last_node, Observation_Node) else last_node.end_observation
+                has_diff, diff_str, carry = self.observation_difference(node.observation, last_node_observation, carry)
                 if has_diff:
                     fold_action = f"Sub Task: {diff_str}"
                     self.extra_actions.add(fold_action)
-                    if fold_action not in all_action_list:
-                        all_action_list.append(fold_action)
-                    _, _, _, _, va = end_observation
+                    rl_contexts.append(f"Sub Task: {diff_str}")
+                    rl_contexts.append(f"Result: Success")
+                    _, _, _, _, va = node.observation
                     va.selected_action = fold_action
-                    force_train_last = True
-                    self.train(diff_str, node.observation, [n for n in supports[i:]], end_observation, 10, force_train_last=True, goal_pursue=True)
-                    break
+                    obs, score, _, info, _ = last_node_observation
+                    rl_contexts.append(f"Observation: {obs}")
+                    self.train(diff_str, node.observation, [n for n in supports[i:]], last_node_observation, 20, force_train_last=True, goal_pursue=True)
+                    fold_exit = True
+                else:
+                    rl_contexts.append(f"Action: {node.action}")
+                    obs, score, _, info, va = node.observation
+                    rl_contexts.append(f"Observation: {obs}")
             else:
                 continue
             
@@ -134,6 +137,9 @@ class Persona:
                 transitions.append((score - last_score, va, last_context_mark))
             last_context_mark = len(rl_contexts) - 1
             last_score = score
+
+            if fold_exit:
+                break
         
         _, score, _, info, va = end_observation
         all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
