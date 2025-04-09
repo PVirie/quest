@@ -46,10 +46,49 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
     def flatten_batch(infos):
         return {k: v[0] for k, v in infos.items()}
 
-    def env_step(action):
+    def env_step(objective, action, num_children):
         # adapter between non-batched and batched environment
         obs, score, done, infos = env.step([action])
-        return obs[0], score[0], done[0], flatten_batch(infos)
+        obs = obs[0]
+        score = score[0]
+        done = done[0]
+        infos = flatten_batch(infos)
+
+        success = False
+        current_value = 0
+        if done:
+            if infos["won"]:
+                success = True
+                current_value = 100
+            else:
+                success = False
+                current_value = -100
+
+        # obs, score, done, infos, fulfilled, success, current_value
+        # score is the main env score
+        # fulfill is for sub task, success 
+        return obs, score, done, infos, False, success, current_value
+    
+
+    def sub_env_step(objective, action, num_children):
+        # adapter between non-batched and batched environment
+        obs, score, done, infos = env.step([action])
+        obs = obs[0]
+        score = score[0]
+        done = done[0]
+        infos = flatten_batch(infos)
+
+        # check with objective, if the current state is fulfilled
+        #     if success:
+        #         current_value = 20
+        #     else:
+        #         current_value = 0
+
+        # obs, score, done, infos, fulfilled, success, current_value
+        # score is the main env score
+        # fulfill is for sub task, success 
+        return obs, score, done, infos, False, False, 0
+
     
     def observation_difference(from_obs, to_obs, carry):
         if carry is None:
@@ -61,7 +100,7 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         # Compare the two observations and return the difference.
         # First check location: "-= Kitchen =-" - anything else = "Move to Kitchen" 
         # Second check inventory: "You are carrying: a half of a bag of chips and an old key" - "You are carrying: an old key" = "Find and Take: a half of a bag of chips"
-        # If inventory size is reduce use command: "Find a place to use: a half of a bag of chips"
+        # If inventory size is reduce use command: "Use: a half of a bag of chips"
         to_obs, _, _, to_infos, _ = to_obs
         from_obs, _, _, from_infos, _ = from_obs
         # first find location pattern -= {location} =-
@@ -87,26 +126,29 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         from_inv = extract_inventory(from_infos)
         carry["current_inventory"] = from_inv
 
+        count_diff = 0
         differences = []
         if to_location is not None and to_location != carry["current_location"]:
             differences.append(f"Go to {to_location}")
+            count_diff = 1
 
         to_from_diff = to_inv - from_inv
         from_to_diff = from_inv - to_inv
         if len(to_from_diff) > 0:
-            differences.append(f"Find and Take: {', '.join(to_from_diff)}")
+            differences.append(f"Find {' '.join(to_from_diff)}")
+            count_diff += len(to_from_diff)
         if len(from_to_diff) > 0:
-            differences.append(f"Use: {', '.join(from_to_diff)}")
+            differences.append(f"Use {' '.join(from_to_diff)}")
+            count_diff += len(from_to_diff)
         
         # can also check score here
 
-        # reduce memory overflow
-        # return len(differences) >= 1, " and ".join(differences), carry
-        # if len(differences) >= 1:
-        #     return True, differences[0], carry
+        # if count_diff >= 1:
+        #     return True, " and ".join(differences), carry
         return False, "", carry
-
-    persona = Persona(env_step, agent, tokenizer, observation_difference, train=train)
+    
+    
+    persona = Persona(agent, tokenizer, observation_difference, sub_env_step, train=train)
     
     # Collect some statistics: nb_steps, final reward.
     avg_moves, avg_scores = [], []
@@ -119,9 +161,8 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         nb_moves = 0
 
         root_node = rl_graph.Quest_Node(
-            quest = {
-                "objective": infos["objective"],
-            }, 
+            objective = infos["objective"],
+            env_step = env_step,
             start_observation = (obs, score, done, infos, None)
         )
         working_memory = Quest_Graph(root_node)

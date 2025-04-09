@@ -35,9 +35,10 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
     
 
 class Quest_Node(RL_Node):
-    def __init__(self, quest=None, result=None, start_observation=None, end_observation=None):
+    def __init__(self, objective=None, env_step=None, result=None, start_observation=None, end_observation=None):
         super().__init__()
-        self.quest = quest
+        self.objective = objective
+        self.env_step = env_step
         self.result = result
         self.start_observation = start_observation
         self.end_observation = end_observation
@@ -46,17 +47,20 @@ class Quest_Node(RL_Node):
         # check same class
         if not isinstance(another, self.__class__):
             return
-        if another.quest is not None:
-            self.quest = another.quest
+        if another.objective is not None:
+            self.objective = another.objective
         if another.result is not None:
             self.result = another.result
         if another.start_observation is not None:
             self.start_observation = another.start_observation
         if another.end_observation is not None:
             self.end_observation = another.end_observation
-        
+            
     def is_fulfilled(self):
         return self.result is not None
+    
+    def step(self, action):
+        return self.env_step(self.objective, action, len(self.children))
     
 
 class Thought_Node(RL_Node):
