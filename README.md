@@ -85,10 +85,12 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] ReAct with dynamic hierarchy
 -   [x] Transformer RL
 -   [ ] RoPE
--   [ ] Reduce VRAM usage (increase training time)
+-   [x] Reduce VRAM usage (increase training time)
     -   [x] Disentangle gradient
     -   [x] Sample action sets
 -   [ ] Hierarchical RL
+    -   [ ] Score conversion when up-hierarchy
+    -   [ ] Check learnining on done within the sub-task
 
 ### Backends
 

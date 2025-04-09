@@ -69,6 +69,12 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         # fulfill is for sub task, success 
         return obs, score, done, infos, False, success, current_value
     
+    def extract_inventory(infos):
+        # find anything after "You are carrying:"" and split using "and"
+        if "inventory" not in infos or "nothing" in infos["inventory"]:
+            return set()
+        inv_str = infos["inventory"].replace("You are carrying:", "").strip()
+        return set([item.strip() for item in inv_str.split("and") if item.strip() != ""])
 
     def sub_env_step(objective, action, num_children):
         # adapter between non-batched and batched environment
@@ -78,16 +84,59 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         done = done[0]
         infos = flatten_batch(infos)
 
-        # check with objective, if the current state is fulfilled
-        #     if success:
-        #         current_value = 20
-        #     else:
-        #         current_value = 0
+        go_to = None
+        find_items = []
+        use_items = []
+        # find Go to {location}( and Find {item1} {item2} ...)*( and Use {item1} {item2} ...)*
+        # first split objective into components
+        parts = objective.split(" and ")
+        for part in parts:
+            if part.startswith("Go to "):
+                go_to = part.replace("Go to ", "")
+            elif part.startswith("Find "):
+                find_items = part.replace("Find ", "").split(" ")
+            elif part.startswith("Use "):
+                use_items = part.replace("Use ", "").split(" ")
+
+        # check inventory first
+        task_score = 0
+        current_inventory = extract_inventory(infos)
+        success = True
+        if len(find_items) > 0:
+            for item in find_items:
+                if item in current_inventory:
+                    task_score += 1
+                else:
+                    success = False
+            
+        if len(use_items) > 0:
+            for item in use_items:
+                if item not in current_inventory:
+                    task_score += 1
+                else:
+                    success = False
+
+        if go_to is not None:
+            # now must get all the item and go to the location to fulfill the objective
+            at_the_location = f"-= {go_to} =" in obs
+            if at_the_location:
+                task_score += 1
+            fulfilled = success and at_the_location
+        else:
+            fulfilled = success
+
+        current_value = 20 if success else 0
+
+        if done:
+            # if env end before fulfilling the task, success is False
+            success = False
+
+        if num_children > 20:
+            # too many children, stop the task
+            return obs, score, done, infos, True, False, 0
 
         # obs, score, done, infos, fulfilled, success, current_value
-        # score is the main env score
-        # fulfill is for sub task, success 
-        return obs, score, done, infos, False, False, 0
+        return obs, score, done, infos, fulfilled, success, current_value
 
     
     def observation_difference(from_obs, to_obs, carry):
@@ -101,8 +150,8 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         # First check location: "-= Kitchen =-" - anything else = "Move to Kitchen" 
         # Second check inventory: "You are carrying: a half of a bag of chips and an old key" - "You are carrying: an old key" = "Find and Take: a half of a bag of chips"
         # If inventory size is reduce use command: "Use: a half of a bag of chips"
-        to_obs, _, _, to_infos, _ = to_obs
-        from_obs, _, _, from_infos, _ = from_obs
+        to_obs, to_score, _, to_infos, _ = to_obs
+        from_obs, from_score, _, from_infos, _ = from_obs
         # first find location pattern -= {location} =-
         def extract_location(obs):
             result = re.search(r"-= (.*?) =-", obs)
@@ -116,12 +165,6 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
             carry["current_location"] = from_location
 
         # next check inventory
-        # find anything after "You are carrying:"" and split using "and"
-        def extract_inventory(infos):
-            if "inventory" not in infos or "nothing" in infos["inventory"]:
-                return set()
-            inv_str = infos["inventory"].replace("You are carrying:", "").strip()
-            return set([item.strip() for item in inv_str.split("and") if item.strip() != ""])
         to_inv = extract_inventory(to_infos)
         from_inv = extract_inventory(from_infos)
         carry["current_inventory"] = from_inv
@@ -142,9 +185,8 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
             count_diff += len(from_to_diff)
         
         # can also check score here
-
-        # if count_diff >= 1:
-        #     return True, " and ".join(differences), carry
+        if to_score > from_score and count_diff >= 1:
+            return True, " and ".join(differences), carry
         return False, "", carry
     
     

@@ -63,13 +63,15 @@ class Persona:
             self.extra_actions = set([line.strip() for line in f.readlines()])
 
 
-    def print_context(self, quest_node):
+    def print_context(self, quest_node, prefix=""):
         children = quest_node.get_children()
         obs, score, done, infos, _ = quest_node.start_observation
         contexts = [f"Task: {quest_node.objective}", f"Observation: {obs}"]
         for node in children:
             if isinstance(node, Quest_Node):
                 contexts.append(f"Sub Task: {node.objective}")
+                sub_task_context = self.print_context(node, prefix=prefix + "  ")
+                contexts.append(sub_task_context)
                 if node.is_fulfilled():
                     contexts.append(f"Result: {node.result}")
                 else:
@@ -83,9 +85,8 @@ class Persona:
                 contexts.append(f"Action: {node.action}")
                 obs, score, done, infos, _ = node.observation
                 contexts.append(f"Observation: {obs}")
-        contexts.append(f"Admissible Commands: {",".join(infos['admissible_commands'])}")
         contexts.append(f"Extra Actions: {",".join(self.extra_actions)}")
-        return "\n".join(contexts)
+        return f"{prefix}\n".join(contexts)
 
 
     def train(self, objective, start_observation, supports, end_observation, value, force_train_last: bool = False):
