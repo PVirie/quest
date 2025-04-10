@@ -69,6 +69,14 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         # fulfill is for sub task, success 
         return obs, score, done, infos, False, success, current_value
     
+    def extract_location(infos):
+        # first find location pattern -= {location} =-
+        result = re.search(r"-= (.*?) =-", infos["description"])
+        location = None
+        if result is not None:
+            location = result.group(1)
+        return location
+    
     def extract_inventory(infos):
         # find anything after "You are carrying:"" and split using "and"
         if "inventory" not in infos or "nothing" in infos["inventory"]:
@@ -139,58 +147,38 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         return obs, score, done, infos, fulfilled, success, current_value
 
     
-    def observation_difference(from_obs, to_obs, carry):
-        if carry is None:
-            carry = {
-                "current_location": None,
-                "current_inventory": set()
-            }
+    def compute_folds(states):
+        # states is a list of obs, score, info, last_context_mark
+        # return list of delta_score, diff_str, context_mark
 
-        # Compare the two observations and return the difference.
-        # First check location: "-= Kitchen =-" - anything else = "Move to Kitchen" 
-        # Second check inventory: "You are carrying: a half of a bag of chips and an old key" - "You are carrying: an old key" = "Find and Take: a half of a bag of chips"
-        # If inventory size is reduce use command: "Use: a half of a bag of chips"
-        to_obs, to_score, _, to_infos, _ = to_obs
-        from_obs, from_score, _, from_infos, _ = from_obs
-        # first find location pattern -= {location} =-
-        def extract_location(obs):
-            result = re.search(r"-= (.*?) =-", obs)
-            location = None
-            if result is not None:
-                location = result.group(1)
-            return location
-        to_location = extract_location(to_obs)
-        from_location = extract_location(from_obs)
-        if from_location is not None:
-            carry["current_location"] = from_location
+        # to_location = extract_location(to_infos)
+        # from_location = extract_location(from_infos)
+        # # next check inventory
+        # to_inv = extract_inventory(to_infos)
+        # from_inv = extract_inventory(from_infos)
 
-        # next check inventory
-        to_inv = extract_inventory(to_infos)
-        from_inv = extract_inventory(from_infos)
-        carry["current_inventory"] = from_inv
+        # count_diff = 0
+        # differences = []
+        # if to_location is not None and to_location != from_location:
+        #     differences.append(f"Go to {to_location}")
+        #     count_diff = 1
 
-        count_diff = 0
-        differences = []
-        if to_location is not None and to_location != carry["current_location"]:
-            differences.append(f"Go to {to_location}")
-            count_diff = 1
-
-        to_from_diff = to_inv - from_inv
-        from_to_diff = from_inv - to_inv
-        if len(to_from_diff) > 0:
-            differences.append(f"Find {' '.join(to_from_diff)}")
-            count_diff += len(to_from_diff)
-        if len(from_to_diff) > 0:
-            differences.append(f"Use {' '.join(from_to_diff)}")
-            count_diff += len(from_to_diff)
+        # to_from_diff = to_inv - from_inv
+        # from_to_diff = from_inv - to_inv
+        # if len(to_from_diff) > 0:
+        #     differences.append(f"Find {' '.join(to_from_diff)}")
+        #     count_diff += len(to_from_diff)
+        # if len(from_to_diff) > 0:
+        #     differences.append(f"Use {' '.join(from_to_diff)}")
+        #     count_diff += len(from_to_diff)
         
         # can also check score here
         # if to_score > from_score and count_diff >= 1:
-        #     return True, " and ".join(differences), carry
-        return False, "", carry
+        #     return True, " and ".join(differences)
+        return []
     
     
-    persona = Persona(agent, tokenizer, observation_difference, sub_env_step, train=train)
+    persona = Persona(agent, tokenizer, compute_folds, sub_env_step, train=train)
     
     # Collect some statistics: nb_steps, final reward.
     avg_moves, avg_scores = [], []

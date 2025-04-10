@@ -55,15 +55,15 @@ class Hierarchy_Agent:
         # Get our next action and value prediction.
         action_scores, values = self.model(state_tensor, action_list_tensor)
 
+        action_scores = action_scores[0, -1, :]
+        values = values[0, -1, :].item()
+
         if sample_action:
-            probs = torch.nn.functional.softmax(action_scores[0, -1, ...], dim=0)  # n_actions
+            probs = torch.nn.functional.softmax(action_scores, dim=0)  # n_actions
             indices = torch.multinomial(probs, num_samples=1).item() # 1
         else:
             # greedy
-            indices = torch.argmax(action_scores[0, -1, :], dim=0).item()
-
-        action_scores = action_scores[0, -1, :]
-        values = values[0, -1, :].item()
+            indices = torch.argmax(action_scores, dim=0).item()
 
         return Value_Action(values, action_list[indices], self.iteration)
 
@@ -109,7 +109,7 @@ class Hierarchy_Agent:
         action_scores = torch.gather(action_scores[0, :, :], 0, torch.unsqueeze(context_marks, 1).expand(-1, action_scores.size(2)))
         values = torch.gather(values[0, :, 0], 0, context_marks)
 
-        action_indexes = torch.reshape(torch.tensor([action_list.index(va.selected_action) for _, va, _ in transitions], dtype=torch.int64, device=self.device), (-1, 1))
+        action_indexes = torch.reshape(torch.tensor([action_list.index(a) for _, a, _ in transitions], dtype=torch.int64, device=self.device), (-1, 1))
         rewards = torch.tensor([r for r, _, _ in transitions], dtype=torch.float32, device=self.device)
 
         returns, advantages = self._discount_rewards(last_value, values.flatten().detach(), rewards)
@@ -131,31 +131,26 @@ class Hierarchy_Agent:
 
         # use vector instead of loops
         probs = torch.nn.functional.softmax(action_scores, dim=1)
-        log_probs = torch.log(torch.clip(probs, min=1e-6))
+        log_probs = torch.log(probs)
         log_action_probs = torch.gather(log_probs, 1, action_indexes)
-        log_action_probs = log_action_probs.flatten()
+        log_action_probs = torch.clip(log_action_probs.flatten(), min=-8)
         policy_loss = (-log_action_probs * advantages).sum()
         value_loss = (.5 * (values - returns) ** 2.).sum()
         entropy = (-probs * log_probs).sum()
         loss = policy_loss + 0.5 * value_loss - 0.1 * entropy
 
+        self.ave_value = self.LOG_ALPHA * self.ave_value + (1 - self.LOG_ALPHA) * action_scores.mean().item()
 
-        if isinstance(loss, torch.Tensor):
-            self.ave_value = self.LOG_ALPHA * self.ave_value + (1 - self.LOG_ALPHA) * loss.item()
+        loss.backward()
+        nn.utils.clip_grad_norm_(self.model.parameters(), 40)
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+        self.iteration += 1
 
-            loss.backward()
-            nn.utils.clip_grad_norm_(self.model.parameters(), 40)
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-            self.iteration += 1
-
-        for _, va, _ in transitions:
-            if va is not None and not va.has_released:
-                va.release()
 
 
     def print(self, step):
         msg = "{:6d}. ".format(step)
-        msg += "loss: {:5.2f}; ".format(self.ave_value)
+        msg += "value: {:5.2f}; ".format(self.ave_value)
         print(msg)
         

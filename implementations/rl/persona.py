@@ -28,10 +28,10 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, agent, tokenizer, observation_difference, sub_eval_step_func, train_prompt=None, train=False):
+    def __init__(self, agent, tokenizer, compute_folds, sub_eval_step_func, train_prompt=None, train=False):
         self.agent = agent
         self.tokenizer = tokenizer
-        self.observation_difference = observation_difference
+        self.compute_folds = compute_folds
         self.sub_eval_step_func = sub_eval_step_func
         self.extra_actions = set()
 
@@ -92,10 +92,10 @@ class Persona:
     def train(self, objective, start_observation, supports, end_observation, value, force_train_last: bool = False):
         _, score, _, info, _ = start_observation
         all_action_set = set([f"Action: {ac}" for ac in info["admissible_commands"]])
-        _, _, carry = self.observation_difference(start_observation, end_observation, None)
         rl_contexts = [objective]
         last_context_mark = 0
         transitions = []
+        selected_nodes = []
         last_score = score
         i = 0
         while i < len(supports):
@@ -109,39 +109,28 @@ class Persona:
                 obs, score, _, info, _ = node.end_observation
                 rl_contexts.append(f"Observation: {obs}")
             elif isinstance(node, Observation_Node):
-                last_index = min(i + 6, len(supports) - 2)
-                if last_index - i >= 4:
-                    last_node = supports[last_index]
-                    last_node_observation = last_node.observation if isinstance(last_node, Observation_Node) else last_node.end_observation
-                    has_diff, diff_str, carry = self.observation_difference(node.observation, last_node_observation, carry)
-                else:
-                    has_diff = False
-                if has_diff:
-                    # fold sequence
-                    fold_action = f"Sub Task: {diff_str}"
-                    self.extra_actions.add(fold_action)
-                    rl_contexts.append(f"Sub Task: {diff_str}")
-                    rl_contexts.append(f"Result: Success")
-                    _, _, _, _, va = node.observation
-                    va.selected_action = fold_action
-                    obs, score, _, info, _ = last_node_observation
-                    rl_contexts.append(f"Observation: {obs}")
-                    i = last_index
-                else:
-                    rl_contexts.append(f"Action: {node.action}")
-                    obs, score, _, info, va = node.observation
-                    rl_contexts.append(f"Observation: {obs}")
+                rl_contexts.append(f"Action: {node.action}")
+                obs, score, _, info, va = node.observation
+                rl_contexts.append(f"Observation: {obs}")
             else:
                 continue
             
             all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
             if va is not None and not va.has_released:
-                transitions.append((score - last_score, va, last_context_mark))
+                transitions.append((score - last_score, va.selected_action, last_context_mark))
+                va.release()
+                selected_nodes.append((obs, score, info, last_context_mark))
             last_context_mark = len(rl_contexts) - 1
             last_score = score
 
             i += 1
         
+        diffs = self.compute_folds(selected_nodes)
+        for delta_score, diff_str, context_mark in diffs:
+            fold_action = f"Sub Task: {diff_str}"
+            self.extra_actions.add(fold_action)
+            transitions.append((delta_score, fold_action, context_mark))
+
         _, score, _, info, va = end_observation
         all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
         # add extra actions
@@ -149,7 +138,8 @@ class Persona:
 
         if force_train_last: 
             if va is not None and not va.has_released:
-                transitions.append((score - last_score, va, last_context_mark))
+                transitions.append((score - last_score, va.selected_action, last_context_mark))
+                va.release()
 
         if len(transitions) > 0:
             state_tensor = self.tokenizer(rl_contexts, stack=True)
@@ -202,7 +192,7 @@ class Persona:
         rl_contexts = [c for c in contexts if not c.startswith("Thought")]
         state_tensor = self.tokenizer([quest_node.objective] + rl_contexts, stack=True)
         action_list_tensor = self.tokenizer(action_list, stack=True)
-        va = self.agent.act(state_tensor, action_list_tensor, action_list, sample_action=self.training_mode)
+        va = self.agent.act(state_tensor, action_list_tensor, action_list, sample_action=True)
         rl_response = va.selected_action
 
         if not self.training_mode and va is not None:

@@ -84,10 +84,15 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] ReAct
 -   [x] ReAct with dynamic hierarchy
 -   [x] Transformer RL
--   [ ] RoPE
+-   [ ] Positional encoding
+    -   [x] Add PE to state, action, and context
+    -   [ ] RoPE
 -   [x] Reduce VRAM usage (increase training time)
     -   [x] Disentangle gradient
     -   [x] Sample action sets
+-   [ ] Numerical stability
+    -   [x] Min clip probability
+    -   [x] Gradient clipping
 -   [ ] Hierarchical RL
     -   [ ] Score conversion when up-hierarchy
     -   [ ] Check learnining on done within the sub-task
