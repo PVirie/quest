@@ -60,7 +60,7 @@ class Quest_Node(RL_Node):
         return self.result is not None
     
     def step(self, action):
-        return self.env_step(self.objective, action, len(self.children))
+        return self.env_step(self.objective, action, self.start_observation, len(self.children))
     
 
 class Thought_Node(RL_Node):

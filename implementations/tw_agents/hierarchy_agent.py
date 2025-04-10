@@ -92,8 +92,9 @@ class Hierarchy_Agent:
 
 
     def train(self, last_value, transitions: List[Any], state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
-
-        # selected_action_set = set([va.selected_action for _, va, _ in transitions])
+        # transitions is a list of tuples (you will get this reward, if you select this action, from this context)
+        
+        # selected_action_set = set([action for _, action, _ in transitions])
         # unused_actions = set(action_list) - selected_action_set
         # # make a new list that contains 20, fill the rest with unused actions
         # action_list = list(selected_action_set) + random.sample(list(unused_actions), min(max(0, 20 - len(selected_action_set)), len(unused_actions)))
