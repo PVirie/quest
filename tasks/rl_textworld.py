@@ -185,8 +185,8 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
             count_diff += len(from_to_diff)
         
         # can also check score here
-        if to_score > from_score and count_diff >= 1:
-            return True, " and ".join(differences), carry
+        # if to_score > from_score and count_diff >= 1:
+        #     return True, " and ".join(differences), carry
         return False, "", carry
     
     

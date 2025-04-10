@@ -55,20 +55,13 @@ class Command_Scorer(nn.Module, Q_Table):
     def forward(self, observations, actions, **kwargs):
         # observations has shape batch x n_contexts x context_size
         # actions has shape batch x n_actions x action_size
-        n_contexts = observations.size(1)
-        n_actions = actions.size(1)
 
         values, state_internal = self.evaluate_state(observations, **kwargs)
         scores = self.evaluate_actions(state_internal, actions, **kwargs)
 
-        probs = F.softmax(scores, dim=2)  # batch x n_contexts x n_actions
-        indices = torch.multinomial(torch.reshape(probs, (-1, n_actions)), num_samples=1)
-        indices = torch.reshape(indices, (-1, n_contexts, 1))
-
-        # indices has shape batch x n_contexts x 1; is the indices of the actions chosen along the context length
         # scores has shape batch x n_contexts x n_actions; is the scores of individual actions along the context length
         # values has shape batch x n_contexts x 1; is the values of the states
-        return indices, scores, values
+        return scores, values
 
 
     def evaluate_state(self, observations, **kwargs):
