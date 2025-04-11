@@ -57,9 +57,10 @@ def extract_inventory(infos):
 
 
 class Textworld_Transition(mdp_state.MDP_Transition):
-    def __init__(self, delta_score, last_context_mark, new_location=None, added_items=set(), removed_items=set()):
+    def __init__(self, delta_score, from_context_mark, to_context_mark, new_location=None, added_items=set(), removed_items=set()):
         self.delta_score = delta_score
-        self.last_context_mark = last_context_mark
+        self.from_context_mark = from_context_mark
+        self.to_context_mark = to_context_mark
         self.new_location = new_location
         self.added_items = added_items
         self.removed_items = removed_items
@@ -130,7 +131,14 @@ class Textworld_State(mdp_state.MDP_State):
 
 
     def __sub__(self, other):
-        return Textworld_Transition(self.score - other.score, other.last_context_mark, self.location if self.location != other.location else None, self.inventory - other.inventory, other.inventory - self.inventory)
+        return Textworld_Transition(
+            self.score - other.score, 
+            other.last_context_mark,
+            self.last_context_mark,
+            self.location if self.location != other.location else None, 
+            self.inventory - other.inventory, 
+            other.inventory - self.inventory
+        )
 
 
 MAX_VOCAB_SIZE = 1000
@@ -305,7 +313,7 @@ if __name__ == "__main__":
     
     def compute_folds(states):
         # states is a list of obs, score, info, last_context_mark
-        # return list of delta_score, diff_str, context_mark
+        # return list of delta_score, diff_str, from_context_mark, to_context_mark
         states = [Textworld_State(score, info, lcm) for _, score, info, lcm in states]
         transition_matrix = []
         for i in range(1, len(states)):
@@ -320,8 +328,8 @@ if __name__ == "__main__":
         # now compute all pairs of pivots
         pairs = combinations(reversed(pivots), 2)
         # gap greater than 4 steps
-        selected_transitions = [transition_matrix[i][j] for i, j in pairs if i - j >= 4]
-        return [(st.delta_score, st.objective, st.last_context_mark) for st in selected_transitions if st.count_diff > 0 and st.delta_score > 0]
+        selected_transitions = [(transition_matrix[i][j], i, j) for i, j in pairs if i - j >= 4]
+        return [(st.delta_score, st.objective, i, j) for st, i, j in selected_transitions if st.count_diff > 0 and st.delta_score > 0]
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
     # agent = RandomAgent()

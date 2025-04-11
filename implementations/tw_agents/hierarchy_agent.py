@@ -71,71 +71,86 @@ class Hierarchy_Agent:
 
 
     def act(self, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
-        state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
-        action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
+        
+        with torch.no_grad():
+            state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
+            action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
 
-        # Get our next action and value prediction.
-        action_scores, values = self.model(state_tensor, action_list_tensor)
+            # Get our next action and value prediction.
+            action_scores, values = self.model(state_tensor, action_list_tensor)
 
-        action_scores = action_scores[0, -1, :]
-        values = values[0, -1, :].item()
+            action_scores = action_scores[0, -1, :]
+            values = values[0, -1, :].item()
 
-        if sample_action:
-            probs = torch.nn.functional.softmax(action_scores, dim=0)  # n_actions
-            indices = torch.multinomial(probs, num_samples=1).item() # 1
-        else:
-            # greedy
-            indices = torch.argmax(action_scores, dim=0).item()
+            if sample_action:
+                probs = torch.nn.functional.softmax(action_scores, dim=0)  # n_actions
+                indices = torch.multinomial(probs, num_samples=1).item() # 1
+            else:
+                # greedy
+                indices = torch.argmax(action_scores, dim=0).item()
 
         return Value_Action(values, action_list[indices], self.iteration)
 
 
-    def _discount_rewards(self, last_value, values, rewards):
-        # returns, advantages = [], []
-        # R = last_values.item() if isinstance(last_values, torch.Tensor) else last_values
-        # for i in range(len(rewards) - 1, -1, -1):
-        #     R = rewards[i] + self.GAMMA * R
-        #     adv = R - values[i].item()
-        #     returns.append(R)
-        #     advantages.append(adv)
+    def _compute_snake_ladder(self, last_value, rewards):
+        # this is not true snake ladder, but a simplified version
+        # return a 2D matrix that contains best return from step i to step j
+        # rewards is a 1D tensor
+        # last_value is a scalar
 
-        # return returns[::-1], advantages[::-1]
         # use vector instead of loops
-
+        context_length = rewards.size(0)
         last_value = last_value if isinstance(last_value, torch.Tensor) else torch.ones(1, device=self.device) * last_value
+        
         # append last value to rewards
         R = torch.cat((rewards, last_value), dim=0)
-        context_length = R.size(0)
         # gammas is [[r^0, r^1, ..., r^n], [0, r^0, r^1, ..., r^n-1], ...]
-        returns = torch.matmul(self.gammas[:context_length - 1, :context_length], R)
-        advantages = returns - values
+        # S_i = R_i + gamma*(S_i+1)
+        S = torch.matmul(self.gammas[:context_length, :context_length + 1], R)
         
-        return returns.detach(), advantages.detach()
+        # cumulative sum of R = [R[0], R[0] + R[1], R[0] + R[1] + R[2], ...]
+        cR = torch.cumsum(R, dim=0)
+        # now create from to sum table of R; i.e. K[i, j] = R[i] + R[i+1] + ... + R[j - 2] = cR[j - 2] - cR[i - 1]
+        # use grid difference of cR
+        grid_i, grid_j = torch.meshgrid(torch.arange(0, context_length, device=self.device), torch.arange(0, context_length + 1, device=self.device), indexing='ij')
+        grid_ji = grid_j - grid_i
+        K = torch.where(grid_ji > 0, cR[grid_j - 2] - cR[grid_i - 1], 0)
+
+        # now we make final matrix W[i, j] = K[i, j] + S[j - 1]
+        W = K + torch.where(grid_j > 0, S[grid_j - 1], 0)
+
+        return W
 
 
-    def train(self, last_value, transitions: List[Any], state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
-        # transitions is a list of tuples (you will get this reward, if you select this action, from this context)
+
+    def train(self, last_value, pivot: List[Any], train_data: List[Any], state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
+        # pivot is a list of tuples (you will get this reward, moving from this context index)
+        # train_data is a list of tuples (you use this action, to go from this pivot, to this pivot)
         
-        selected_action_set = set([action for _, action, _ in transitions])
-        unused_actions = set(action_list) - selected_action_set
-        # make a new list, fill the rest with unused actions
-        action_list = list(selected_action_set) + random.sample(list(unused_actions), min(10, len(unused_actions)))
-
-        context_marks = torch.tensor([m for _, _, m in transitions], dtype=torch.int64, device=self.device)
+        # selected_action_set = set([action for action, _, _ in train_data])
+        # unused_actions = set(action_list) - selected_action_set
+        # # make a new list, fill the rest with unused actions
+        # action_list = list(selected_action_set) + random.sample(list(unused_actions), min(10, len(unused_actions)))
 
         state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
         action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
-
-        # Get our next action and value prediction.
         action_scores, values = self.model(state_tensor, action_list_tensor)
 
-        action_scores = torch.gather(action_scores[0, :, :], 0, torch.unsqueeze(context_marks, 1).expand(-1, action_scores.size(2)))
-        values = torch.gather(values[0, :, 0], 0, context_marks)
+        context_marks = torch.tensor([m for _, m in pivot], dtype=torch.int64, device=self.device)
+        rewards = torch.tensor([r for r, _ in pivot], dtype=torch.float32, device=self.device)
 
-        action_indexes = torch.reshape(torch.tensor([action_list.index(a) for _, a, _ in transitions], dtype=torch.int64, device=self.device), (-1, 1))
-        rewards = torch.tensor([r for r, _, _ in transitions], dtype=torch.float32, device=self.device)
+        action_indexes = torch.reshape(torch.tensor([action_list.index(a) for a, _, _ in train_data], dtype=torch.int64, device=self.device), (-1, 1))
+        from_indexes = torch.tensor([m for _, m, _ in train_data], dtype=torch.int64, device=self.device)
+        to_indexes = torch.tensor([m for _, _, m in train_data], dtype=torch.int64, device=self.device)
 
-        returns, advantages = self._discount_rewards(last_value, values.flatten().detach(), rewards)
+        from_marks = torch.gather(context_marks, 0, from_indexes)
+        action_scores = torch.gather(action_scores[0, :, :], 0, torch.unsqueeze(from_marks, 1).expand(-1, action_scores.size(2)))
+        values = torch.gather(values[0, :, 0], 0, from_marks)
+
+        with torch.no_grad():
+            all_returns = self._compute_snake_ladder(last_value, rewards)
+            returns = all_returns[from_indexes, to_indexes]
+            advantages = returns - values
 
         # loss = 0
         # for transition, ret, adv in zip(transitions, returns, advantages):
@@ -153,10 +168,10 @@ class Hierarchy_Agent:
         #     loss            += policy_loss + 0.5 * value_loss - 0.1 * entropy
 
         # use vector instead of loops
-        probs = torch.nn.functional.softmax(action_scores, dim=1)
+        probs = torch.clip(torch.nn.functional.softmax(action_scores, dim=1), min=1e-8)
         log_probs = torch.log(probs)
         log_action_probs = torch.gather(log_probs, 1, action_indexes)
-        log_action_probs = torch.clip(log_action_probs.flatten(), min=-8)
+        log_action_probs = log_action_probs.flatten()
         policy_loss = (-log_action_probs * advantages).sum()
         value_loss = (.5 * (values - returns) ** 2.).sum()
         entropy = (-probs * log_probs).sum()

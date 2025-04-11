@@ -54,7 +54,9 @@ class Persona:
 
     def save(self, path):
         # save the agent and the extra actions
-        self.agent.save(os.path.join(path, "agent"))
+        agent_path = os.path.join(path, "agent")
+        os.makedirs(agent_path, exist_ok=True)
+        self.agent.save(agent_path)
         with open(os.path.join(path, "extra_actions.txt"), "w", encoding="utf-8") as f:
             for action in self.extra_actions:
                 f.write(action + "\n")
@@ -102,7 +104,8 @@ class Persona:
         all_action_set = set([f"Action: {ac}" for ac in info["admissible_commands"]])
         rl_contexts = [objective]
         last_context_mark = 0
-        transitions = []
+        pivots = []
+        train_data = []
         selected_nodes = []
         last_score = score
         i = 0
@@ -125,7 +128,8 @@ class Persona:
             
             all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
             if va is not None and not va.has_released:
-                transitions.append((score - last_score, va.selected_action, last_context_mark))
+                pivots.append((score - last_score, last_context_mark))
+                train_data.append((va.selected_action, len(pivots) - 1, len(pivots)))
                 va.release()
                 selected_nodes.append((obs, score, info, last_context_mark))
             last_context_mark = len(rl_contexts) - 1
@@ -133,11 +137,11 @@ class Persona:
 
             i += 1
         
-        diffs = self.compute_folds(selected_nodes)
-        for delta_score, diff_str, context_mark in diffs:
+        folds = self.compute_folds(selected_nodes)
+        for delta_score, diff_str, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {diff_str}"
             self.extra_actions.add(fold_action)
-            transitions.append((delta_score, fold_action, context_mark))
+            train_data.append((fold_action, from_transition_index, to_transition_index))
 
         _, score, _, info, va = end_observation
         all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
@@ -146,13 +150,14 @@ class Persona:
 
         if force_train_last: 
             if va is not None and not va.has_released:
-                transitions.append((score - last_score, va.selected_action, last_context_mark))
+                pivots.append((score - last_score, last_context_mark))
+                train_data.append((va.selected_action, len(pivots) - 1, len(pivots)))
                 va.release()
 
-        if len(transitions) > 0:
+        if len(train_data) > 0:
             state_tensor = self.tokenizer(rl_contexts, stack=True)
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
-            self.agent.train(value, transitions, state_tensor, action_list_tensor, all_action_list)
+            self.agent.train(value, pivots, train_data, state_tensor, action_list_tensor, all_action_list)
 
 
     def think(self, quest_node, supports):
