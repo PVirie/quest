@@ -7,6 +7,7 @@ import argparse
 import shutil
 import re
 from itertools import combinations
+import logging
 
 import torch
 
@@ -191,7 +192,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
 
         if verbose and no_episode % verbose_step == 0:
             msg = "\tavg. steps: {:5.1f}; avg. score: {:4.1f} / {}."
-            print(msg.format(np.mean(avg_moves), np.mean(avg_scores), infos["max_score"]))
+            logging.info(msg.format(np.mean(avg_moves), np.mean(avg_scores), infos["max_score"]))
 
             with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
                 data = persona.print_context(root_node)
@@ -201,6 +202,8 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", "-r", action="store_true")
     args = parser.parse_args()
@@ -212,6 +215,9 @@ if __name__ == "__main__":
             shutil.rmtree(experiment_path)
         exit()
     os.makedirs(experiment_path, exist_ok=True)
+
+    agent_parameter_path = os.path.join(experiment_path, "parameters")
+    os.makedirs(agent_parameter_path, exist_ok=True)
 
     game_path = f"{textworld_path}/games/default/tw-rewardsDense_goalDetailed_18.z8"
 
@@ -327,8 +333,11 @@ if __name__ == "__main__":
 
     # play(env, persona, nb_episodes=100, verbose=True)
     
-    persona.set_training_mode(True)
-    play(env, persona, nb_episodes=500, verbose=True)
+    if not persona.load(agent_parameter_path):
+        logging.info("Initiate agent training ....")
+        persona.set_training_mode(True)
+        play(env, persona, nb_episodes=500, verbose=True)
+        persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
     play(env, persona, nb_episodes=100, verbose=True)

@@ -2,6 +2,8 @@ from typing import List, Mapping, Any, Optional
 from collections import defaultdict
 import numpy as np
 import random
+import os
+import logging
 
 from implementations.core.torch.transformers import Command_Scorer
 
@@ -45,7 +47,27 @@ class Hierarchy_Agent:
         self.gammas = torch.pow(self.GAMMA, grid_xy).to(device)
         # now only keep top right triangle
         self.gammas = torch.triu(self.gammas, diagonal=0)
-        # print(self.gammas)
+
+
+    def save(self, dir_path):
+        torch.save(self.model.state_dict(), os.path.join(dir_path, "model.pth"))
+        torch.save(self.optimizer.state_dict(), os.path.join(dir_path, "optimizer.pth"))
+        torch.save({
+            'iteration': self.iteration,
+            'ave_loss': self.ave_loss,
+        }, os.path.join(dir_path, "state.pth"))
+
+
+    def load(self, dir_path):
+        if not os.path.exists(os.path.join(dir_path, "model.pth")):
+            return False
+        self.model.load_state_dict(torch.load(os.path.join(dir_path, "model.pth"), map_location=self.device))
+        self.optimizer.load_state_dict(torch.load(os.path.join(dir_path, "optimizer.pth"), map_location=self.device))
+
+        state = torch.load(os.path.join(dir_path, "state.pth"))
+        self.iteration = state['iteration']
+        self.ave_loss = state['ave_loss']
+        return True
 
 
     def act(self, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
@@ -152,5 +174,5 @@ class Hierarchy_Agent:
     def print(self, step):
         msg = "{:6d}. ".format(step)
         msg += "loss: {:5.2f}; ".format(self.ave_loss)
-        print(msg)
+        logging.info(msg)
         

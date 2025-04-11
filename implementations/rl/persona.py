@@ -55,16 +55,20 @@ class Persona:
     def save(self, path):
         # save the agent and the extra actions
         self.agent.save(os.path.join(path, "agent"))
-        with open(os.path.join(path, "extra_actions.txt"), "w") as f:
+        with open(os.path.join(path, "extra_actions.txt"), "w", encoding="utf-8") as f:
             for action in self.extra_actions:
                 f.write(action + "\n")
 
 
     def load(self, path):
+        if not os.path.exists(path):
+            return False
         # load the agent and the extra actions
-        self.agent.load(os.path.join(path, "agent"))
-        with open(os.path.join(path, "extra_actions.txt"), "r") as f:
-            self.extra_actions = set([line.strip() for line in f.readlines()])
+        success = self.agent.load(os.path.join(path, "agent"))
+        if success:
+            with open(os.path.join(path, "extra_actions.txt"), "r", encoding="utf-8") as f:
+                self.extra_actions = set([line.strip() for line in f.readlines()])
+        return success
 
 
     def print_context(self, quest_node, prefix="", s = 0):

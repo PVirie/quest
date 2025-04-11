@@ -103,6 +103,7 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] ROCm support
 -   [x] LiteLLM
 -   [x] vLLM API
+-   [x] Save weights
 -   [ ] GPTQ (The model outputs NaNs. Need to wait for support. When it arrives and is tested, just add `torch-rocm-gptq` to the `tasks.json` list of input configurations.)
 
 ### Experiments
