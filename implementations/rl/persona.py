@@ -28,14 +28,14 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, agent, tokenizer, compute_folds, sub_eval_step_func, train_prompt=None, train=False):
+    def __init__(self, agent, tokenizer, compute_folds, sub_eval_step_func, train_prompt=None):
         self.agent = agent
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
         self.sub_eval_step_func = sub_eval_step_func
         self.extra_actions = set()
 
-        self.training_mode = train
+        self.training_mode = False
 
         self.use_lm = False
         self.long_lm = None
@@ -46,6 +46,10 @@ class Persona:
             self.prompt = train_prompt
 
         self.step = 0
+
+
+    def set_training_mode(self, flag):
+        self.training_mode = flag
 
 
     def save(self, path):
@@ -72,10 +76,7 @@ class Persona:
                 contexts.append(f"Sub Task: {node.objective}")
                 sub_task_context = self.print_context(node, prefix=prefix + "  ")
                 contexts.append(sub_task_context)
-                if node.is_fulfilled():
-                    contexts.append(f"Result: {node.result}")
-                else:
-                    contexts.append("Result: Failed")
+                contexts.append(f"Result: {node.result}")
                 # score, done, infos are the last score from the sub task
                 obs, score, done, infos, _ = node.end_observation
                 contexts.append(f"Observation: {obs}")
