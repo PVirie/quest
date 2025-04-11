@@ -135,11 +135,16 @@ class Textworld_State(mdp_state.MDP_State):
 MAX_VOCAB_SIZE = 1000
 tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
 
-def play(env, persona, nb_episodes=10, verbose=True):
+def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
     
+    with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
+        # mark date
+        f.write(f"====================================\n")
+        f.write(f"Date: {utilities.get_current_time_string()}\n")
+
     # Collect some statistics: nb_steps, final reward.
     avg_moves, avg_scores = [], []
-    for no_episode in range(nb_episodes):
+    for no_episode in range(1, nb_episodes + 1):
         obs, infos = env.reset()  # Start new episode.
         infos = flatten_batch(infos)
         obs = infos["description"]
@@ -162,14 +167,11 @@ def play(env, persona, nb_episodes=10, verbose=True):
                     break
             elif action == Action.DISCOVER:
                 working_memory.discover(param_1, param_2)
-                if len(working_memory) > 100:
+                if len(working_memory) > 120:
                     break
                 nb_moves += 1
             else:
                 raise ValueError("Invalid action")
-
-        if verbose:
-            print(".", end="")
 
         if root_node.end_observation is not None:
             score = root_node.end_observation[1]
@@ -187,15 +189,15 @@ def play(env, persona, nb_episodes=10, verbose=True):
         avg_moves.append(nb_moves)
         avg_scores.append(score)
 
-    if verbose:
-        msg = "  \tavg. steps: {:5.1f}; avg. score: {:4.1f} / {}."
-        print(msg.format(np.mean(avg_moves), np.mean(avg_scores), infos["max_score"]))
+        if verbose and no_episode % verbose_step == 0:
+            msg = "\tavg. steps: {:5.1f}; avg. score: {:4.1f} / {}."
+            print(msg.format(np.mean(avg_moves), np.mean(avg_scores), infos["max_score"]))
 
-        with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
-            data = persona.print_context(root_node)
-            f.write(f"Episode {no_episode}\n")
-            f.write(data)
-            f.write("\n\n")
+            with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
+                data = persona.print_context(root_node)
+                f.write(f"Episode {no_episode}\n")
+                f.write(data)
+                f.write("\n\n")
 
 
 if __name__ == "__main__":
@@ -275,19 +277,19 @@ if __name__ == "__main__":
         if score_diff == 0:
             fulfilled = True
             success = True
-            current_value = 100 - num_children
-            score = start_obs[1] + target.delta_score
+            current_value = 100
+            score = start_obs[1] + target.delta_score - num_children * 0.1
         else:
             fulfilled = False
             success = False
             current_value = 0
-            score = start_obs[1] + target.delta_score - score_diff
+            score = start_obs[1] + target.delta_score - score_diff - num_children * 0.1
 
         if done:
             # if env end before fulfilling the task, success is False
             success = False
 
-        if num_children > 40:
+        if num_children > 20:
             # too many children, stop the task
             return obs, score, done, infos, True, False, 0
 
@@ -313,7 +315,7 @@ if __name__ == "__main__":
         pairs = combinations(reversed(pivots), 2)
         # gap greater than 4 steps
         selected_transitions = [transition_matrix[i][j] for i, j in pairs if i - j >= 4]
-        return [(st.delta_score, st.objective, st.last_context_mark) for st in selected_transitions if st.count_diff > 0]
+        return [(st.delta_score, st.objective, st.last_context_mark) for st in selected_transitions if st.count_diff > 0 and st.delta_score > 0]
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
     # agent = RandomAgent()
@@ -326,7 +328,7 @@ if __name__ == "__main__":
     # play(env, persona, nb_episodes=100, verbose=True)
     
     persona.set_training_mode(True)
-    play(env, persona, nb_episodes=500, verbose=False)
+    play(env, persona, nb_episodes=500, verbose=True)
 
     persona.set_training_mode(False)
     play(env, persona, nb_episodes=100, verbose=True)

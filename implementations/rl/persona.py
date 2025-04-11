@@ -67,26 +67,29 @@ class Persona:
             self.extra_actions = set([line.strip() for line in f.readlines()])
 
 
-    def print_context(self, quest_node, prefix=""):
+    def print_context(self, quest_node, prefix="", s = 0):
         children = quest_node.get_children()
-        obs, score, done, infos, _ = quest_node.start_observation
+        obs, _, _, _, _ = quest_node.start_observation
         contexts = [f"Task: {quest_node.objective}", f"Observation: {obs}"]
-        for node in children:
+        for i, node in enumerate(children):
             if isinstance(node, Quest_Node):
-                contexts.append(f"Sub Task: {node.objective}")
-                sub_task_context = self.print_context(node, prefix=prefix + "  ")
+                contexts.append(f"{i + s} Sub Task: {node.objective}")
+                sub_task_context = self.print_context(node, prefix=prefix + "  ", s = i + s + 1)
                 contexts.append(sub_task_context)
-                contexts.append(f"Result: {node.result}")
+                contexts.append(f"\tResult: {node.result}")
                 # score, done, infos are the last score from the sub task
-                obs, score, done, infos, _ = node.end_observation
-                contexts.append(f"Observation: {obs}")
+                obs = "None"
+                if node.end_observation is not None:
+                    obs, _, _, _, _ = node.end_observation
+                contexts.append(f"\tObservation: {obs}")
             elif isinstance(node, Thought_Node):
-                contexts.append(f"Thought: {node.thought}")
+                contexts.append(f"{i + s} Thought: {node.thought}")
             elif isinstance(node, Observation_Node):
-                contexts.append(f"Action: {node.action}")
-                obs, score, done, infos, _ = node.observation
-                contexts.append(f"Observation: {obs}")
-        contexts.append(f"Extra Actions: {",".join(self.extra_actions)}")
+                contexts.append(f"{i + s} Action: {node.action}")
+                obs, _, _, _, _ = node.observation
+                contexts.append(f"\tObservation: {obs}")
+        if s == 0:
+            contexts.append(f"Extra Actions: {", ".join(self.extra_actions)}")
         return f"{prefix}\n".join(contexts)
 
 

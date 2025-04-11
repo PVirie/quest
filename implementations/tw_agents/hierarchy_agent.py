@@ -25,7 +25,7 @@ class Value_Action:
 
 
 class Hierarchy_Agent:
-    LOG_ALPHA=0.99
+    LOG_ALPHA=0.95
     GAMMA = 0.95
     MAX_CONTEXT_SIZE = 32
 
@@ -34,7 +34,7 @@ class Hierarchy_Agent:
         self.model = Command_Scorer(input_size=input_size, hidden_size=64, device=device)
         self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
 
-        self.ave_value = 0
+        self.ave_loss = 0
         self.iteration = 0
 
         # use mesh to build gammas
@@ -94,10 +94,10 @@ class Hierarchy_Agent:
     def train(self, last_value, transitions: List[Any], state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
         # transitions is a list of tuples (you will get this reward, if you select this action, from this context)
         
-        # selected_action_set = set([action for _, action, _ in transitions])
-        # unused_actions = set(action_list) - selected_action_set
-        # # make a new list that contains 20, fill the rest with unused actions
-        # action_list = list(selected_action_set) + random.sample(list(unused_actions), min(max(0, 20 - len(selected_action_set)), len(unused_actions)))
+        selected_action_set = set([action for _, action, _ in transitions])
+        unused_actions = set(action_list) - selected_action_set
+        # make a new list, fill the rest with unused actions
+        action_list = list(selected_action_set) + random.sample(list(unused_actions), min(10, len(unused_actions)))
 
         context_marks = torch.tensor([m for _, _, m in transitions], dtype=torch.int64, device=self.device)
 
@@ -140,18 +140,17 @@ class Hierarchy_Agent:
         entropy = (-probs * log_probs).sum()
         loss = policy_loss + 0.5 * value_loss - 0.1 * entropy
 
-        self.ave_value = self.LOG_ALPHA * self.ave_value + (1 - self.LOG_ALPHA) * action_scores.mean().item()
-
         loss.backward()
         nn.utils.clip_grad_norm_(self.model.parameters(), 40)
         self.optimizer.step()
         self.optimizer.zero_grad()
         self.iteration += 1
 
+        self.ave_loss = self.LOG_ALPHA * self.ave_loss + (1 - self.LOG_ALPHA) * loss.item()
 
 
     def print(self, step):
         msg = "{:6d}. ".format(step)
-        msg += "value: {:5.2f}; ".format(self.ave_value)
+        msg += "loss: {:5.2f}; ".format(self.ave_loss)
         print(msg)
         

@@ -23,6 +23,6 @@ def basic_tree(persona, focus_node):
     elif subact == Sub_Action_Type.Act:
         return Action.DISCOVER, node, focus_node
     elif subact == Sub_Action_Type.Done:
-        return Action.ANSWER, node, None
+        return Action.ANSWER, node, parent_node
     
     return Action.ANSWER, None, None
