@@ -19,9 +19,13 @@ def causal_mask(size, device):
     return mask
 
 
-def apply_transformer(input, decoder, tgt_mask, tgt_is_causal=False):
+def apply_transformer(decoder, input, memory=None, tgt_mask=None, tgt_is_causal=False):
     input = input.permute(1, 0, 2)
-    output = decoder(input, input, tgt_mask=tgt_mask, tgt_is_causal=tgt_is_causal) # n_contexts x batch x hidden
+    if memory is not None:
+        memory = memory.permute(1, 0, 2)
+    else:
+        memory = input
+    output = decoder(input, memory, tgt_mask=tgt_mask, tgt_is_causal=tgt_is_causal) # n_contexts x batch x hidden
     output = output.permute(1, 0, 2) # batch x n_contexts x hidden
     return output
 
@@ -52,11 +56,12 @@ class Command_Scorer(nn.Module, Q_Table):
         self.pe = positional_encoding(512, hidden_size).to(device) # 512 is the maximum length of the context
 
 
-    def forward(self, observations, actions, **kwargs):
+    def forward(self, objectives, observations, actions, **kwargs):
+        # objectives has shape batch x objective_context_size
         # observations has shape batch x n_contexts x context_size
         # actions has shape batch x n_actions x action_size
 
-        values, state_internal = self.evaluate_state(observations, **kwargs)
+        values, state_internal = self.evaluate_state(objectives, observations, **kwargs)
         scores = self.evaluate_actions(state_internal, actions, **kwargs)
 
         # scores has shape batch x n_contexts x n_actions; is the scores of individual actions along the context length
@@ -64,17 +69,21 @@ class Command_Scorer(nn.Module, Q_Table):
         return scores, values
 
 
-    def evaluate_state(self, observations, **kwargs):
+    def evaluate_state(self, objectives, observations, **kwargs):
+        objective_context_size = objectives.size(1)
         n_contexts = observations.size(1)
         context_size = observations.size(2)
-    
+
+        objective_embedding = self.embedding(objectives) # batch x objective_context_size x hidden
+        objective_embedding = objective_embedding + self.pe[:objective_context_size, :] # add positional encoding
+        
         obs_embedding = self.embedding(observations) # batch x n_contexts x context_size x hidden
         obs_embedding = obs_embedding + self.pe[:context_size, :] # add positional encoding
-        obs_embedding = apply_transformer(torch.reshape(obs_embedding, (-1, context_size, self.hidden_size)), self.context_decoder, tgt_mask=causal_mask(context_size, self.device), tgt_is_causal=True)
+        obs_embedding = apply_transformer(self.context_decoder, torch.reshape(obs_embedding, (-1, context_size, self.hidden_size)), tgt_mask=causal_mask(context_size, self.device), tgt_is_causal=True)
         obs_embedding = torch.reshape(obs_embedding[:, -1, :], (-1, n_contexts, self.hidden_size)) # batch x n_contexts x hidden
 
         obs_embedding = obs_embedding + self.pe[:n_contexts, :] # add positional encoding
-        state_internal = apply_transformer(obs_embedding, self.state_decoder, tgt_mask=causal_mask(n_contexts, self.device), tgt_is_causal=True) # batch x n_contexts x hidden
+        state_internal = apply_transformer(self.state_decoder, obs_embedding, memory=objective_embedding, tgt_mask=causal_mask(n_contexts, self.device), tgt_is_causal=True) # batch x n_contexts x hidden
         values = self.critic(state_internal)
 
         return values, state_internal
@@ -86,7 +95,7 @@ class Command_Scorer(nn.Module, Q_Table):
 
         action_embedding = self.embedding(actions) # batch x n_actions x action_size x hidden
         action_embedding = action_embedding + self.pe[:action_size, :] # add positional encoding
-        action_embedding = apply_transformer(torch.reshape(action_embedding, (-1, action_size, self.hidden_size)), self.action_decoder, tgt_mask=causal_mask(action_size, self.device), tgt_is_causal=True) 
+        action_embedding = apply_transformer(self.action_decoder, torch.reshape(action_embedding, (-1, action_size, self.hidden_size)), tgt_mask=causal_mask(action_size, self.device), tgt_is_causal=True) 
         action_embedding = torch.reshape(action_embedding[:, -1, :], (-1, n_actions, self.hidden_size)) # batch x n_actions x hidden
 
         # now cross product between the state_internal and the action_embedding

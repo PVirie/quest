@@ -107,8 +107,9 @@ class Persona:
     def train(self, objective, start_observation, supports, end_observation, value, force_train_last: bool = False):
         obs, score, _, info, _ = start_observation
         all_action_set = set([f"Action: {ac}" for ac in info["admissible_commands"]])
-        rl_contexts = [f"Objective: {objective}", f"Observation: {obs}"] 
-        last_context_mark = 1
+        objective_contexts = [f"Objective: {objective}"]
+        rl_contexts = [f"Observation: {obs}"] 
+        last_context_mark = 0
         pivots = []
         train_data = []
         selected_nodes = []
@@ -160,16 +161,18 @@ class Persona:
                 va.release()
 
         if len(train_data) > 0:
+            objective_tensor = self.tokenizer(objective_contexts, stack=True)
             state_tensor = self.tokenizer(rl_contexts, stack=True)
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
-            self.agent.train(value, pivots, train_data, state_tensor, action_list_tensor, all_action_list)
+            self.agent.train(value, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
 
     def think(self, quest_node, supports):
         # supports is a list of nodes
         count_non_thought_steps = 0
         obs, score, done, infos, _ = quest_node.start_observation
-        contexts = [f"Objective: {quest_node.objective}", f"Observation: {obs}"]
+        objective_contexts = [f"Objective: {quest_node.objective}"]
+        contexts = [f"Observation: {obs}"]
         for node in supports:
             if isinstance(node, Quest_Node):
                 contexts.append(f"Sub Task: {node.objective}")
@@ -194,7 +197,7 @@ class Persona:
 
         lm_response = ""
         if self.use_lm:
-            text_response = self.long_lm.complete_text(self.prompt.format(action_list=",".join(action_list), contexts="\n".join(contexts)))
+            text_response = self.long_lm.complete_text(self.prompt.format(action_list=",".join(action_list), contexts="\n".join(objective_contexts + contexts)))
             # get the first part before newline
             lm_response = text_response.split("\n")[0]
             lm_command, lm_detail = extract_command_and_detail(lm_response)
@@ -210,9 +213,10 @@ class Persona:
         rl_response = ""
         # remove thoughts from the context for RL
         rl_contexts = [c for c in contexts if not c.startswith("Thought")]
+        objective_tensor = self.tokenizer(objective_contexts, stack=True)
         state_tensor = self.tokenizer(rl_contexts, stack=True)
         action_list_tensor = self.tokenizer(action_list, stack=True)
-        va = self.agent.act(state_tensor, action_list_tensor, action_list, sample_action=True)
+        va = self.agent.act(objective_tensor, state_tensor, action_list_tensor, action_list, sample_action=True)
         rl_response = va.selected_action
 
         if not self.training_mode and va is not None:

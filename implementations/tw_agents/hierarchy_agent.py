@@ -70,14 +70,15 @@ class Hierarchy_Agent:
         return True
 
 
-    def act(self, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
+    def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
         
         with torch.no_grad():
+            objective_tensor = torch.reshape(objective_tensor, [1, -1])
             state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
             action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
 
             # Get our next action and value prediction.
-            action_scores, values = self.model(state_tensor, action_list_tensor)
+            action_scores, values = self.model(objective_tensor, state_tensor, action_list_tensor)
 
             action_scores = action_scores[0, -1, :]
             values = values[0, -1, :].item()
@@ -126,7 +127,7 @@ class Hierarchy_Agent:
 
 
 
-    def train(self, last_value, pivot: List[Any], train_data: List[Any], state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
+    def train(self, last_value, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
         # pivot is a list of tuples (you will get this reward, moving from this context index)
         # train_data is a list of tuples (you use this action, to go from this pivot, to this pivot)
         
@@ -135,9 +136,10 @@ class Hierarchy_Agent:
         # # make a new list, fill the rest with unused actions
         # action_list = list(selected_action_set) + random.sample(list(unused_actions), min(10, len(unused_actions)))
 
+        objective_tensor = torch.reshape(objective_tensor, [1, -1])
         state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
         action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
-        action_scores, values = self.model(state_tensor, action_list_tensor)
+        action_scores, values = self.model(objective_tensor, state_tensor, action_list_tensor)
 
         context_marks = torch.tensor([m for _, m in pivot], dtype=torch.int64, device=self.device)
         rewards = torch.tensor([r for r, _ in pivot], dtype=torch.float32, device=self.device)
