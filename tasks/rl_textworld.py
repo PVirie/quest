@@ -330,6 +330,7 @@ if __name__ == "__main__":
         # gap greater than 4 steps
         selected_transitions = [(transition_matrix[i][j], i, j) for i, j in pairs if i - j >= 4]
         return [(st.delta_score, st.objective, i, j) for st, i, j in selected_transitions if st.count_diff > 0 and st.delta_score > 0]
+        # return []
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
     # agent = RandomAgent()

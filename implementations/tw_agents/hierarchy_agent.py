@@ -117,7 +117,7 @@ class Hierarchy_Agent:
         K = torch.where(grid_ji > 0, cR[grid_j - 2] - cR[grid_i - 1], 0)
 
         # now we make final matrix W[i, j] = K[i, j] + S[j - 1]
-        W = K + torch.where(grid_j > 0, S[grid_j - 1], 0)
+        W = K + torch.where(grid_ji > 0, S[grid_j - 1], 0)
 
         return W
 
