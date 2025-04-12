@@ -90,6 +90,28 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         return diff
     
 
+    def __lt__(self, other):
+        # test of stictly less than
+        if self.new_location == other.new_location:
+            location_compare = 0
+        elif self.new_location is None and other.new_location is not None:
+            location_compare = -1
+        else:
+            location_compare = 1
+
+        if self.added_items == other.added_items:
+            items_compare = 0
+        elif len(self.added_items - other.added_items) == 0:
+            if len(other.added_items - self.added_items) == 0:
+                items_compare = 0
+            else:
+                items_compare = -1
+        else:
+            items_compare = 1
+
+        return location_compare + items_compare < 0
+    
+
     @staticmethod
     def parse(objective):
         # first take the score
@@ -112,6 +134,22 @@ class Textworld_Transition(mdp_state.MDP_Transition):
                 find_items = part.replace("Find ", "").split(" , ")
 
         return Textworld_Transition(score, -1, -1, go_to, set(find_items))
+    
+
+    @staticmethod
+    def less_than(objective_1, objective_2):
+        # if objective_2 has "Welcome to" in it, it is the first step, return True
+        if "Welcome to" in objective_2:
+            return True
+
+        # parse_1 = Textworld_Transition.parse(objective_1)
+        # parse_2 = Textworld_Transition.parse(objective_2)
+        # return parse_1 < parse_2
+
+        close_parenthesis_1 = objective_1.find(")")
+        close_parenthesis_2 = objective_2.find(")")
+        return objective_1[close_parenthesis_1 + 1:] != objective_2[close_parenthesis_2 + 1:]
+
 
 
 class Textworld_State(mdp_state.MDP_State):
@@ -329,7 +367,7 @@ if __name__ == "__main__":
     from implementations.tw_agents.hierarchy_agent import Hierarchy_Agent
     agent = Hierarchy_Agent(input_size=MAX_VOCAB_SIZE, device=device)
 
-    persona = Persona(agent, tokenizer, compute_folds, sub_env_step)
+    persona = Persona(agent, tokenizer, compute_folds, sub_env_step, objective_less_than=Textworld_Transition.less_than)
 
     # play(env, persona, nb_episodes=100, verbose=True)
     
@@ -337,7 +375,7 @@ if __name__ == "__main__":
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
         persona.set_allow_relegation(True)
-        play(env, persona, nb_episodes=2000, verbose=True)
+        play(env, persona, nb_episodes=4000, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

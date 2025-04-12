@@ -28,11 +28,12 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, agent, tokenizer, compute_folds, sub_eval_step_func, allow_relegation=True, train_prompt=None):
+    def __init__(self, agent, tokenizer, compute_folds, sub_eval_step_func, objective_less_than, allow_relegation=True, train_prompt=None):
         self.agent = agent
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
         self.sub_eval_step_func = sub_eval_step_func
+        self.objective_less_than = objective_less_than
         self.allow_relegation = allow_relegation
         self.extra_actions = set()
 
@@ -178,6 +179,7 @@ class Persona:
                         sub_train_data.append((train_data[i][0], len(sub_pivots) - 1, len(sub_pivots)))
                     self.agent.train(20, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
+
     def think(self, quest_node, supports):
         # supports is a list of nodes
         count_non_thought_steps = 0
@@ -249,23 +251,23 @@ class Persona:
         if command.startswith("Sub Task"):
             sub_objective = detail
             last_observation = (obs, score, done, infos, va)
-            if sub_objective == quest_node.objective:
+            if self.objective_less_than(sub_objective, quest_node.objective):
+                return_sub_action = Sub_Action_Type.Relegate 
+                return_node = Quest_Node(
+                    objective=sub_objective,
+                    env_step=self.sub_eval_step_func,
+                    start_observation=last_observation
+                )
+            else:
                 # duplicate sub task, penalize
                 current_value = -100
                 force_train_last = True
                 return_sub_action = Sub_Action_Type.Relegate 
                 return_node = Quest_Node(
                     objective=sub_objective,
-                    result="Failed duplicative work",
+                    result="Failed to breakdown",
                     start_observation=last_observation,
                     end_observation=(obs, score, done, infos, None)
-                )
-            else:
-                return_sub_action = Sub_Action_Type.Relegate 
-                return_node = Quest_Node(
-                    objective=sub_objective,
-                    env_step=self.sub_eval_step_func,
-                    start_observation=last_observation
                 )
         elif command.startswith("Action"):
             action = detail
