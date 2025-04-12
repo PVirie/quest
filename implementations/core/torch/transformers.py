@@ -43,7 +43,7 @@ class Command_Scorer(nn.Module, Q_Table):
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
         self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=1)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
 
         self.critic = nn.Linear(hidden_size, 1, device=device)

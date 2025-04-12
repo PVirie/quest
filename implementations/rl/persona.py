@@ -28,11 +28,12 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, agent, tokenizer, compute_folds, sub_eval_step_func, train_prompt=None):
+    def __init__(self, agent, tokenizer, compute_folds, sub_eval_step_func, allow_relegation=True, train_prompt=None):
         self.agent = agent
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
         self.sub_eval_step_func = sub_eval_step_func
+        self.allow_relegation = allow_relegation
         self.extra_actions = set()
 
         self.training_mode = False
@@ -50,6 +51,10 @@ class Persona:
 
     def set_training_mode(self, flag):
         self.training_mode = flag
+
+
+    def set_allow_relegation(self, flag):
+        self.allow_relegation = flag
 
 
     def save(self, path):
@@ -76,7 +81,7 @@ class Persona:
     def print_context(self, quest_node, prefix="", s = 0):
         children = quest_node.get_children()
         obs, _, _, _, _ = quest_node.start_observation
-        contexts = [f"Task: {quest_node.objective}", f"Observation: {obs}"]
+        contexts = [f"Objective: {quest_node.objective}", f"Observation: {obs}"]
         for i, node in enumerate(children):
             if isinstance(node, Quest_Node):
                 contexts.append(f"{i + s} Sub Task: {node.objective}")
@@ -100,10 +105,10 @@ class Persona:
 
 
     def train(self, objective, start_observation, supports, end_observation, value, force_train_last: bool = False):
-        _, score, _, info, _ = start_observation
+        obs, score, _, info, _ = start_observation
         all_action_set = set([f"Action: {ac}" for ac in info["admissible_commands"]])
-        rl_contexts = [objective]
-        last_context_mark = 0
+        rl_contexts = [f"Objective: {objective}", f"Observation: {obs}"] 
+        last_context_mark = 1
         pivots = []
         train_data = []
         selected_nodes = []
@@ -164,7 +169,7 @@ class Persona:
         # supports is a list of nodes
         count_non_thought_steps = 0
         obs, score, done, infos, _ = quest_node.start_observation
-        contexts = [f"Observation: {obs}"]
+        contexts = [f"Objective: {quest_node.objective}", f"Observation: {obs}"]
         for node in supports:
             if isinstance(node, Quest_Node):
                 contexts.append(f"Sub Task: {node.objective}")
@@ -183,11 +188,13 @@ class Persona:
                 contexts.append(f"Observation: {obs}")
                 count_non_thought_steps += 1
 
-        action_list = [f"Action: {ac}" for ac in infos["admissible_commands"]] + list(self.extra_actions)
+        action_list = [f"Action: {ac}" for ac in infos["admissible_commands"]]
+        if self.allow_relegation:
+            action_list = action_list + list(self.extra_actions)
 
         lm_response = ""
         if self.use_lm:
-            text_response = self.long_lm.complete_text(self.prompt.format(quest=quest_node.objective, action_list=",".join(action_list), contexts="\n".join(contexts)))
+            text_response = self.long_lm.complete_text(self.prompt.format(action_list=",".join(action_list), contexts="\n".join(contexts)))
             # get the first part before newline
             lm_response = text_response.split("\n")[0]
             lm_command, lm_detail = extract_command_and_detail(lm_response)
@@ -203,7 +210,7 @@ class Persona:
         rl_response = ""
         # remove thoughts from the context for RL
         rl_contexts = [c for c in contexts if not c.startswith("Thought")]
-        state_tensor = self.tokenizer([quest_node.objective] + rl_contexts, stack=True)
+        state_tensor = self.tokenizer(rl_contexts, stack=True)
         action_list_tensor = self.tokenizer(action_list, stack=True)
         va = self.agent.act(state_tensor, action_list_tensor, action_list, sample_action=True)
         rl_response = va.selected_action

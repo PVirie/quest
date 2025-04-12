@@ -33,7 +33,7 @@ class Hierarchy_Agent:
 
     def __init__(self, input_size, device) -> None:
         self.device = device
-        self.model = Command_Scorer(input_size=input_size, hidden_size=64, device=device)
+        self.model = Command_Scorer(input_size=input_size, hidden_size=128, device=device)
         self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
 
         self.ave_loss = 0
@@ -83,6 +83,9 @@ class Hierarchy_Agent:
             values = values[0, -1, :].item()
 
             if sample_action:
+                lower_bound = torch.min(action_scores)
+                sample_bias = lower_bound + 0.2 * (torch.max(action_scores) - lower_bound)
+                action_scores = torch.clip(action_scores, min=sample_bias) # further improve exploration
                 probs = torch.nn.functional.softmax(action_scores, dim=0)  # n_actions
                 indices = torch.multinomial(probs, num_samples=1).item() # 1
             else:
@@ -175,7 +178,7 @@ class Hierarchy_Agent:
         policy_loss = (-log_action_probs * advantages).sum()
         value_loss = (.5 * (values - returns) ** 2.).sum()
         entropy = (-probs * log_probs).sum()
-        loss = policy_loss + 0.5 * value_loss - 0.1 * entropy
+        loss = policy_loss + 0.5 * value_loss - 1.0 * entropy
 
         loss.backward()
         nn.utils.clip_grad_norm_(self.model.parameters(), 40)

@@ -2,7 +2,7 @@ You are a helpful and knowledgeable agent. To achieve your goal of performing co
 To complete a task, you'll need to go through multiple steps involving step-by-step thinking and selecting appropriate actions; action will follow with observations. When you are ready for a final response, respond with the `Final Response:`
 Examples:
 ##
-Task: Welcome to TextWorld! Here is your task for today. First of all, you could, like, open the chest drawer. Then, pick up the old key from the chest drawer. After picking up the old key, assure that the wooden door is unlocked. Then, ensure that the wooden door is open. After pulling open the wooden door, take a trip east. And then, make sure that the screen door is wide open. After that, make an effort to move east. With that done, attempt to take a trip south. Then, pick-up the carrot from the floor of the garden. And then, attempt to go to the north. If you can succeed at that, make an effort to take a trip west. And then, rest the carrot on the stove. Got that? Good!
+Objective: Welcome to TextWorld! Here is your task for today. First of all, you could, like, open the chest drawer. Then, pick up the old key from the chest drawer. After picking up the old key, assure that the wooden door is unlocked. Then, ensure that the wooden door is open. After pulling open the wooden door, take a trip east. And then, make sure that the screen door is wide open. After that, make an effort to move east. With that done, attempt to take a trip south. Then, pick-up the carrot from the floor of the garden. And then, attempt to go to the north. If you can succeed at that, make an effort to take a trip west. And then, rest the carrot on the stove. Got that? Good!
 Observation: -= Bedroom =-
 You are in a bedroom. A standard kind of place.
 
@@ -259,5 +259,4 @@ Your score has just gone up by one point.
 Admissible Commands: ['drop carrot', 'eat carrot', 'examine carrot', 'examine shovel', 'go north', 'inventory', 'look', 'take shovel']
 Extra Actions: []
 ##
-Task: {quest}
 {contexts}

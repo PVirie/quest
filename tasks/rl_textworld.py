@@ -303,7 +303,7 @@ if __name__ == "__main__":
             # if env end before fulfilling the task, success is False
             success = False
 
-        if num_children > 20:
+        if num_children > 25:
             # too many children, stop the task
             return obs, score, done, infos, True, False, 0
 
@@ -328,9 +328,9 @@ if __name__ == "__main__":
         # now compute all pairs of pivots
         pairs = combinations(reversed(pivots), 2)
         # gap greater than 4 steps
-        selected_transitions = [(transition_matrix[i][j], i, j) for i, j in pairs if i - j >= 4]
-        return [(st.delta_score, st.objective, i, j) for st, i, j in selected_transitions if st.count_diff > 0 and st.delta_score > 0]
-        # return []
+        selected_transitions = [(transition_matrix[i][j], j, i) for i, j in pairs if i - j >= 4]
+        return [(st.delta_score, st.objective, j, i) for st, j, i in selected_transitions if st.count_diff > 0 and st.delta_score > 0]
+    
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
     # agent = RandomAgent()
@@ -345,6 +345,7 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
+        persona.set_allow_relegation(False)
         play(env, persona, nb_episodes=500, verbose=True)
         persona.save(agent_parameter_path)
 
