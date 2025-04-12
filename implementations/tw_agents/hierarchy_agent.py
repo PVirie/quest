@@ -34,7 +34,7 @@ class Hierarchy_Agent:
     def __init__(self, input_size, device) -> None:
         self.device = device
         self.model = Command_Scorer(input_size=input_size, hidden_size=128, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
+        self.optimizer = optim.Adam(self.model.parameters(), 0.0001)
 
         self.ave_loss = 0
         self.iteration = 0

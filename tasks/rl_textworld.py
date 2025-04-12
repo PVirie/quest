@@ -58,7 +58,7 @@ def extract_inventory(infos):
 
 class Textworld_Transition(mdp_state.MDP_Transition):
     def __init__(self, delta_score, from_context_mark, to_context_mark, new_location=None, added_items=set(), removed_items=set()):
-        self.delta_score = delta_score
+        self.delta_score = round(delta_score)
         self.from_context_mark = from_context_mark
         self.to_context_mark = to_context_mark
         self.new_location = new_location
@@ -119,7 +119,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
             elif part.startswith("Use "):
                 use_items = part.replace("Use ", "").split(" , ")
 
-        return Textworld_Transition(score, -1, go_to, set(find_items), set(use_items))
+        return Textworld_Transition(score, -1, -1, go_to, set(find_items), set(use_items))
 
 
 class Textworld_State(mdp_state.MDP_State):
@@ -329,7 +329,7 @@ if __name__ == "__main__":
         pairs = combinations(reversed(pivots), 2)
         # gap greater than 4 steps
         selected_transitions = [(transition_matrix[i][j], j, i) for i, j in pairs if i - j >= 4]
-        return [(st.delta_score, st.objective, j, i) for st, j, i in selected_transitions if st.count_diff > 0 and st.delta_score > 0]
+        return [(st.delta_score, st.objective, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1]
     
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
@@ -346,7 +346,7 @@ if __name__ == "__main__":
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
         persona.set_allow_relegation(False)
-        play(env, persona, nb_episodes=500, verbose=True)
+        play(env, persona, nb_episodes=2000, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
