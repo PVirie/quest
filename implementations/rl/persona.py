@@ -144,12 +144,10 @@ class Persona:
             i += 1
         
         folds = self.compute_folds(selected_nodes)
-        sub_training_sessions = []
         for delta_score, diff_str, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {diff_str}"
             self.extra_actions.add(fold_action)
             train_data.append((fold_action, from_transition_index, to_transition_index))
-            sub_training_sessions.append((diff_str, from_transition_index, to_transition_index))
 
         _, score, _, info, va = end_observation
         all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
@@ -169,16 +167,16 @@ class Persona:
             self.agent.train(value, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
             if self.allow_relegation:
-                for diff_str, from_transition_index, to_transition_index in sub_training_sessions:
+                for _, diff_str, from_transition_index, to_transition_index in folds:
                     sub_objective_tensor = self.tokenizer([diff_str], stack=True)
                     sub_pivots = []
                     sub_train_data = []
                     start_context_mark = pivots[from_transition_index][1]
                     end_context_mark = pivots[to_transition_index][1]
-                    for i in range(from_transition_index, to_transition_index):
+                    for i in range(from_transition_index, to_transition_index + 1):
                         sub_pivots.append((0, pivots[i][1] - start_context_mark))
                         sub_train_data.append((train_data[i][0], len(sub_pivots) - 1, len(sub_pivots)))
-                    self.agent.train(20, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:end_context_mark, :], action_list_tensor, all_action_list)
+                    self.agent.train(20, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
     def think(self, quest_node, supports):
         # supports is a list of nodes

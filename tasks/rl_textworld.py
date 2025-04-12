@@ -315,20 +315,20 @@ if __name__ == "__main__":
         # states is a list of obs, score, info, last_context_mark
         # return list of delta_score, diff_str, from_context_mark, to_context_mark
         states = [Textworld_State(score, info, lcm) for _, score, info, lcm in states]
-        transition_matrix = []
+        transition_matrix = [] # the first row is at index 1 but the first column is at index 0
         for i in range(1, len(states)):
             transition_row = []
             for j in range(0, i):
                 transition_row.append(states[i] - states[j])
             transition_matrix.append(transition_row)
         pivots = [0]
-        for i in range(1, len(transition_matrix)):
-            if len(transition_matrix[i][i-1]) > 0:
-                pivots.append(i)
+        for i in range(0, len(transition_matrix)):
+            if len(transition_matrix[i][i]) > 0:
+                pivots.append(i+1)
         # now compute all pairs of pivots
         pairs = combinations(reversed(pivots), 2)
         # gap greater than 4 steps
-        selected_transitions = [(transition_matrix[i][j], j, i) for i, j in pairs if i - j >= 4]
+        selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4]
         return [(st.delta_score, st.objective, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1]
     
 
@@ -345,7 +345,7 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        persona.set_allow_relegation(False)
+        persona.set_allow_relegation(True)
         play(env, persona, nb_episodes=2000, verbose=True)
         persona.save(agent_parameter_path)
 
