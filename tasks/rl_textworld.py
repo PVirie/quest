@@ -57,13 +57,12 @@ def extract_inventory(infos):
 
 
 class Textworld_Transition(mdp_state.MDP_Transition):
-    def __init__(self, delta_score, from_context_mark, to_context_mark, new_location=None, added_items=set(), removed_items=set()):
+    def __init__(self, delta_score, from_context_mark, to_context_mark, new_location=None, added_items=set()):
         self.delta_score = round(delta_score)
         self.from_context_mark = from_context_mark
         self.to_context_mark = to_context_mark
         self.new_location = new_location
         self.added_items = added_items
-        self.removed_items = removed_items
 
         count_diff = 0
         differences = []
@@ -74,9 +73,6 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         if len(self.added_items) > 0:
             differences.append(f"Find {' , '.join(self.added_items)}")
             count_diff += len(self.added_items)
-        if len(self.removed_items) > 0:
-            differences.append(f"Use {' , '.join(self.removed_items)}")
-            count_diff += len(self.removed_items)
         
         self.objective = f"({self.delta_score}) " + " and ".join(differences)
         self.count_diff = count_diff
@@ -91,7 +87,6 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         if self.new_location != other.new_location:
             diff += 1
         diff += len(self.added_items.symmetric_difference(other.added_items))
-        diff += len(self.removed_items.symmetric_difference(other.removed_items))
         return diff
     
 
@@ -109,17 +104,14 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         # find Go to {location}( and Find {item1} , {item2} ...)*( and Use {item1} , {item2} ...)*
         go_to = None
         find_items = []
-        use_items = []
         parts = objective.split(" and ")
         for part in parts:
             if part.startswith("Go to "):
                 go_to = part.replace("Go to ", "")
             elif part.startswith("Find "):
                 find_items = part.replace("Find ", "").split(" , ")
-            elif part.startswith("Use "):
-                use_items = part.replace("Use ", "").split(" , ")
 
-        return Textworld_Transition(score, -1, -1, go_to, set(find_items), set(use_items))
+        return Textworld_Transition(score, -1, -1, go_to, set(find_items))
 
 
 class Textworld_State(mdp_state.MDP_State):
@@ -136,8 +128,7 @@ class Textworld_State(mdp_state.MDP_State):
             other.last_context_mark,
             self.last_context_mark,
             self.location if self.location != other.location else None, 
-            self.inventory - other.inventory, 
-            other.inventory - self.inventory
+            self.inventory - other.inventory
         )
 
 
