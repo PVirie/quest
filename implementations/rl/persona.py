@@ -258,7 +258,7 @@ class Persona:
         return_node = None
         if command.startswith("Sub Task"):
             sub_objective = detail
-            last_observation = (obs, env_score, mdp_score, done, infos, va)
+            last_observation = (obs, env_score, 0, done, infos, va)
             if self.objective_less_than(sub_objective, quest_node.objective):
                 return_sub_action = Sub_Action_Type.Relegate 
                 return_node = Quest_Node(
@@ -282,14 +282,17 @@ class Persona:
             action = detail
             obs, env_score, mdp_score, done, infos, fulfilled, success, finish_value = quest_node.step(action)
             last_observation = (obs, env_score, mdp_score, done, infos, va)
-            if done or fulfilled:
+            if fulfilled:
                 current_value = finish_value
                 force_train_last = True
-                return_sub_action = Sub_Action_Type.Done if done else Sub_Action_Type.Fulfill
+                return_sub_action = Sub_Action_Type.Fulfill
                 if success:
                     return_node = Quest_Node(result = "Success", end_observation=last_observation, end_action=action)
                 else:
                     return_node = Quest_Node(result = "Failed", end_observation=last_observation, end_action=action)
+            elif done:
+                return_sub_action = Sub_Action_Type.Done
+                return_node = Quest_Node(result = "Terminated", end_observation=last_observation, end_action=action)
             else:
                 return_sub_action = Sub_Action_Type.Act
                 return_node = Observation_Node(action, last_observation)

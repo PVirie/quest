@@ -275,20 +275,23 @@ if __name__ == "__main__":
         done = done[0]
         infos = flatten_batch(infos)
 
+        fulfilled = False
         success = False
         next_value = 0
         if done:
             if infos["won"]:
+                fulfilled = True
                 success = True
                 next_value = 100
             else:
+                fulfilled = True
                 success = False
                 next_value = -100
 
         # obs, score, mdp_score, done, infos, fulfilled, success, next_value
         # score is the main env score
         # fulfill is for sub task, success 
-        return obs, score, score, done, infos, False, success, next_value
+        return obs, score, score, done, infos, fulfilled, success, next_value
     
 
     def sub_env_step(objective, action, start_observation, num_children):
@@ -306,25 +309,21 @@ if __name__ == "__main__":
 
         target = parse_transition(objective)
         score_diff = target - progress
-
-        if score_diff == 0:
-            fulfilled = True
-            success = True
-            next_value = 50
-            mdp_score = start_mdp_score + len(target) - num_children * 0.02
-        else:
-            fulfilled = False
-            success = False
-            next_value = -50
-            mdp_score = start_mdp_score + len(target) - score_diff - num_children * 0.02
-
-        if done:
-            # if env end before fulfilling the task, success is False
-            success = False
+        mdp_score = start_mdp_score + len(target) - score_diff - num_children * 0.02
 
         if num_children > 25:
             # too many children, stop the task
-            return obs, env_score, mdp_score, done, infos, True, False, -50
+            fulfilled = True
+            success = False
+            next_value = -50
+        elif score_diff == 0:
+            fulfilled = True
+            success = True
+            next_value = 50
+        else:
+            fulfilled = False
+            success = False
+            next_value = 0
 
         # obs, score, done, infos, fulfilled, success, next_value
         return obs, env_score, mdp_score, done, infos, fulfilled, success, next_value
