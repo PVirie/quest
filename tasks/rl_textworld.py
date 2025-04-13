@@ -56,6 +56,39 @@ def extract_inventory(infos):
     return set([item.strip() for item in inv_str.split("and") if item.strip() != ""])
 
 
+def less_than(objective_1, objective_2):
+    parse_1 = parse_transition(objective_1)
+    parse_2 = parse_transition(objective_2)
+    return parse_1 < parse_2
+
+
+def parse_transition(objective):
+    # if objective_2 has "Welcome to" in it, it is the first step, return None
+    if "Welcome to" in objective:
+        return None
+    
+    # first take the score
+    # find (score), identify the first )
+    close_parenthesis = objective.find(")")
+    if close_parenthesis == -1:
+        raise ValueError("Invalid objective format")
+    score = float(objective[1:close_parenthesis])
+
+    objective = objective[close_parenthesis + 2:]
+    # second split objective into components
+    # find Go to {location}( and Find {item1} , {item2} ...)*( and Use {item1} , {item2} ...)*
+    go_to = None
+    find_items = []
+    parts = objective.split(" and ")
+    for part in parts:
+        if part.startswith("Go to "):
+            go_to = part.replace("Go to ", "")
+        elif part.startswith("Find "):
+            find_items = part.replace("Find ", "").split(" , ")
+
+    return Textworld_Transition(score, -1, -1, go_to, set(find_items))
+
+
 class Textworld_Transition(mdp_state.MDP_Transition):
     def __init__(self, delta_score, from_context_mark, to_context_mark, new_location=None, added_items=set()):
         self.delta_score = round(delta_score)
@@ -92,12 +125,17 @@ class Textworld_Transition(mdp_state.MDP_Transition):
 
     def __lt__(self, other):
         # test of stictly less than
-        if self.new_location == other.new_location:
-            location_compare = 0
-        elif self.new_location is None and other.new_location is not None:
-            location_compare = -1
-        else:
-            location_compare = 1
+        # item change < location change < None
+        if other is None:
+            return True
+        
+        if self.new_location is None and other.new_location is not None:
+            return True
+        elif self.new_location is not None:
+            if other.new_location is None:
+                return False
+            if self.new_location != other.new_location:
+                return False
 
         if self.added_items == other.added_items:
             items_compare = 0
@@ -109,47 +147,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         else:
             items_compare = 1
 
-        return location_compare + items_compare < 0
-    
-
-    @staticmethod
-    def parse(objective):
-        # first take the score
-        # find (score), identify the first )
-        close_parenthesis = objective.find(")")
-        if close_parenthesis == -1:
-            raise ValueError("Invalid objective format")
-        score = float(objective[1:close_parenthesis])
-
-        objective = objective[close_parenthesis + 2:]
-        # second split objective into components
-        # find Go to {location}( and Find {item1} , {item2} ...)*( and Use {item1} , {item2} ...)*
-        go_to = None
-        find_items = []
-        parts = objective.split(" and ")
-        for part in parts:
-            if part.startswith("Go to "):
-                go_to = part.replace("Go to ", "")
-            elif part.startswith("Find "):
-                find_items = part.replace("Find ", "").split(" , ")
-
-        return Textworld_Transition(score, -1, -1, go_to, set(find_items))
-    
-
-    @staticmethod
-    def less_than(objective_1, objective_2):
-        # if objective_2 has "Welcome to" in it, it is the first step, return True
-        if "Welcome to" in objective_2:
-            return True
-
-        parse_1 = Textworld_Transition.parse(objective_1)
-        parse_2 = Textworld_Transition.parse(objective_2)
-        return parse_1 < parse_2
-
-        # close_parenthesis_1 = objective_1.find(")")
-        # close_parenthesis_2 = objective_2.find(")")
-        # return objective_1[close_parenthesis_1 + 1:] != objective_2[close_parenthesis_2 + 1:]
-
+        return items_compare < 0
 
 
 class Textworld_State(mdp_state.MDP_State):
@@ -314,7 +312,7 @@ if __name__ == "__main__":
         start_state = Textworld_State(start_obs[1], start_obs[3], num_children)
         progress = current_state - start_state
 
-        target = Textworld_Transition.parse(objective)
+        target = parse_transition(objective)
         score_diff = target - progress
 
         if score_diff == 0:
@@ -340,9 +338,10 @@ if __name__ == "__main__":
         return obs, score, done, infos, fulfilled, success, current_value
 
     
-    def compute_folds(states):
+    def compute_folds(objective, states):
         # states is a list of obs, score, info, last_context_mark
         # return list of delta_score, diff_str, from_context_mark, to_context_mark
+        objective_transition = parse_transition(objective)
         states = [Textworld_State(score, info, lcm) for _, score, info, lcm in states]
         transition_matrix = [] # the first row is at index 1 but the first column is at index 0
         for i in range(1, len(states)):
@@ -358,7 +357,7 @@ if __name__ == "__main__":
         pairs = combinations(reversed(pivots), 2)
         # gap greater than 4 steps
         selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4]
-        return [(st.delta_score, st.objective, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1]
+        return [(st.delta_score, st.objective, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1 and st < objective_transition]
     
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
@@ -367,7 +366,7 @@ if __name__ == "__main__":
     from implementations.tw_agents.hierarchy_agent import Hierarchy_Agent
     agent = Hierarchy_Agent(input_size=MAX_VOCAB_SIZE, device=device)
 
-    persona = Persona(agent, tokenizer, compute_folds, sub_env_step, objective_less_than=Textworld_Transition.less_than)
+    persona = Persona(agent, tokenizer, compute_folds, sub_env_step, objective_less_than=less_than)
 
     # play(env, persona, nb_episodes=100, verbose=True)
     

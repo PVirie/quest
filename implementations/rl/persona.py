@@ -79,30 +79,32 @@ class Persona:
         return success
 
 
-    def print_context(self, quest_node, prefix="", s = 0):
+    def print_context(self, quest_node, prefix=""):
         children = quest_node.get_children()
         obs, _, _, _, _ = quest_node.start_observation
-        contexts = [f"Objective: {quest_node.objective}", f"Observation: {obs}"]
+        contexts = [f"{prefix}Objective: {quest_node.objective}", f"{prefix}Start Obs: {obs}"]
         for i, node in enumerate(children):
             if isinstance(node, Quest_Node):
-                contexts.append(f"{i + s} Sub Task: {node.objective}")
-                sub_task_context = self.print_context(node, prefix=prefix + "\t", s = i + s + 1)
+                contexts.append(f"{prefix}{i} Sub Task: {node.objective}")
+                sub_task_context = self.print_context(node, prefix=prefix + "\t")
                 contexts.append(sub_task_context)
-                contexts.append(f"\tResult: {node.result}")
                 # score, done, infos are the last score from the sub task
+                if node.end_action is not None:
+                    contexts.append(f"{prefix}Action: {node.end_action}")
+                contexts.append(f"{prefix}Result: {node.result}")
                 obs = "None"
                 if node.end_observation is not None:
                     obs, _, _, _, _ = node.end_observation
-                contexts.append(f"\tObservation: {obs}")
+                contexts.append(f"{prefix}Observation: {obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")}")
             elif isinstance(node, Thought_Node):
-                contexts.append(f"{i + s} Thought: {node.thought}")
+                contexts.append(f"{prefix}{i} Thought: {node.thought}")
             elif isinstance(node, Observation_Node):
-                contexts.append(f"{i + s} Action: {node.action}")
+                contexts.append(f"{prefix}{i} Action: {node.action}")
                 obs, _, _, _, _ = node.observation
-                contexts.append(f"\tObservation: {obs}")
-        if s == 0:
-            contexts.append(f"Extra Actions: {", ".join(self.extra_actions)}")
-        return f"\n{prefix}".join(contexts)
+                contexts.append(f"{prefix}Observation: {obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")}")
+        if len(prefix) == 0:
+            contexts.append(f"{prefix}Extra Actions: {", ".join(self.extra_actions)}")
+        return f"\n".join(contexts)
 
 
     def train(self, objective, start_observation, supports, end_observation, value, force_train_last: bool = False):
@@ -144,8 +146,8 @@ class Persona:
 
             i += 1
         
-        folds = self.compute_folds(selected_nodes)
-        for delta_score, diff_str, from_transition_index, to_transition_index in folds:
+        folds = self.compute_folds(objective, selected_nodes)
+        for _, diff_str, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {diff_str}"
             self.extra_actions.add(fold_action)
             train_data.append((fold_action, from_transition_index, to_transition_index))
@@ -265,9 +267,10 @@ class Persona:
                 return_sub_action = Sub_Action_Type.Relegate 
                 return_node = Quest_Node(
                     objective=sub_objective,
-                    result="Failed to breakdown",
+                    result="Failed",
                     start_observation=last_observation,
-                    end_observation=(obs, score, done, infos, None)
+                    end_observation=(obs, score, done, infos, None),
+                    end_action="System break"
                 )
         elif command.startswith("Action"):
             action = detail
@@ -277,9 +280,9 @@ class Persona:
                 force_train_last = True
                 return_sub_action = Sub_Action_Type.Done if done else Sub_Action_Type.Fulfill
                 if success:
-                    return_node = Quest_Node(result = "Success", end_observation=last_observation)
+                    return_node = Quest_Node(result = "Success", end_observation=last_observation, end_action=action)
                 else:
-                    return_node = Quest_Node(result = "Failed", end_observation=last_observation)
+                    return_node = Quest_Node(result = "Failed", end_observation=last_observation, end_action=action)
             else:
                 return_sub_action = Sub_Action_Type.Act
                 return_node = Observation_Node(action, last_observation)
