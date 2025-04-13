@@ -67,15 +67,6 @@ def parse_transition(objective):
     if "Welcome to" in objective:
         return None
     
-    # first take the score
-    # find (score), identify the first )
-    close_parenthesis = objective.find(")")
-    if close_parenthesis == -1:
-        raise ValueError("Invalid objective format")
-    score = float(objective[1:close_parenthesis])
-
-    objective = objective[close_parenthesis + 2:]
-    # second split objective into components
     # find Go to {location}( and Find {item1} , {item2} ...)*( and Use {item1} , {item2} ...)*
     go_to = None
     find_items = []
@@ -86,7 +77,7 @@ def parse_transition(objective):
         elif part.startswith("Find "):
             find_items = part.replace("Find ", "").split(" , ")
 
-    return Textworld_Transition(score, -1, -1, go_to, set(find_items))
+    return Textworld_Transition(0, -1, -1, go_to, set(find_items))
 
 
 class Textworld_Transition(mdp_state.MDP_Transition):
@@ -107,7 +98,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
             differences.append(f"Find {' , '.join(self.added_items)}")
             count_diff += len(self.added_items)
         
-        self.objective = f"({self.delta_score}) " + " and ".join(differences)
+        self.objective = " and ".join(differences)
         self.count_diff = count_diff
 
 
@@ -191,7 +182,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         root_node = rl_graph.Quest_Node(
             objective = infos["objective"],
             env_step = env_step,
-            start_observation = (obs, score, done, infos, None)
+            start_observation = (obs, score, score, done, infos, None)
         )
         working_memory = Quest_Graph(root_node)
 
@@ -285,31 +276,32 @@ if __name__ == "__main__":
         infos = flatten_batch(infos)
 
         success = False
-        current_value = 0
+        next_value = 0
         if done:
             if infos["won"]:
                 success = True
-                current_value = 100
+                next_value = 100
             else:
                 success = False
-                current_value = -100
+                next_value = -100
 
-        # obs, score, done, infos, fulfilled, success, current_value
+        # obs, score, mdp_score, done, infos, fulfilled, success, next_value
         # score is the main env score
         # fulfill is for sub task, success 
-        return obs, score, done, infos, False, success, current_value
+        return obs, score, score, done, infos, False, success, next_value
     
 
-    def sub_env_step(objective, action, start_obs, num_children):
+    def sub_env_step(objective, action, start_observation, num_children):
         # adapter between non-batched and batched environment
-        obs, score, done, infos = env.step([action])
+        obs, env_score, done, infos = env.step([action])
         obs = obs[0]
-        score = score[0]
+        env_score = env_score[0]
         done = done[0]
         infos = flatten_batch(infos)
 
-        current_state = Textworld_State(score, infos, 0)
-        start_state = Textworld_State(start_obs[1], start_obs[3], num_children)
+        _, start_env_score, start_mdp_score, _, start_info, _ = start_observation
+        current_state = Textworld_State(0, infos, 0)
+        start_state = Textworld_State(0, start_info, num_children)
         progress = current_state - start_state
 
         target = parse_transition(objective)
@@ -318,13 +310,13 @@ if __name__ == "__main__":
         if score_diff == 0:
             fulfilled = True
             success = True
-            current_value = 100
-            score = start_obs[1] + target.delta_score - num_children * 0.1
+            next_value = 100
+            mdp_score = start_mdp_score + len(target) - num_children * 0.02
         else:
             fulfilled = False
             success = False
-            current_value = 0
-            score = start_obs[1] + target.delta_score - score_diff - num_children * 0.1
+            next_value = 0
+            mdp_score = start_mdp_score + len(target) - score_diff - num_children * 0.02
 
         if done:
             # if env end before fulfilling the task, success is False
@@ -332,10 +324,10 @@ if __name__ == "__main__":
 
         if num_children > 25:
             # too many children, stop the task
-            return obs, score, done, infos, True, False, 0
+            return obs, env_score, mdp_score, done, infos, True, False, 0
 
-        # obs, score, done, infos, fulfilled, success, current_value
-        return obs, score, done, infos, fulfilled, success, current_value
+        # obs, score, done, infos, fulfilled, success, next_value
+        return obs, env_score, mdp_score, done, infos, fulfilled, success, next_value
 
     
     def compute_folds(objective, states):

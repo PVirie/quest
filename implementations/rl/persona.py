@@ -81,36 +81,40 @@ class Persona:
 
     def print_context(self, quest_node, prefix=""):
         children = quest_node.get_children()
-        obs, _, _, _, _ = quest_node.start_observation
+        obs, _, _, _, _, _ = quest_node.start_observation
+        obs = obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")
         contexts = [f"{prefix}Objective: {quest_node.objective}", f"{prefix}Start Obs: {obs}"]
         for i, node in enumerate(children):
             if isinstance(node, Quest_Node):
                 contexts.append(f"{prefix}{i} Sub Task: {node.objective}")
                 sub_task_context = self.print_context(node, prefix=prefix + "\t")
                 contexts.append(sub_task_context)
-                # score, done, infos are the last score from the sub task
                 if node.end_action is not None:
                     contexts.append(f"{prefix}Action: {node.end_action}")
                 contexts.append(f"{prefix}Result: {node.result}")
                 obs = "None"
                 if node.end_observation is not None:
-                    obs, _, _, _, _ = node.end_observation
-                contexts.append(f"{prefix}Observation: {obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")}")
+                    obs, _, _, _, _, _ = node.end_observation
+                    obs = obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")
+                contexts.append(f"{prefix}Observation: {obs}")
             elif isinstance(node, Thought_Node):
                 contexts.append(f"{prefix}{i} Thought: {node.thought}")
             elif isinstance(node, Observation_Node):
                 contexts.append(f"{prefix}{i} Action: {node.action}")
-                obs, _, _, _, _ = node.observation
-                contexts.append(f"{prefix}Observation: {obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")}")
+                obs, _, _, _, _, _ = node.observation
+                obs = obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")
+                contexts.append(f"{prefix}Observation: {obs}")
         if len(prefix) == 0:
             contexts.append(f"{prefix}Extra Actions: {", ".join(self.extra_actions)}")
         return f"\n".join(contexts)
 
 
-    def train(self, objective, start_observation, supports, end_observation, value, force_train_last: bool = False):
-        obs, score, _, info, _ = start_observation
+    def train(self, quest_node, supports, end_observation, value, force_train_last: bool = False):
+        use_mdp_score = quest_node.get_parent() is None
+        obs, env_score, mdp_score, _, info, _ = quest_node.start_observation
+        score = env_score if use_mdp_score else mdp_score
         all_action_set = set([f"Action: {ac}" for ac in info["admissible_commands"]])
-        objective_contexts = [f"Objective: {objective}"]
+        objective_contexts = [f"Objective: {quest_node.objective}"]
         rl_contexts = [f"Observation: {obs}"] 
         last_context_mark = 0
         pivots = []
@@ -124,17 +128,18 @@ class Persona:
                 rl_contexts.append(f"Sub Task: {node.objective}")
                 rl_contexts.append(f"Result: {node.result}")
                 # va must be taken from the last tensor from the previous node
-                _, _, _, _, va = node.start_observation
+                _, _, _, _, _, va = node.start_observation
                 # score must be taken from the sub task
-                obs, score, _, info, _ = node.end_observation
+                obs, env_score, mdp_score, _, info, _ = node.end_observation
                 rl_contexts.append(f"Observation: {obs}")
             elif isinstance(node, Observation_Node):
                 rl_contexts.append(f"Action: {node.action}")
-                obs, score, _, info, va = node.observation
+                obs, env_score, mdp_score, _, info, va = node.observation
                 rl_contexts.append(f"Observation: {obs}")
             else:
                 continue
             
+            score = env_score if use_mdp_score else mdp_score
             all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
             if va is not None and not va.has_released:
                 pivots.append((score - last_score, last_context_mark))
@@ -146,13 +151,14 @@ class Persona:
 
             i += 1
         
-        folds = self.compute_folds(objective, selected_nodes)
+        folds = self.compute_folds(quest_node.objective, selected_nodes)
         for _, diff_str, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {diff_str}"
             self.extra_actions.add(fold_action)
             train_data.append((fold_action, from_transition_index, to_transition_index))
 
-        _, score, _, info, va = end_observation
+        _, env_score, mdp_score, _, info, va = end_observation
+        score = env_score if use_mdp_score else mdp_score
         all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
         # add extra actions
         all_action_list = list(all_action_set.union(self.extra_actions))
@@ -185,7 +191,7 @@ class Persona:
     def think(self, quest_node, supports):
         # supports is a list of nodes
         count_non_thought_steps = 0
-        obs, score, done, infos, _ = quest_node.start_observation
+        obs, env_score, mdp_score, done, infos, _ = quest_node.start_observation
         objective_contexts = [f"Objective: {quest_node.objective}"]
         contexts = [f"Observation: {obs}"]
         for node in supports:
@@ -195,14 +201,14 @@ class Persona:
                 # va must be taken from the last tensor from the previous node
                 # _, _, _, _, _ = node.start_observation
                 # score, done, infos must be taken from the sub task
-                obs, score, done, infos, _ = node.end_observation
+                obs, env_score, mdp_score, done, infos, _ = node.end_observation
                 contexts.append(f"Observation: {obs}")
                 count_non_thought_steps += 1
             elif isinstance(node, Thought_Node):
                 contexts.append(f"Thought: {node.thought}")
             elif isinstance(node, Observation_Node):
                 contexts.append(f"Action: {node.action}")
-                obs, score, done, infos, _ = node.observation
+                obs, env_score, mdp_score, done, infos, _ = node.observation
                 contexts.append(f"Observation: {obs}")
                 count_non_thought_steps += 1
 
@@ -252,7 +258,7 @@ class Persona:
         return_node = None
         if command.startswith("Sub Task"):
             sub_objective = detail
-            last_observation = (obs, score, done, infos, va)
+            last_observation = (obs, env_score, mdp_score, done, infos, va)
             if self.objective_less_than(sub_objective, quest_node.objective):
                 return_sub_action = Sub_Action_Type.Relegate 
                 return_node = Quest_Node(
@@ -269,13 +275,13 @@ class Persona:
                     objective=sub_objective,
                     result="Failed",
                     start_observation=last_observation,
-                    end_observation=(obs, score, done, infos, None),
+                    end_observation=(obs, env_score, mdp_score, done, infos, None),
                     end_action="System break"
                 )
         elif command.startswith("Action"):
             action = detail
-            obs, score, done, infos, fulfilled, success, current_value = quest_node.step(action)
-            last_observation = (obs, score, done, infos, va)
+            obs, env_score, mdp_score, done, infos, fulfilled, success, current_value = quest_node.step(action)
+            last_observation = (obs, env_score, mdp_score, done, infos, va)
             if done or fulfilled:
                 force_train_last = True
                 return_sub_action = Sub_Action_Type.Done if done else Sub_Action_Type.Fulfill
@@ -290,7 +296,7 @@ class Persona:
         if self.training_mode:
             self.step += 1
             if force_train_last or self.step % self.TRAIN_STEP == 0:
-                self.train(quest_node.objective, quest_node.start_observation, supports, last_observation, current_value, force_train_last=force_train_last)
+                self.train(quest_node, supports, last_observation, current_value, force_train_last=force_train_last)
 
             if self.step % self.PRINT_STEP == 0:
                 self.agent.print(self.step)
