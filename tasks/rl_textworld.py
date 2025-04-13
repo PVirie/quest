@@ -142,13 +142,13 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         if "Welcome to" in objective_2:
             return True
 
-        # parse_1 = Textworld_Transition.parse(objective_1)
-        # parse_2 = Textworld_Transition.parse(objective_2)
-        # return parse_1 < parse_2
+        parse_1 = Textworld_Transition.parse(objective_1)
+        parse_2 = Textworld_Transition.parse(objective_2)
+        return parse_1 < parse_2
 
-        close_parenthesis_1 = objective_1.find(")")
-        close_parenthesis_2 = objective_2.find(")")
-        return objective_1[close_parenthesis_1 + 1:] != objective_2[close_parenthesis_2 + 1:]
+        # close_parenthesis_1 = objective_1.find(")")
+        # close_parenthesis_2 = objective_2.find(")")
+        # return objective_1[close_parenthesis_1 + 1:] != objective_2[close_parenthesis_2 + 1:]
 
 
 
@@ -375,7 +375,7 @@ if __name__ == "__main__":
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
         persona.set_allow_relegation(True)
-        play(env, persona, nb_episodes=4000, verbose=True)
+        play(env, persona, nb_episodes=1000, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

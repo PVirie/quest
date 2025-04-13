@@ -86,7 +86,7 @@ class Persona:
         for i, node in enumerate(children):
             if isinstance(node, Quest_Node):
                 contexts.append(f"{i + s} Sub Task: {node.objective}")
-                sub_task_context = self.print_context(node, prefix=prefix + "  ", s = i + s + 1)
+                sub_task_context = self.print_context(node, prefix=prefix + "\t", s = i + s + 1)
                 contexts.append(sub_task_context)
                 contexts.append(f"\tResult: {node.result}")
                 # score, done, infos are the last score from the sub task
@@ -102,7 +102,7 @@ class Persona:
                 contexts.append(f"\tObservation: {obs}")
         if s == 0:
             contexts.append(f"Extra Actions: {", ".join(self.extra_actions)}")
-        return f"{prefix}\n".join(contexts)
+        return f"\n{prefix}".join(contexts)
 
 
     def train(self, objective, start_observation, supports, end_observation, value, force_train_last: bool = False):
