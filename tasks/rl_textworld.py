@@ -310,12 +310,12 @@ if __name__ == "__main__":
         if score_diff == 0:
             fulfilled = True
             success = True
-            next_value = 100
+            next_value = 50
             mdp_score = start_mdp_score + len(target) - num_children * 0.02
         else:
             fulfilled = False
             success = False
-            next_value = 0
+            next_value = -50
             mdp_score = start_mdp_score + len(target) - score_diff - num_children * 0.02
 
         if done:
@@ -324,7 +324,7 @@ if __name__ == "__main__":
 
         if num_children > 25:
             # too many children, stop the task
-            return obs, env_score, mdp_score, done, infos, True, False, 0
+            return obs, env_score, mdp_score, done, infos, True, False, -50
 
         # obs, score, done, infos, fulfilled, success, next_value
         return obs, env_score, mdp_score, done, infos, fulfilled, success, next_value
@@ -366,7 +366,7 @@ if __name__ == "__main__":
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
         persona.set_allow_relegation(True)
-        play(env, persona, nb_episodes=1000, verbose=True)
+        play(env, persona, nb_episodes=4000, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

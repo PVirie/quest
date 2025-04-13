@@ -280,9 +280,10 @@ class Persona:
                 )
         elif command.startswith("Action"):
             action = detail
-            obs, env_score, mdp_score, done, infos, fulfilled, success, current_value = quest_node.step(action)
+            obs, env_score, mdp_score, done, infos, fulfilled, success, finish_value = quest_node.step(action)
             last_observation = (obs, env_score, mdp_score, done, infos, va)
             if done or fulfilled:
+                current_value = finish_value
                 force_train_last = True
                 return_sub_action = Sub_Action_Type.Done if done else Sub_Action_Type.Fulfill
                 if success:

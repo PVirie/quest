@@ -94,7 +94,7 @@ Apart from the above environment variables, you must also include _third-party A
     -   [x] Min clip probability
     -   [x] Gradient clipping
 -   [ ] Hierarchical RL
-    -   [ ] Score conversion when up-hierarchy
+    -   [x] Score conversion when up-hierarchy
     -   [ ] Check learnining on done within the sub-task
 
 ### Backends
