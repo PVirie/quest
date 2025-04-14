@@ -81,7 +81,7 @@ class Persona:
 
     def print_context(self, quest_node, prefix=""):
         children = quest_node.get_children()
-        obs, _, _, _, _, _ = quest_node.start_observation
+        obs, _, _, _ = quest_node.start_observation
         obs = obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")
         contexts = [f"{prefix}Objective: {quest_node.objective}", f"{prefix}Start Obs: {obs}"]
         for i, node in enumerate(children):
@@ -92,14 +92,14 @@ class Persona:
                 contexts.append(f"{prefix}Result: {node.result}")
                 obs = "None"
                 if node.end_observation is not None:
-                    obs, _, _, _, _, _ = node.end_observation
+                    obs, _, _, _ = node.end_observation
                     obs = obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")
                 contexts.append(f"{prefix}Observation: {obs}")
             elif isinstance(node, Thought_Node):
                 contexts.append(f"{prefix}{i} Thought: {node.thought}")
             elif isinstance(node, Observation_Node):
                 contexts.append(f"{prefix}{i} Action: {node.action}")
-                obs, _, _, _, _, _ = node.observation
+                obs, _, _, _ = node.observation
                 obs = obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")
                 contexts.append(f"{prefix}Observation: {obs}")
         if len(prefix) == 0:
@@ -208,7 +208,6 @@ class Persona:
             supports[-1].train_ref.mdp_score = mdp_score
 
         train_last_node = False
-        finish_value = None
         if fulfilled:
             train_last_node = True
             return_sub_action = Sub_Action_Type.Fulfill
@@ -217,7 +216,7 @@ class Persona:
             else:
                 return_node = Quest_Node(result = "Failed", end_observation=last_observation)
         elif done:
-            train_last_node = True
+            # train_last_node = True
             return_sub_action = Sub_Action_Type.Done
             return_node = Quest_Node(result = "Terminated", end_observation=last_observation)
 
