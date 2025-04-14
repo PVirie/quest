@@ -18,6 +18,7 @@ class Value_Action:
     def __init__(self, state_value, selected_action, iteration=0):
         self.state_value = state_value
         self.selected_action = selected_action
+        self.mdp_score = None
 
         self.has_released = False
         self.iteration = iteration

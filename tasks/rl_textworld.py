@@ -56,17 +56,7 @@ def extract_inventory(infos):
     return set([item.strip() for item in inv_str.split("and") if item.strip() != ""])
 
 
-def less_than(objective_1, objective_2):
-    parse_1 = parse_transition(objective_1)
-    parse_2 = parse_transition(objective_2)
-    return parse_1 < parse_2
-
-
 def parse_transition(objective):
-    # if objective_2 has "Welcome to" in it, it is the first step, return None
-    if "Welcome to" in objective:
-        return None
-    
     # find Go to {location}( and Find {item1} , {item2} ...)*( and Use {item1} , {item2} ...)*
     go_to = None
     find_items = []
@@ -116,10 +106,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
 
     def __lt__(self, other):
         # test of stictly less than
-        # item change < location change < None
-        if other is None:
-            return True
-        
+        # item change < location change
         if self.new_location is None and other.new_location is not None:
             return True
         elif self.new_location is not None:
@@ -181,8 +168,8 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
 
         root_node = rl_graph.Quest_Node(
             objective = infos["objective"],
-            env_step = env_step,
-            start_observation = (obs, score, score, done, infos, None)
+            eval_func = env_eval,
+            start_observation = (obs, score, done, infos)
         )
         working_memory = Quest_Graph(root_node)
 
@@ -267,55 +254,55 @@ if __name__ == "__main__":
     def flatten_batch(infos):
         return {k: v[0] for k, v in infos.items()}
 
-    def env_step(objective, action, start_obs, num_children):
-        # adapter between non-batched and batched environment
+    def env_step(action):
         obs, score, done, infos = env.step([action])
         obs = obs[0]
         score = score[0]
         done = done[0]
         infos = flatten_batch(infos)
+        return obs, score, done, infos
 
-        fulfilled = False
-        success = False
-        next_value = 0
-        if done:
-            if infos["won"]:
-                fulfilled = True
-                success = True
-                next_value = 100
-            else:
-                fulfilled = True
-                success = False
-                next_value = -100
-
-        # obs, score, mdp_score, done, infos, fulfilled, success, next_value
-        # score is the main env score
+    def env_eval(node, env_score, infos):
+        if infos["won"]:
+            fulfilled = True
+            success = True
+            next_value = 100
+        elif infos["lost"]:
+            fulfilled = True
+            success = False
+            next_value = -100
+        else:
+            fulfilled = False
+            success = False
+            next_value = 0
+        # mdp_score, fulfilled, success, finish_value
+        # mdp_score is the main env score
         # fulfill is for sub task, success 
-        return obs, score, score, done, infos, fulfilled, success, next_value
-    
+        return env_score, fulfilled, success, next_value
 
-    def sub_env_step(objective, action, start_observation, num_children):
-        # adapter between non-batched and batched environment
-        obs, env_score, done, infos = env.step([action])
-        obs = obs[0]
-        env_score = env_score[0]
-        done = done[0]
-        infos = flatten_batch(infos)
+    def goal_pursuit_eval(node, env_score, infos):
+        num_children = len(node.get_children())
+        objective = node.objective
+        parent = node.get_parent()
+        parent_transition = parse_transition(parent.objective) if parent is not None else None
+        target_transition = parse_transition(objective)
 
-        _, start_env_score, start_mdp_score, _, start_info, _ = start_observation
+        if parent_transition is not None and not target_transition < parent_transition:
+            return 0, True, False, -100
+
+        _, _, _, start_info = node.start_observation
         current_state = Textworld_State(0, infos, 0)
         start_state = Textworld_State(0, start_info, num_children)
-        progress = current_state - start_state
+        progress_transition = current_state - start_state
 
-        target = parse_transition(objective)
-        score_diff = target - progress
-        mdp_score = start_mdp_score + len(target) - score_diff - num_children * 0.02
+        score_diff = target_transition - progress_transition
+        mdp_score = len(target_transition) - score_diff - num_children * 0.02
 
         if num_children > 25:
             # too many children, stop the task
             fulfilled = True
             success = False
-            next_value = -50
+            next_value = 0
         elif score_diff == 0:
             fulfilled = True
             success = True
@@ -325,8 +312,8 @@ if __name__ == "__main__":
             success = False
             next_value = 0
 
-        # obs, score, done, infos, fulfilled, success, next_value
-        return obs, env_score, mdp_score, done, infos, fulfilled, success, next_value
+        # mdp_score, fulfilled, success, finish_value
+        return mdp_score, fulfilled, success, next_value
 
     
     def compute_folds(objective, states):
@@ -357,7 +344,7 @@ if __name__ == "__main__":
     from implementations.tw_agents.hierarchy_agent import Hierarchy_Agent
     agent = Hierarchy_Agent(input_size=MAX_VOCAB_SIZE, device=device)
 
-    persona = Persona(agent, tokenizer, compute_folds, sub_env_step, objective_less_than=less_than)
+    persona = Persona(agent, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval)
 
     # play(env, persona, nb_episodes=100, verbose=True)
     

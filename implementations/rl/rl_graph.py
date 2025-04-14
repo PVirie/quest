@@ -35,14 +35,14 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
     
 
 class Quest_Node(RL_Node):
-    def __init__(self, objective=None, env_step=None, result=None, start_observation=None, end_observation=None, end_action=None):
+    def __init__(self, objective=None, eval_func=None, start_observation=None, result=None, end_observation=None, train_ref=None):
         super().__init__()
         self.objective = objective
-        self.env_step = env_step
-        self.result = result
+        self.eval_func = eval_func
         self.start_observation = start_observation
+        self.result = result
         self.end_observation = end_observation
-        self.end_action = end_action
+        self.train_ref = train_ref
 
     def set(self, another):
         # check same class
@@ -56,14 +56,12 @@ class Quest_Node(RL_Node):
             self.start_observation = another.start_observation
         if another.end_observation is not None:
             self.end_observation = another.end_observation
-        if another.end_action is not None:
-            self.end_action = another.end_action
             
     def is_fulfilled(self):
         return self.result is not None
     
-    def step(self, action):
-        return self.env_step(self.objective, action, self.start_observation, len(self.children))
+    def eval(self, env_score, infos):
+        return self.eval_func(self, env_score, infos)
     
 
 class Thought_Node(RL_Node):
@@ -80,10 +78,11 @@ class Thought_Node(RL_Node):
 
 
 class Observation_Node(RL_Node):
-    def __init__(self, action=None, observation=None):
+    def __init__(self, action=None, observation=None, train_ref=None):
         super().__init__()
         self.action = action
         self.observation = observation
+        self.train_ref = train_ref
 
     def set(self, another):
         # check same class

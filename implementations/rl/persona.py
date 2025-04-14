@@ -28,12 +28,12 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, agent, tokenizer, compute_folds, sub_eval_step_func, objective_less_than, allow_relegation=True, train_prompt=None):
+    def __init__(self, agent, tokenizer, compute_folds, env_step, goal_pursuit_eval, allow_relegation=True, train_prompt=None):
         self.agent = agent
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
-        self.sub_eval_step_func = sub_eval_step_func
-        self.objective_less_than = objective_less_than
+        self.env_step = env_step
+        self.goal_pursuit_eval = goal_pursuit_eval
         self.allow_relegation = allow_relegation
         self.extra_actions = set()
 
@@ -89,8 +89,6 @@ class Persona:
                 contexts.append(f"{prefix}{i} Sub Task: {node.objective}")
                 sub_task_context = self.print_context(node, prefix=prefix + "\t")
                 contexts.append(sub_task_context)
-                if node.end_action is not None:
-                    contexts.append(f"{prefix}Action: {node.end_action}")
                 contexts.append(f"{prefix}Result: {node.result}")
                 obs = "None"
                 if node.end_observation is not None:
@@ -109,10 +107,10 @@ class Persona:
         return f"\n".join(contexts)
 
 
-    def train(self, quest_node, supports, end_observation, value, force_train_last: bool = False):
+    def train(self, quest_node, train_last_node: bool = False, finish_value=None):
+        # finish_value only used when training the last node
         use_mdp_score = quest_node.get_parent() is None
-        obs, env_score, mdp_score, _, info, _ = quest_node.start_observation
-        score = env_score if use_mdp_score else mdp_score
+        obs, env_score, _, info = quest_node.start_observation
         all_action_set = set([f"Action: {ac}" for ac in info["admissible_commands"]])
         objective_contexts = [f"Objective: {quest_node.objective}"]
         rl_contexts = [f"Observation: {obs}"] 
@@ -120,60 +118,55 @@ class Persona:
         pivots = []
         train_data = []
         selected_nodes = []
-        last_score = score
+        last_score = 0
+        supports = quest_node.get_children()
         i = 0
         while i < len(supports):
             node = supports[i]
             if isinstance(node, Quest_Node):
                 rl_contexts.append(f"Sub Task: {node.objective}")
                 rl_contexts.append(f"Result: {node.result}")
-                # va must be taken from the last tensor from the previous node
-                _, _, _, _, _, va = node.start_observation
-                # score must be taken from the sub task
-                obs, env_score, mdp_score, _, info, _ = node.end_observation
+                obs, env_score, _, info = node.end_observation
                 rl_contexts.append(f"Observation: {obs}")
             elif isinstance(node, Observation_Node):
                 rl_contexts.append(f"Action: {node.action}")
-                obs, env_score, mdp_score, _, info, va = node.observation
+                obs, env_score, _, info = node.observation
                 rl_contexts.append(f"Observation: {obs}")
             else:
                 continue
             
-            score = env_score if use_mdp_score else mdp_score
             all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
-            if va is not None and not va.has_released:
-                pivots.append((score - last_score, last_context_mark))
-                train_data.append((va.selected_action, len(pivots) - 1, len(pivots)))
-                va.release()
+            train_ref = node.train_ref
+            score = env_score if use_mdp_score else train_ref.mdp_score
+            last_state_value = train_ref.state_value
+            if not train_ref.has_released:
                 selected_nodes.append((obs, score, info, last_context_mark))
+                if i < len(supports) - 1 or train_last_node:
+                    pivots.append((score - last_score, last_context_mark))
+                    train_data.append((train_ref.selected_action, len(pivots) - 1, len(pivots)))
+                    train_ref.release()
+
             last_context_mark = len(rl_contexts) - 1
             last_score = score
-
             i += 1
         
+        if train_last_node:
+            last_state_value = finish_value
+
         folds = self.compute_folds(quest_node.objective, selected_nodes)
         for _, diff_str, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {diff_str}"
             self.extra_actions.add(fold_action)
             train_data.append((fold_action, from_transition_index, to_transition_index))
 
-        _, env_score, mdp_score, _, info, va = end_observation
-        score = env_score if use_mdp_score else mdp_score
-        all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
         # add extra actions
         all_action_list = list(all_action_set.union(self.extra_actions))
-
-        if force_train_last: 
-            if va is not None and not va.has_released:
-                pivots.append((score - last_score, last_context_mark))
-                train_data.append((va.selected_action, len(pivots) - 1, len(pivots)))
-                va.release()
 
         if len(train_data) > 0:
             objective_tensor = self.tokenizer(objective_contexts, stack=True)
             state_tensor = self.tokenizer(rl_contexts, stack=True)
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
-            self.agent.train(value, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
+            self.agent.train(last_state_value, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
             if self.allow_relegation:
                 for _, diff_str, from_transition_index, to_transition_index in folds:
@@ -190,8 +183,7 @@ class Persona:
 
     def think(self, quest_node, supports):
         # supports is a list of nodes
-        count_non_thought_steps = 0
-        obs, env_score, mdp_score, done, infos, _ = quest_node.start_observation
+        obs, env_score, done, infos = quest_node.start_observation
         objective_contexts = [f"Objective: {quest_node.objective}"]
         contexts = [f"Observation: {obs}"]
         for node in supports:
@@ -199,18 +191,47 @@ class Persona:
                 contexts.append(f"Sub Task: {node.objective}")
                 contexts.append(f"Result: {node.result}")
                 # va must be taken from the last tensor from the previous node
-                # _, _, _, _, _ = node.start_observation
                 # score, done, infos must be taken from the sub task
-                obs, env_score, mdp_score, done, infos, _ = node.end_observation
+                obs, env_score, done, infos = node.end_observation
                 contexts.append(f"Observation: {obs}")
-                count_non_thought_steps += 1
             elif isinstance(node, Thought_Node):
                 contexts.append(f"Thought: {node.thought}")
             elif isinstance(node, Observation_Node):
                 contexts.append(f"Action: {node.action}")
-                obs, env_score, mdp_score, done, infos, _ = node.observation
+                obs, env_score, done, infos  = node.observation
                 contexts.append(f"Observation: {obs}")
-                count_non_thought_steps += 1
+        last_observation = (obs, env_score, done, infos)
+
+        mdp_score, fulfilled, success, finish_value = quest_node.eval(env_score, infos)
+        if len(supports) > 0:
+            supports[-1].train_ref.mdp_score = mdp_score
+
+        train_last_node = False
+        finish_value = None
+        if fulfilled:
+            train_last_node = True
+            return_sub_action = Sub_Action_Type.Fulfill
+            if success:
+                return_node = Quest_Node(result = "Success", end_observation=last_observation)
+            else:
+                return_node = Quest_Node(result = "Failed", end_observation=last_observation)
+        elif done:
+            train_last_node = True
+            return_sub_action = Sub_Action_Type.Done
+            return_node = Quest_Node(result = "Terminated", end_observation=last_observation)
+
+        if self.training_mode:
+            self.step += 1
+            if train_last_node or self.step % self.TRAIN_STEP == 0:
+                self.train(quest_node, train_last_node=train_last_node, finish_value=finish_value)
+
+            if self.step % self.PRINT_STEP == 0:
+                self.agent.print(self.step)
+
+        if done or fulfilled:
+            return return_sub_action, return_node
+
+        ################# ACTION SELECTION #################
 
         action_list = [f"Action: {ac}" for ac in infos["admissible_commands"]]
         if self.allow_relegation:
@@ -250,60 +271,29 @@ class Persona:
         else:
             response = rl_response
 
+        ################# PERFORM ACTION #################
+
         command, detail = extract_command_and_detail(response)
 
-        force_train_last = False
-        current_value = va.state_value
-        return_sub_action = None
-        return_node = None
         if command.startswith("Sub Task"):
             sub_objective = detail
-            last_observation = (obs, env_score, 0, done, infos, va)
-            if self.objective_less_than(sub_objective, quest_node.objective):
-                return_sub_action = Sub_Action_Type.Relegate 
-                return_node = Quest_Node(
-                    objective=sub_objective,
-                    env_step=self.sub_eval_step_func,
-                    start_observation=last_observation
-                )
-            else:
-                # duplicate sub task, penalize
-                current_value = -100
-                force_train_last = True
-                return_sub_action = Sub_Action_Type.Relegate 
-                return_node = Quest_Node(
-                    objective=sub_objective,
-                    result="Failed",
-                    start_observation=last_observation,
-                    end_observation=(obs, env_score, mdp_score, done, infos, None),
-                    end_action="System break"
-                )
+            return_sub_action = Sub_Action_Type.Relegate 
+            return_node = Quest_Node(
+                objective=sub_objective,
+                eval_func=self.goal_pursuit_eval,
+                start_observation=last_observation,
+                train_ref=va
+            )
+            return return_sub_action, return_node
         elif command.startswith("Action"):
             action = detail
-            obs, env_score, mdp_score, done, infos, fulfilled, success, finish_value = quest_node.step(action)
-            last_observation = (obs, env_score, mdp_score, done, infos, va)
-            if fulfilled:
-                current_value = finish_value
-                force_train_last = True
-                return_sub_action = Sub_Action_Type.Fulfill
-                if success:
-                    return_node = Quest_Node(result = "Success", end_observation=last_observation, end_action=action)
-                else:
-                    return_node = Quest_Node(result = "Failed", end_observation=last_observation, end_action=action)
-            elif done:
-                return_sub_action = Sub_Action_Type.Done
-                return_node = Quest_Node(result = "Terminated", end_observation=last_observation, end_action=action)
-            else:
-                return_sub_action = Sub_Action_Type.Act
-                return_node = Observation_Node(action, last_observation)
+            obs, env_score, done, infos = self.env_step(action)
+            return_sub_action = Sub_Action_Type.Act
+            return_node = Observation_Node(
+                action=action, 
+                observation=(obs, env_score, done, infos), 
+                train_ref=va
+            )
+            return return_sub_action, return_node
 
-        if self.training_mode:
-            self.step += 1
-            if force_train_last or self.step % self.TRAIN_STEP == 0:
-                self.train(quest_node, supports, last_observation, current_value, force_train_last=force_train_last)
-
-            if self.step % self.PRINT_STEP == 0:
-                self.agent.print(self.step)
-
-        return return_sub_action, return_node
 
