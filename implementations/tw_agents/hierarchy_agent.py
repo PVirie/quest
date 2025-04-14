@@ -85,9 +85,9 @@ class Hierarchy_Agent:
             values = values[0, -1, :].item()
 
             if sample_action:
-                # lower_bound = torch.min(action_scores)
-                # sample_bias = lower_bound + 0.2 * (torch.max(action_scores) - lower_bound)
-                # action_scores = torch.clip(action_scores, min=sample_bias) # further improve exploration
+                lower_bound = torch.min(action_scores)
+                sample_bias = lower_bound + 0.2 * (torch.max(action_scores) - lower_bound)
+                action_scores = torch.clip(action_scores, min=sample_bias) # further improve exploration
                 probs = torch.nn.functional.softmax(action_scores, dim=0)  # n_actions
                 indices = torch.multinomial(probs, num_samples=1).item() # 1
             else:

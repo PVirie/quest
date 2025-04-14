@@ -57,6 +57,8 @@ def extract_inventory(infos):
 
 
 def parse_transition(objective):
+    if "Welcome" in objective:
+        return None
     # find Go to {location}( and Find {item1} , {item2} ...)*( and Use {item1} , {item2} ...)*
     go_to = None
     find_items = []
@@ -106,8 +108,10 @@ class Textworld_Transition(mdp_state.MDP_Transition):
 
     def __lt__(self, other):
         # test of stictly less than
-        # item change < location change
-        if self.new_location is None and other.new_location is not None:
+        # item change < location change < None
+        if other is None:
+            return True
+        elif self.new_location is None and other.new_location is not None:
             return True
         elif self.new_location is not None:
             if other.new_location is None:
