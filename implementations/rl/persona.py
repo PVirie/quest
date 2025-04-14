@@ -109,8 +109,7 @@ class Persona:
 
     def train(self, quest_node, train_last_node: bool = False, finish_value=None):
         # finish_value only used when training the last node
-        use_mdp_score = quest_node.get_parent() is None
-        obs, env_score, _, info = quest_node.start_observation
+        obs, _, _, info = quest_node.start_observation
         all_action_set = set([f"Action: {ac}" for ac in info["admissible_commands"]])
         objective_contexts = [f"Objective: {quest_node.objective}"]
         rl_contexts = [f"Observation: {obs}"] 
@@ -126,18 +125,18 @@ class Persona:
             if isinstance(node, Quest_Node):
                 rl_contexts.append(f"Sub Task: {node.objective}")
                 rl_contexts.append(f"Result: {node.result}")
-                obs, env_score, _, info = node.end_observation
+                obs, _, _, info = node.end_observation
                 rl_contexts.append(f"Observation: {obs}")
             elif isinstance(node, Observation_Node):
                 rl_contexts.append(f"Action: {node.action}")
-                obs, env_score, _, info = node.observation
+                obs, _, _, info = node.observation
                 rl_contexts.append(f"Observation: {obs}")
             else:
                 continue
             
             all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
             train_ref = node.train_ref
-            score = env_score if use_mdp_score else train_ref.mdp_score
+            score = train_ref.mdp_score
             last_state_value = train_ref.state_value
             if not train_ref.has_released:
                 selected_nodes.append((obs, score, info, last_context_mark))
@@ -169,7 +168,7 @@ class Persona:
             self.agent.train(last_state_value, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
             if self.allow_relegation:
-                for _, diff_str, from_transition_index, to_transition_index in folds:
+                for value, diff_str, from_transition_index, to_transition_index in folds:
                     sub_objective_tensor = self.tokenizer([diff_str], stack=True)
                     sub_pivots = []
                     sub_train_data = []
@@ -178,7 +177,7 @@ class Persona:
                     for i in range(from_transition_index, to_transition_index + 1):
                         sub_pivots.append((0, pivots[i][1] - start_context_mark))
                         sub_train_data.append((train_data[i][0], len(sub_pivots) - 1, len(sub_pivots)))
-                    self.agent.train(20, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
+                    self.agent.train(value, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
 
     def think(self, quest_node, supports):
@@ -204,6 +203,8 @@ class Persona:
 
         mdp_score, fulfilled, success, finish_value = quest_node.eval(env_score, infos)
         if len(supports) > 0:
+            # Because training has to update weight anyway, which violate the functional programming paradigm
+            # I'll just update the last child's mdp_score
             supports[-1].train_ref.mdp_score = mdp_score
 
         train_last_node = False

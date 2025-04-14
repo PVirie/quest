@@ -318,7 +318,7 @@ if __name__ == "__main__":
     
     def compute_folds(objective, states):
         # states is a list of obs, score, info, last_context_mark
-        # return list of delta_score, diff_str, from_context_mark, to_context_mark
+        # return list of end value, diff_str, from_context_mark, to_context_mark
         objective_transition = parse_transition(objective)
         states = [Textworld_State(score, info, lcm) for _, score, info, lcm in states]
         transition_matrix = [] # the first row is at index 1 but the first column is at index 0
@@ -335,7 +335,8 @@ if __name__ == "__main__":
         pairs = combinations(reversed(pivots), 2)
         # gap greater than 4 steps
         selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4]
-        return [(st.delta_score, st.objective, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1 and st < objective_transition]
+        # return fixed end state value of 100 for first training
+        return [(100, st.objective, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1 and st < objective_transition]
     
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
