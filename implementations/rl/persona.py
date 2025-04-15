@@ -161,7 +161,7 @@ class Persona:
             # train_data.append((fold_action, from_transition_index, to_transition_index))
 
         # add extra actions
-        all_action_list = list(all_action_set) + self.extra_actions.keys()
+        all_action_list = list(all_action_set) + list(self.extra_actions.keys())
 
         if len(train_data) > 0:
             objective_tensor = self.tokenizer(objective_contexts, stack=True)
@@ -169,7 +169,7 @@ class Persona:
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
             self.agent.train(last_state_value, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
-            for value, diff_str, from_transition_index, to_transition_index in folds:
+            for value, diff_str, _, from_transition_index, to_transition_index in folds:
                 sub_objective_tensor = self.tokenizer([diff_str], stack=True)
                 sub_pivots = []
                 sub_train_data = []
