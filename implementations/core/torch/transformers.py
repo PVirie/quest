@@ -15,6 +15,16 @@ def positional_encoding(seq_len, embed_dim):
 
 
 def causal_mask(size, device):
+    """
+    in pytorch 2.6, mask is a boolean tensor where True means to be masked out.
+    """
+    # make
+    # tensor([
+    #     [F, T, T, T],
+    #     [F, F, T, T],
+    #     [F, F, F, T],
+    #     [F, F, F, F]
+    # ])
     mask = torch.triu(torch.ones(size, size, device=device), diagonal=1).bool()
     return mask
 
@@ -71,7 +81,7 @@ class Command_Scorer(nn.Module, Q_Table):
         self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 1, device=device)
         self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 1, device=device)
 
-        self.pe = positional_encoding(512, hidden_size).to(device) # 512 is the maximum length of the context
+        self.pe = positional_encoding(256 + 128, hidden_size).to(device) # 256 is the maximum length of the context
 
 
     def forward(self, objectives, observations, actions, **kwargs):
@@ -97,8 +107,8 @@ class Command_Scorer(nn.Module, Q_Table):
         
         obs_embedding = self.embedding(observations) # batch x n_contexts x context_size x hidden
         obs_embedding = obs_embedding + self.pe[:context_size, :] # add positional encoding
-        obs_embedding = apply_transformer(self.context_decoder, torch.reshape(obs_embedding, (-1, context_size, self.hidden_size)), tgt_mask=causal_mask(context_size, self.device), tgt_is_causal=True)
-        obs_embedding = torch.reshape(obs_embedding[:, -1, :], (-1, n_contexts, self.hidden_size)) # batch x n_contexts x hidden
+        obs_embedding = apply_transformer(self.context_decoder, torch.reshape(obs_embedding, (-1, context_size, self.hidden_size)))
+        obs_embedding = torch.reshape(obs_embedding[:, 0, :], (-1, n_contexts, self.hidden_size)) # batch x n_contexts x hidden
 
         obs_embedding = obs_embedding + self.pe[:n_contexts, :] # add positional encoding
         state_internal = apply_transformer(self.state_decoder, obs_embedding, memory=objective_embedding, tgt_mask=causal_mask(n_contexts, self.device), tgt_is_causal=True) # batch x n_contexts x hidden
@@ -113,8 +123,8 @@ class Command_Scorer(nn.Module, Q_Table):
 
         action_embedding = self.embedding(actions) # batch x n_actions x action_size x hidden
         action_embedding = action_embedding + self.pe[:action_size, :] # add positional encoding
-        action_embedding = apply_transformer(self.action_decoder, torch.reshape(action_embedding, (-1, action_size, self.hidden_size)), tgt_mask=causal_mask(action_size, self.device), tgt_is_causal=True) 
-        action_embedding = torch.reshape(action_embedding[:, -1, :], (-1, n_actions, self.hidden_size)) # batch x n_actions x hidden
+        action_embedding = apply_transformer(self.action_decoder, torch.reshape(action_embedding, (-1, action_size, self.hidden_size)))
+        action_embedding = torch.reshape(action_embedding[:, 0, :], (-1, n_actions, self.hidden_size)) # batch x n_actions x hidden
 
         # now cross product between the state_internal and the action_embedding
         pre_actions = self.actor(state_internal) # batch x n_contexts x hidden

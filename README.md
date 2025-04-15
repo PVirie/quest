@@ -96,6 +96,7 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] Hierarchical RL
     -   [x] Score conversion when up-hierarchy
     -   [x] Check learnining on done within the sub-task
+-   [ ] Sub-task filter
 
 ### Backends
 
