@@ -30,6 +30,24 @@ def apply_transformer(decoder, input, memory=None, tgt_mask=None, tgt_is_causal=
     return output
 
 
+class Multilayer_Relu(nn.Module):
+    def __init__(self, input_size, output_size, hidden_size, n_layers=1, device=None):
+        super(Multilayer_Relu, self).__init__()
+        self.device = device
+        self.hidden_size = hidden_size
+        self.layers = nn.ModuleList()
+        self.layers.append(nn.Linear(input_size, hidden_size, device=device))
+        for _ in range(n_layers - 1):
+            self.layers.append(nn.Linear(hidden_size, hidden_size, device=device))
+        self.layers.append(nn.Linear(hidden_size, output_size, device=device))
+
+    def forward(self, x):
+        for layer in self.layers[:-1]:
+            x = F.relu(layer(x))
+        x = self.layers[-1](x)
+        return x
+
+
 class Command_Scorer(nn.Module, Q_Table):
     def __init__(self, input_size, hidden_size, device):
         super(Command_Scorer, self).__init__()
@@ -50,8 +68,8 @@ class Command_Scorer(nn.Module, Q_Table):
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
 
-        self.critic = nn.Linear(hidden_size, 1, device=device)
-        self.actor = nn.Linear(hidden_size, hidden_size, device=device)
+        self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 1, device=device)
+        self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 1, device=device)
 
         self.pe = positional_encoding(512, hidden_size).to(device) # 512 is the maximum length of the context
 

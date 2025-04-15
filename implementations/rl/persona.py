@@ -258,7 +258,7 @@ class Persona:
         objective_tensor = self.tokenizer(objective_contexts, stack=True)
         state_tensor = self.tokenizer(rl_contexts, stack=True)
         action_list_tensor = self.tokenizer(action_list, stack=True)
-        va = self.agent.act(objective_tensor, state_tensor, action_list_tensor, action_list, sample_action=True)
+        va = self.agent.act(objective_tensor, state_tensor, action_list_tensor, action_list, sample_action=self.training_mode)
         rl_response = va.selected_action
 
         if not self.training_mode and va is not None:

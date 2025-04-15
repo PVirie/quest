@@ -79,7 +79,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         self.from_context_mark = from_context_mark
         self.to_context_mark = to_context_mark
         self.new_location = new_location
-        self.added_items = added_items
+        self.added_items = set(added_items)
 
         count_diff = 0
         differences = []
@@ -254,7 +254,7 @@ if __name__ == "__main__":
         lost=True,                 # Whether the player has lost.
     )
 
-    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=200, batch_size=1)
+    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
     env = textworld.gym.make(env_id)
 
     def flatten_batch(infos):
@@ -358,6 +358,8 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
+        persona.set_allow_relegation(False)
+        play(env, persona, nb_episodes=1000, verbose=True)
         persona.set_allow_relegation(True)
         play(env, persona, nb_episodes=1000, verbose=True)
         persona.save(agent_parameter_path)
