@@ -90,12 +90,12 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] Reduce VRAM usage (increase training time)
     -   [x] Disentangle gradient
     -   [x] Sample action sets
--   [ ] Numerical stability
+-   [x] Numerical stability
     -   [x] Min clip probability
     -   [x] Gradient clipping
--   [ ] Hierarchical RL
+-   [x] Hierarchical RL
     -   [x] Score conversion when up-hierarchy
-    -   [ ] Check learnining on done within the sub-task
+    -   [x] Check learnining on done within the sub-task
 
 ### Backends
 

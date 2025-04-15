@@ -8,6 +8,7 @@ import shutil
 import re
 from itertools import combinations
 import logging
+import random
 
 import torch
 
@@ -185,7 +186,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
                     break
             elif action == Action.DISCOVER:
                 working_memory.discover(param_1, param_2)
-                if len(working_memory) > 120:
+                if len(working_memory) > 500:
                     break
                 nb_moves += 1
             else:
@@ -238,6 +239,7 @@ if __name__ == "__main__":
 
     game_path = f"{textworld_path}/games/default/tw-rewardsDense_goalDetailed_18.z8"
 
+    random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
 
     request_infos = textworld.EnvInfos(
@@ -252,7 +254,7 @@ if __name__ == "__main__":
         lost=True,                 # Whether the player has lost.
     )
 
-    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
+    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=200, batch_size=1)
     env = textworld.gym.make(env_id)
 
     def flatten_batch(infos):
@@ -357,9 +359,9 @@ if __name__ == "__main__":
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
         persona.set_allow_relegation(True)
-        play(env, persona, nb_episodes=4000, verbose=True)
+        play(env, persona, nb_episodes=1000, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
-    play(env, persona, nb_episodes=100, verbose=True)
+    play(env, persona, nb_episodes=100, verbose=True, verbose_step=20)
     env.close()
