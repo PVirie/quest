@@ -28,14 +28,15 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, agent, tokenizer, compute_folds, env_step, goal_pursuit_eval, allow_relegation=True, train_prompt=None):
+    def __init__(self, agent, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, allow_relegation=True, train_prompt=None):
         self.agent = agent
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
         self.env_step = env_step
         self.goal_pursuit_eval = goal_pursuit_eval
         self.allow_relegation = allow_relegation
-        self.extra_actions = set()
+        self.action_parser = action_parser
+        self.extra_actions = {}
 
         self.training_mode = False
 
@@ -64,8 +65,8 @@ class Persona:
         os.makedirs(agent_path, exist_ok=True)
         self.agent.save(agent_path)
         with open(os.path.join(path, "extra_actions.txt"), "w", encoding="utf-8") as f:
-            for action in self.extra_actions:
-                f.write(action + "\n")
+            for action in self.extra_actions.keys():
+                f.write(action[10:] + "\n")
 
 
     def load(self, path):
@@ -75,7 +76,8 @@ class Persona:
         success = self.agent.load(os.path.join(path, "agent"))
         if success:
             with open(os.path.join(path, "extra_actions.txt"), "r", encoding="utf-8") as f:
-                self.extra_actions = set([line.strip() for line in f.readlines()])
+                action_keys = set([line.strip() for line in f.readlines()])
+                self.extra_actions = {f"Sub Task: {action}": self.action_parser(action) for action in action_keys}
         return success
 
 
@@ -103,7 +105,7 @@ class Persona:
                 obs = obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")
                 contexts.append(f"{prefix}Observation: {obs}")
         if len(prefix) == 0:
-            contexts.append(f"{prefix}Extra Actions: {", ".join(self.extra_actions)}")
+            contexts.append(f"{prefix}Extra Actions: {", ".join(self.extra_actions.keys())}")
         return f"\n".join(contexts)
 
 
@@ -153,13 +155,13 @@ class Persona:
             last_state_value = finish_value
 
         folds = self.compute_folds(quest_node.objective, selected_nodes)
-        for _, diff_str, from_transition_index, to_transition_index in folds:
+        for _, diff_str, obj, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {diff_str}"
-            self.extra_actions.add(fold_action)
+            self.extra_actions[fold_action] = obj
             # train_data.append((fold_action, from_transition_index, to_transition_index))
 
         # add extra actions
-        all_action_list = list(all_action_set.union(self.extra_actions))
+        all_action_list = list(all_action_set) + self.extra_actions.keys()
 
         if len(train_data) > 0:
             objective_tensor = self.tokenizer(objective_contexts, stack=True)
@@ -234,7 +236,10 @@ class Persona:
 
         action_list = [f"Action: {ac}" for ac in infos["admissible_commands"]]
         if self.allow_relegation:
-            action_list = action_list + list(self.extra_actions)
+            parent_objective = self.action_parser(quest_node.objective)
+            for key, obj in self.extra_actions.items():
+                if obj < parent_objective:
+                    action_list.append(key)
 
         lm_response = ""
         if self.use_lm:

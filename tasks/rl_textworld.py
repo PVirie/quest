@@ -322,7 +322,7 @@ if __name__ == "__main__":
     
     def compute_folds(objective, states):
         # states is a list of obs, score, info, last_context_mark
-        # return list of end value, diff_str, from_context_mark, to_context_mark
+        # return list of end value, diff_str, comparable_transition, from_context_mark, to_context_mark
         objective_transition = parse_transition(objective)
         states = [Textworld_State(score, info, lcm) for _, score, info, lcm in states]
         transition_matrix = [] # the first row is at index 1 but the first column is at index 0
@@ -340,7 +340,7 @@ if __name__ == "__main__":
         # gap greater than 4 steps
         selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4]
         # return fixed end state value of 100 for first training
-        return [(50, st.objective, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1 and st < objective_transition]
+        return [(50, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1 and st < objective_transition]
     
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
@@ -349,7 +349,7 @@ if __name__ == "__main__":
     from implementations.tw_agents.hierarchy_agent import Hierarchy_Agent
     agent = Hierarchy_Agent(input_size=MAX_VOCAB_SIZE, device=device)
 
-    persona = Persona(agent, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval)
+    persona = Persona(agent, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition)
 
     # play(env, persona, nb_episodes=100, verbose=True)
     
