@@ -101,7 +101,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
 
     def __sub__(self, other):
         diff = 0
-        if self.new_location != other.new_location:
+        if self.new_location is not None and self.new_location != other.new_location:
             diff += 1
         diff += len(self.added_items.symmetric_difference(other.added_items))
         return diff
@@ -269,14 +269,15 @@ if __name__ == "__main__":
         return obs, score, done, infos
 
     def env_eval(node, env_score, infos):
+        num_children = len(node.get_children())
         if infos["won"]:
             fulfilled = True
             success = True
             next_value = 100
         elif infos["lost"]:
             fulfilled = True
-            success = False
-            next_value = -100
+            success = True # use success True to indicate that the task is finished, and should use the next_value.
+            next_value = -10
         else:
             fulfilled = False
             success = False
@@ -284,7 +285,7 @@ if __name__ == "__main__":
         # mdp_score, fulfilled, success, finish_value
         # mdp_score is the main env score
         # fulfill is for sub task, success 
-        return env_score, fulfilled, success, next_value
+        return env_score - num_children * 0.05, fulfilled, success, next_value
 
     def goal_pursuit_eval(node, env_score, infos):
         num_children = len(node.get_children())
@@ -294,25 +295,22 @@ if __name__ == "__main__":
         target_transition = parse_transition(objective)
 
         if parent_transition is not None and not target_transition < parent_transition:
-            return 0, True, False, -100
+            return 0, True, False, -20
 
-        _, _, _, start_info = node.start_observation
-        current_state = Textworld_State(0, infos, 0)
-        start_state = Textworld_State(0, start_info, num_children)
-        progress_transition = current_state - start_state
+        progress_transition = Textworld_Transition(0, -1, -1, extract_location(infos), extract_inventory(infos))
 
         score_diff = target_transition - progress_transition
-        mdp_score = len(target_transition) - score_diff - num_children * 0.02
+        mdp_score = len(target_transition) - score_diff - num_children * 0.1
 
-        if num_children > 25:
+        if score_diff == 0:
+            fulfilled = True
+            success = True
+            next_value = 50
+        elif num_children > 20:
             # too many children, stop the task
             fulfilled = True
             success = False
             next_value = 0
-        elif score_diff == 0:
-            fulfilled = True
-            success = True
-            next_value = 50
         else:
             fulfilled = False
             success = False
@@ -342,7 +340,7 @@ if __name__ == "__main__":
         # gap greater than 4 steps
         selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4]
         # return fixed end state value of 100 for first training
-        return [(100, st.objective, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1 and st < objective_transition]
+        return [(50, st.objective, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1 and st < objective_transition]
     
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
@@ -359,9 +357,7 @@ if __name__ == "__main__":
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
         persona.set_allow_relegation(False)
-        play(env, persona, nb_episodes=1000, verbose=True)
-        persona.set_allow_relegation(True)
-        play(env, persona, nb_episodes=1000, verbose=True)
+        play(env, persona, nb_episodes=500, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

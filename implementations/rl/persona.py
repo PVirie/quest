@@ -156,7 +156,7 @@ class Persona:
         for _, diff_str, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {diff_str}"
             self.extra_actions.add(fold_action)
-            train_data.append((fold_action, from_transition_index, to_transition_index))
+            # train_data.append((fold_action, from_transition_index, to_transition_index))
 
         # add extra actions
         all_action_list = list(all_action_set.union(self.extra_actions))
@@ -167,17 +167,16 @@ class Persona:
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
             self.agent.train(last_state_value, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
-            if self.allow_relegation:
-                for value, diff_str, from_transition_index, to_transition_index in folds:
-                    sub_objective_tensor = self.tokenizer([diff_str], stack=True)
-                    sub_pivots = []
-                    sub_train_data = []
-                    start_context_mark = pivots[from_transition_index][1]
-                    end_context_mark = pivots[to_transition_index][1]
-                    for i in range(from_transition_index, to_transition_index + 1):
-                        sub_pivots.append((0, pivots[i][1] - start_context_mark))
-                        sub_train_data.append((train_data[i][0], len(sub_pivots) - 1, len(sub_pivots)))
-                    self.agent.train(value, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
+            for value, diff_str, from_transition_index, to_transition_index in folds:
+                sub_objective_tensor = self.tokenizer([diff_str], stack=True)
+                sub_pivots = []
+                sub_train_data = []
+                start_context_mark = pivots[from_transition_index][1]
+                end_context_mark = pivots[to_transition_index][1]
+                for i in range(from_transition_index, to_transition_index + 1):
+                    sub_pivots.append((0, pivots[i][1] - start_context_mark))
+                    sub_train_data.append((train_data[i][0], len(sub_pivots) - 1, len(sub_pivots)))
+                self.agent.train(value, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
 
     def think(self, quest_node, supports):
@@ -209,9 +208,9 @@ class Persona:
 
         train_last_node = False
         if fulfilled:
-            train_last_node = True
             return_sub_action = Sub_Action_Type.Fulfill
             if success:
+                train_last_node = True
                 return_node = Quest_Node(result = "Success", end_observation=last_observation)
             else:
                 return_node = Quest_Node(result = "Failed", end_observation=last_observation)
@@ -222,7 +221,7 @@ class Persona:
 
         if self.training_mode:
             self.step += 1
-            if train_last_node or self.step % self.TRAIN_STEP == 0:
+            if done or fulfilled or self.step % self.TRAIN_STEP == 0:
                 self.train(quest_node, train_last_node=train_last_node, finish_value=finish_value)
 
             if self.step % self.PRINT_STEP == 0:

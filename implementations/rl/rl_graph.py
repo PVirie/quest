@@ -48,12 +48,8 @@ class Quest_Node(RL_Node):
         # check same class
         if not isinstance(another, self.__class__):
             return
-        if another.objective is not None:
-            self.objective = another.objective
         if another.result is not None:
             self.result = another.result
-        if another.start_observation is not None:
-            self.start_observation = another.start_observation
         if another.end_observation is not None:
             self.end_observation = another.end_observation
             
