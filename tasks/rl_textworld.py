@@ -206,7 +206,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
             else:
                 raise ValueError("Invalid action")
 
-        score, _, _, _, _ = goal_pursuit_eval(root_node, root_node.end_observation, False)
+        score, _, _, _, _ = goal_pursuit_eval(root_node, root_node.end_observation)
 
         avg_moves.append(nb_moves)
         avg_scores.append(score)
