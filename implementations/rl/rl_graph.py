@@ -90,7 +90,7 @@ class Quest_Node(RL_Node):
         num_children = len(self.children)
         for child in self.children:
             if isinstance(child, self.__class__):
-                num_children += len(child)
+                num_children += child.size()
         return num_children
     
 
