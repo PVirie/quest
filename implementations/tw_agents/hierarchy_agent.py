@@ -35,7 +35,7 @@ class Hierarchy_Agent:
     def __init__(self, input_size, device) -> None:
         self.device = device
         self.model = Command_Scorer(input_size=input_size, hidden_size=128, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
+        self.optimizer = optim.Adam(self.model.parameters(), 0.0001)
 
         self.ave_loss = 0
         self.iteration = 0
@@ -181,7 +181,7 @@ class Hierarchy_Agent:
         policy_loss = (-log_action_probs * advantages).sum()
         value_loss = (.5 * (values - returns) ** 2.).sum()
         entropy = (-probs * log_probs).sum()
-        loss = policy_loss + 0.5 * value_loss - 1.0 * entropy
+        loss = policy_loss + 0.5 * value_loss - 0.5 * entropy
 
         loss.backward()
         nn.utils.clip_grad_norm_(self.model.parameters(), 40)

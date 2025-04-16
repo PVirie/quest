@@ -81,7 +81,7 @@ class Command_Scorer(nn.Module, Q_Table):
         self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 1, device=device)
         self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 1, device=device)
 
-        self.pe = positional_encoding(256 + 128, hidden_size).to(device) # 256 is the maximum length of the context
+        self.pe = positional_encoding(256, hidden_size).to(device) # 256 is the maximum length of the context
 
 
     def forward(self, objectives, observations, actions, **kwargs):

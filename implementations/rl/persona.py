@@ -215,9 +215,10 @@ class Persona:
         _, _, _, infos = last_observation
         action_list = [f"Action: {ac}" for ac in infos["admissible_commands"]]
         if self.allow_relegation:
-            parent_objective = self.action_parser(quest_node.objective)
+            current_objective = self.action_parser(quest_node.objective)
             for key, obj in self.extra_actions.items():
-                if obj < parent_objective:
+                if obj < current_objective and obj.diff(last_observation) > 0:
+                    # must check less than and diff to prevent infinite loop
                     action_list.append(key)
 
         lm_response = ""

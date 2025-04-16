@@ -119,6 +119,12 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         return diff
     
 
+    def diff(self, obs):
+        _, _, _, infos = obs
+        progress_transition = Textworld_Transition(0, -1, -1, extract_location(infos), extract_inventory(infos))
+        return self - progress_transition
+    
+
     def __lt__(self, other):
         # test of stictly less than
         # item change < location change < None
@@ -200,12 +206,15 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
                     break
             elif action == Action.DISCOVER:
                 working_memory.discover(param_1, param_2)
-                if len(working_memory) > 500:
+                if len(working_memory) > 200:
                     break
                 nb_moves += 1
             else:
                 raise ValueError("Invalid action")
 
+        if root_node.end_observation is None:
+            # error skip
+            continue
         score, _, _, _, _ = goal_pursuit_eval(root_node, root_node.end_observation)
 
         avg_moves.append(nb_moves)
@@ -305,8 +314,7 @@ if __name__ == "__main__":
         _, _, done, infos = obs
         objective = node.objective
         target_transition = parse_transition(objective)
-        progress_transition = Textworld_Transition(0, -1, -1, extract_location(infos), extract_inventory(infos))
-        score_diff = target_transition - progress_transition
+        score_diff = target_transition.diff(obs)
         expected_score = len(target_transition) - node.size() * 0.05
         mdp_score = expected_score - score_diff 
 
