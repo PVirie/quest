@@ -83,9 +83,8 @@ class Persona:
 
     def print_context(self, quest_node, prefix=""):
         children = quest_node.get_children()
-        obs, _, _, _ = quest_node.start_observation
-        obs = obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")
-        contexts = [f"{prefix}Objective: {quest_node.objective}", f"{prefix}Start Obs: {obs}"]
+        objective_context, start_obs_context = quest_node.get_start_contexts()
+        contexts = [f"{prefix}{objective_context}", f"{prefix}{start_obs_context.replace("\n\n", "\n").replace("\n", f"\n{prefix}")}"]
         for i, node in enumerate(children):
             node_contexts = node.get_context()
             node_contexts.insert(0, f"{i} -----")
@@ -103,8 +102,9 @@ class Persona:
         # finish_value only used when training the last node
         obs, _, _, info = quest_node.start_observation
         all_action_set = set([f"Action: {ac}" for ac in info["admissible_commands"]])
-        objective_contexts = [f"Objective: {quest_node.objective}"]
-        rl_contexts = [f"Observation: {obs}"] 
+        objective_context, start_obs_context = quest_node.get_start_contexts()
+        objective_contexts = [objective_context]
+        rl_contexts = [start_obs_context] 
         last_context_mark = 0
         pivots = []
         train_data = []
@@ -171,9 +171,9 @@ class Persona:
     def think(self, quest_node, supports):
         # supports is a list of nodes
         last_observation = quest_node.start_observation
-        obs, _, _, _ = last_observation
-        objective_contexts = [f"Objective: {quest_node.objective}"]
-        contexts = [f"Observation: {obs}"]
+        objective_context, start_obs_context = quest_node.get_start_contexts()
+        objective_contexts = [objective_context]
+        contexts = [start_obs_context]
         for node in supports:
             if isinstance(node, Quest_Node):
                 contexts.extend(node.get_context())

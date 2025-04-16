@@ -48,6 +48,10 @@ class Quest_Node(RL_Node):
         self.truncated = truncated
         self.train_ref = train_ref
 
+    def get_start_contexts(self):
+        obs, _, _, _ = self.start_observation
+        return f"Objective: {self.objective}", f"Observation: {obs}"
+
     def get_context(self):
         contexts = []
         contexts.append(f"Sub Task: {self.objective}")
