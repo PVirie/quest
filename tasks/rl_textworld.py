@@ -303,18 +303,11 @@ if __name__ == "__main__":
         return mdp_score, terminated, truncated, result, next_value
 
     def goal_pursuit_eval(node, obs, child_truncated):
-        _, env_score, done, infos = obs
+        _, _, done, infos = obs
         num_children = len(node.get_children())
         objective = node.objective
-        parent = node.get_parent()
-        parent_transition = parse_transition(parent.objective) if parent is not None else None
         target_transition = parse_transition(objective)
-
-        if parent_transition is not None and not target_transition < parent_transition:
-            return 0, True, False, -20
-
         progress_transition = Textworld_Transition(0, -1, -1, extract_location(infos), extract_inventory(infos))
-
         score_diff = target_transition - progress_transition
         mdp_score = len(target_transition) - score_diff - num_children * 0.1
 
@@ -328,7 +321,7 @@ if __name__ == "__main__":
             truncated = False
             result = "Success"
             next_value = 50
-        elif num_children >= 100 or done:
+        elif (num_children >= 10 and not target_transition.is_main) or done:
             # too many children, stop the task
             terminated = False
             truncated = True
