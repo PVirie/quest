@@ -78,13 +78,7 @@ class Quest_Node(RL_Node):
         return self.result is not None or self.truncated
     
     def eval(self, obs):
-        truncated = False
-        if len(self.children) > 0:
-            last_child = self.get_last_child()
-            if isinstance(last_child, self.__class__):
-                if last_child.truncated:
-                    truncated = True
-        return self.eval_func(self, obs, truncated)
+        return self.eval_func(self, obs)
     
     def size(self):
         num_children = len(self.children)

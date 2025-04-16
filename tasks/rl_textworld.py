@@ -272,26 +272,25 @@ if __name__ == "__main__":
         infos = flatten_batch(infos)
         return obs, score, done, infos
 
-    def env_eval(node, obs, child_truncated):
+    def env_eval(node, obs):
         _, env_score, done, infos = obs
-        num_children = len(node.get_children())
-        mdp_score = env_score - num_children * 0.05
+        mdp_score = env_score - node.size() * 0.05
 
-        if done:
-            terminated = True
-            truncated = False
-            result = "Truncated"
-            next_value = -20
-        elif infos["won"]:
+        if infos["won"]:
             terminated = True
             truncated = False
             result = "Success"
             next_value = 100
-        elif infos["lost"] or child_truncated:
+        elif infos["lost"]:
             terminated = True
             truncated = False
             result = "Failed"
             next_value = -10
+        elif done:
+            terminated = False
+            truncated = True
+            result = None
+            next_value = None
         else:
             terminated = False
             truncated = False
@@ -302,9 +301,8 @@ if __name__ == "__main__":
         # fulfill is for sub task, success 
         return mdp_score, terminated, truncated, result, next_value
 
-    def goal_pursuit_eval(node, obs, child_truncated):
+    def goal_pursuit_eval(node, obs):
         _, _, done, infos = obs
-        num_children = len(node.get_children())
         objective = node.objective
         target_transition = parse_transition(objective)
         progress_transition = Textworld_Transition(0, -1, -1, extract_location(infos), extract_inventory(infos))
@@ -312,12 +310,7 @@ if __name__ == "__main__":
         expected_score = len(target_transition) - node.size() * 0.05
         mdp_score = expected_score - score_diff 
 
-        if child_truncated:
-            terminated = True
-            truncated = False
-            result = "Truncated"
-            next_value = -20
-        elif score_diff == 0:
+        if score_diff == 0:
             terminated = True
             truncated = False
             result = "Success"
