@@ -33,16 +33,31 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
             return None
         return self.children[-1]
     
+    def get_context(self):
+        raise NotImplementedError("get_context() not implemented")
+    
 
 class Quest_Node(RL_Node):
-    def __init__(self, objective=None, eval_func=None, start_observation=None, result=None, end_observation=None, train_ref=None):
+    def __init__(self, objective=None, eval_func=None, start_observation=None, result=None, end_observation=None, truncated=False, train_ref=None):
         super().__init__()
         self.objective = objective
         self.eval_func = eval_func
         self.start_observation = start_observation
         self.result = result
         self.end_observation = end_observation
+        self.truncated = truncated
         self.train_ref = train_ref
+
+    def get_context(self):
+        contexts = []
+        contexts.append(f"Sub Task: {self.objective}")
+        if self.result is not None:
+            contexts.append(f"Result: {self.result}")
+        elif self.truncated:
+            contexts.append(f"Result: Truncated")
+        obs, _, _, _ = self.end_observation
+        contexts.append(f"Observation: {obs}")
+        return contexts
 
     def set(self, another):
         # check same class
@@ -52,12 +67,20 @@ class Quest_Node(RL_Node):
             self.result = another.result
         if another.end_observation is not None:
             self.end_observation = another.end_observation
+        if another.truncated is not None:
+            self.truncated = another.truncated
             
-    def is_fulfilled(self):
-        return self.result is not None
+    def is_completed(self):
+        return self.result is not None or self.truncated
     
-    def eval(self, env_score, infos):
-        return self.eval_func(self, env_score, infos)
+    def eval(self, obs):
+        truncated = False
+        if len(self.children) > 0:
+            last_child = self.get_last_child()
+            if isinstance(last_child, self.__class__):
+                if last_child.truncated:
+                    truncated = True
+        return self.eval_func(self, obs, truncated)
     
 
 class Thought_Node(RL_Node):
@@ -65,6 +88,10 @@ class Thought_Node(RL_Node):
         super().__init__()
         self.thought = thought
 
+    def get_context(self):
+        contexts = [f"Thought: {self.thought}"]
+        return contexts
+    
     def set(self, another):
         # check same class
         if not isinstance(another, self.__class__):
@@ -79,6 +106,13 @@ class Observation_Node(RL_Node):
         self.action = action
         self.observation = observation
         self.train_ref = train_ref
+
+    def get_context(self):
+        contexts = []
+        contexts.append(f"Action: {self.action}")
+        obs, _, _, _ = self.observation
+        contexts.append(f"Observation: {obs}")
+        return contexts
 
     def set(self, another):
         # check same class

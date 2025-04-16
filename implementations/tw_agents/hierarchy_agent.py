@@ -30,7 +30,7 @@ class Value_Action:
 class Hierarchy_Agent:
     LOG_ALPHA=0.95
     GAMMA = 0.95
-    MAX_CONTEXT_SIZE = 64
+    MAX_CONTEXT_SIZE = 128
 
     def __init__(self, input_size, device) -> None:
         self.device = device

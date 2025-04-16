@@ -25,16 +25,19 @@ import textworld.gym
 textworld_path = "/app/cache/textworld_data"
 os.makedirs(textworld_path, exist_ok=True)
 
-if len(os.listdir(textworld_path)) <= 3:
-    # https://textworld.readthedocs.io/en/latest/tw-make.html
-    # tw-make custom --world-size 5 --nb-objects 10 --quest-length 5 --seed 1234 --output tw_games/custom_game.z8
-    # subprocess.run(["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_path}/games/default/custom_game.z8"])
-    # tw-make tw-simple --rewards dense  --goal detailed --seed 18 --test --silent -f --output tw_games/tw-rewardsDense_goalBrief.z8
-    subprocess.run(["tw-make", "tw-simple", "--rewards", "dense", "--goal", "brief", "--seed", "20250301", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsDense_goalBrief.z8"])
-    # tw-make tw-simple --rewards dense    --goal brief    --seed 18 --test --silent -f --output games/tw-rewardsBalanced_goalBrief.z8
-    subprocess.run(["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250302", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsBalanced_goalBrief.z8"])
-    # tw-make tw-simple --rewards balanced --goal brief    --seed 20 --test --silent -f --output games/tw-rewardsSparse_goalBrief.z8
-    subprocess.run(["tw-make", "tw-simple", "--rewards", "sparse", "--goal", "brief", "--seed", "20250303", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsSparse_goalBrief.z8"])
+# expected envs
+# https://textworld.readthedocs.io/en/latest/tw-make.html
+# tw-make custom --world-size 5 --nb-objects 10 --quest-length 5 --seed 1234 --output tw_games/custom_game.z8
+# tw-make tw-simple --rewards dense  --goal detailed --seed 18 --test --silent -f --output tw_games/tw-rewardsDense_goalBrief.z8
+tw_envs = {
+    "custom_game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_path}/games/default/custom_game.z8"],
+    "tw-rewardsDense_goalBrief": ["tw-make", "tw-simple", "--rewards", "dense", "--goal", "brief", "--seed", "20250301", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsDense_goalBrief.z8"]
+}
+for env_name, env_args in tw_envs.items():
+    env_path = env_args[-1]
+    if not os.path.exists(env_path):
+        subprocess.run(env_args)
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -58,12 +61,16 @@ def extract_inventory(infos):
     if "inventory" not in infos or "nothing" in infos["inventory"]:
         return set()
     inv_str = infos["inventory"].replace("You are carrying:", "").strip()
-    return set([item.strip() for item in inv_str.split("and") if item.strip() != ""])
+    return set([item.strip().replace(".", "") for item in inv_str.split("and") if item.strip() != ""])
 
 
 def parse_transition(objective):
-    if "Welcome" in objective:
-        return None
+    if "(Main)" in objective:
+        is_main = True
+        objective = objective.replace("(Main)", "").strip()
+    else:
+        is_main = False
+    
     # find Go to {location}( and Find {item1} , {item2} ...)*( and Use {item1} , {item2} ...)*
     go_to = None
     find_items = []
@@ -74,16 +81,17 @@ def parse_transition(objective):
         elif part.startswith("Find "):
             find_items = part.replace("Find ", "").split(" , ")
 
-    return Textworld_Transition(0, -1, -1, go_to, set(find_items))
+    return Textworld_Transition(0, -1, -1, go_to, set(find_items), is_main=is_main)
 
 
 class Textworld_Transition(mdp_state.MDP_Transition):
-    def __init__(self, delta_score, from_context_mark, to_context_mark, new_location=None, added_items=set()):
+    def __init__(self, delta_score, from_context_mark, to_context_mark, new_location=None, added_items=set(), is_main=False):
         self.delta_score = round(delta_score)
         self.from_context_mark = from_context_mark
         self.to_context_mark = to_context_mark
         self.new_location = new_location
         self.added_items = set(added_items)
+        self.is_main = is_main
 
         count_diff = 0
         differences = []
@@ -107,14 +115,14 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         diff = 0
         if self.new_location is not None and self.new_location != other.new_location:
             diff += 1
-        diff += len(self.added_items.symmetric_difference(other.added_items))
+        diff += len(self.added_items - other.added_items)
         return diff
     
 
     def __lt__(self, other):
         # test of stictly less than
         # item change < location change < None
-        if other is None:
+        if other is None or other.is_main:
             return True
         elif self.new_location is None and other.new_location is not None:
             return True
@@ -175,9 +183,11 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         done = False
         nb_moves = 0
 
+        objective = "(Main) Go to Kitchen and Find a note , a carrot"
+        objective_transition = parse_transition(objective)
         root_node = rl_graph.Quest_Node(
-            objective = infos["objective"],
-            eval_func = env_eval,
+            objective = objective,
+            eval_func = goal_pursuit_eval,
             start_observation = (obs, score, done, infos)
         )
         working_memory = Quest_Graph(root_node)
@@ -196,25 +206,15 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
             else:
                 raise ValueError("Invalid action")
 
-        if root_node.end_observation is not None:
-            score = root_node.end_observation[1]
-        else:
-            score = 0
-            for node in reversed(root_node.get_children()):
-                if isinstance(node, rl_graph.Quest_Node):
-                    if node.end_observation is not None:
-                        score = node.end_observation[1]
-                        break
-                elif isinstance(node, rl_graph.Observation_Node):
-                    score = node.observation[1]
-                    break
+        score, _, _, _, _ = goal_pursuit_eval(root_node, root_node.end_observation, False)
 
         avg_moves.append(nb_moves)
         avg_scores.append(score)
 
         if verbose and no_episode % verbose_step == 0:
             msg = "\tavg. steps: {:5.1f}; avg. score: {:4.1f} / {}."
-            logging.info(msg.format(np.mean(avg_moves), np.mean(avg_scores), infos["max_score"]))
+            logging.info(msg.format(np.mean(avg_moves), np.mean(avg_scores), len(objective_transition)))
+            avg_moves, avg_scores = [], []
 
             with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
                 data = persona.print_context(root_node)
@@ -272,26 +272,38 @@ if __name__ == "__main__":
         infos = flatten_batch(infos)
         return obs, score, done, infos
 
-    def env_eval(node, env_score, infos):
+    def env_eval(node, obs, child_truncated):
+        _, env_score, done, infos = obs
         num_children = len(node.get_children())
-        if infos["won"]:
-            fulfilled = True
-            success = True
+        mdp_score = env_score - num_children * 0.05
+
+        if done:
+            terminated = True
+            truncated = False
+            result = "Truncated"
+            next_value = -20
+        elif infos["won"]:
+            terminated = True
+            truncated = False
+            result = "Success"
             next_value = 100
-        elif infos["lost"]:
-            fulfilled = True
-            success = True # use success True to indicate that the task is finished, and should use the next_value.
+        elif infos["lost"] or child_truncated:
+            terminated = True
+            truncated = False
+            result = "Failed"
             next_value = -10
         else:
-            fulfilled = False
-            success = False
-            next_value = 0
-        # mdp_score, fulfilled, success, finish_value
+            terminated = False
+            truncated = False
+            result = None
+            next_value = None
+        # mdp_score, terminated, truncated, result, finish_value
         # mdp_score is the main env score
         # fulfill is for sub task, success 
-        return env_score - num_children * 0.05, fulfilled, success, next_value
+        return mdp_score, terminated, truncated, result, next_value
 
-    def goal_pursuit_eval(node, env_score, infos):
+    def goal_pursuit_eval(node, obs, child_truncated):
+        _, env_score, done, infos = obs
         num_children = len(node.get_children())
         objective = node.objective
         parent = node.get_parent()
@@ -306,22 +318,30 @@ if __name__ == "__main__":
         score_diff = target_transition - progress_transition
         mdp_score = len(target_transition) - score_diff - num_children * 0.1
 
-        if score_diff == 0:
-            fulfilled = True
-            success = True
+        if child_truncated:
+            terminated = True
+            truncated = False
+            result = "Truncated"
+            next_value = -20
+        elif score_diff == 0:
+            terminated = True
+            truncated = False
+            result = "Success"
             next_value = 50
-        elif num_children >= 10:
+        elif num_children >= 100 or done:
             # too many children, stop the task
-            fulfilled = True
-            success = False
-            next_value = 0
+            terminated = False
+            truncated = True
+            result = None
+            next_value = None
         else:
-            fulfilled = False
-            success = False
-            next_value = 0
+            terminated = False
+            truncated = False
+            result = None
+            next_value = None
 
-        # mdp_score, fulfilled, success, finish_value
-        return mdp_score, fulfilled, success, next_value
+        # mdp_score, terminated, truncated, result, finish_value
+        return mdp_score, terminated, truncated, result, next_value
 
     
     def compute_folds(objective, states):
@@ -341,10 +361,10 @@ if __name__ == "__main__":
                 pivots.append(i+1)
         # now compute all pairs of pivots
         pairs = combinations(reversed(pivots), 2)
-        # gap greater than 4 steps
-        selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4]
+        # gap greater or equal 2 steps
+        selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 2]
         # return fixed end state value of 100 for first training
-        return [(10, -1, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1]
+        return [(10, -1, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1]
     
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
@@ -360,8 +380,8 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        persona.set_allow_relegation(False)
-        play(env, persona, nb_episodes=500, verbose=True)
+        persona.set_allow_relegation(True)
+        play(env, persona, nb_episodes=1000, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

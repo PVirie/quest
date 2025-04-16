@@ -87,23 +87,13 @@ class Persona:
         obs = obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")
         contexts = [f"{prefix}Objective: {quest_node.objective}", f"{prefix}Start Obs: {obs}"]
         for i, node in enumerate(children):
+            node_contexts = node.get_context()
+            node_contexts.insert(0, f"{i} -----")
+            node_contexts = [f"{prefix}" + c.replace("\n\n", "\n").replace("\n", f"\n{prefix}") for c in node_contexts]
             if isinstance(node, Quest_Node):
-                contexts.append(f"{prefix}{i} Sub Task: {node.objective}")
                 sub_task_context = self.print_context(node, prefix=prefix + "\t")
-                contexts.append(sub_task_context)
-                contexts.append(f"{prefix}Result: {node.result}")
-                obs = "None"
-                if node.end_observation is not None:
-                    obs, _, _, _ = node.end_observation
-                    obs = obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")
-                contexts.append(f"{prefix}Observation: {obs}")
-            elif isinstance(node, Thought_Node):
-                contexts.append(f"{prefix}{i} Thought: {node.thought}")
-            elif isinstance(node, Observation_Node):
-                contexts.append(f"{prefix}{i} Action: {node.action}")
-                obs, _, _, _ = node.observation
-                obs = obs.replace("\n\n", "\n").replace("\n", f"\n{prefix}")
-                contexts.append(f"{prefix}Observation: {obs}")
+                node_contexts.insert(2, sub_task_context)
+            contexts.extend(node_contexts)
         if len(prefix) == 0:
             contexts.append(f"{prefix}Extra Actions: {", ".join(self.extra_actions.keys())}")
         return f"\n".join(contexts)
@@ -125,17 +115,14 @@ class Persona:
         while i < len(supports):
             node = supports[i]
             if isinstance(node, Quest_Node):
-                rl_contexts.append(f"Sub Task: {node.objective}")
-                rl_contexts.append(f"Result: {node.result}")
+                rl_contexts.extend(node.get_context())
                 obs, _, _, info = node.end_observation
-                rl_contexts.append(f"Observation: {obs}")
             elif isinstance(node, Observation_Node):
-                rl_contexts.append(f"Action: {node.action}")
+                rl_contexts.extend(node.get_context())
                 obs, _, _, info = node.observation
-                rl_contexts.append(f"Observation: {obs}")
             else:
                 continue
-            
+
             all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
             train_ref = node.train_ref
             score = train_ref.mdp_score
@@ -183,57 +170,49 @@ class Persona:
 
     def think(self, quest_node, supports):
         # supports is a list of nodes
-        obs, env_score, done, infos = quest_node.start_observation
+        last_observation = quest_node.start_observation
+        obs, _, _, _ = last_observation
         objective_contexts = [f"Objective: {quest_node.objective}"]
         contexts = [f"Observation: {obs}"]
         for node in supports:
             if isinstance(node, Quest_Node):
-                contexts.append(f"Sub Task: {node.objective}")
-                contexts.append(f"Result: {node.result}")
-                # va must be taken from the last tensor from the previous node
-                # score, done, infos must be taken from the sub task
-                obs, env_score, done, infos = node.end_observation
-                contexts.append(f"Observation: {obs}")
-            elif isinstance(node, Thought_Node):
-                contexts.append(f"Thought: {node.thought}")
+                contexts.extend(node.get_context())
+                last_observation = node.end_observation
             elif isinstance(node, Observation_Node):
-                contexts.append(f"Action: {node.action}")
-                obs, env_score, done, infos  = node.observation
-                contexts.append(f"Observation: {obs}")
-        last_observation = (obs, env_score, done, infos)
+                contexts.extend(node.get_context())
+                last_observation  = node.observation
+            elif isinstance(node, Thought_Node):
+                contexts.extend(node.get_context())
+                continue
 
-        mdp_score, fulfilled, success, finish_value = quest_node.eval(env_score, infos)
+        mdp_score, terminated, truncated, result, finish_value = quest_node.eval(last_observation)
         if len(supports) > 0:
             # Because training has to update weight anyway, which violate the functional programming paradigm
             # I'll just update the last child's mdp_score
             supports[-1].train_ref.mdp_score = mdp_score
 
         train_last_node = False
-        if fulfilled:
+        if terminated:
+            train_last_node = True
             return_sub_action = Sub_Action_Type.Fulfill
-            if success:
-                train_last_node = True
-                return_node = Quest_Node(result = "Success", end_observation=last_observation)
-            else:
-                return_node = Quest_Node(result = "Failed", end_observation=last_observation)
-        elif done:
-            # train_last_node = True
+            return_node = Quest_Node(result=result, end_observation=last_observation)
+        elif truncated:
             return_sub_action = Sub_Action_Type.Done
-            return_node = Quest_Node(result = "Terminated", end_observation=last_observation)
+            return_node = Quest_Node(end_observation=last_observation, truncated=True)
 
         if self.training_mode:
             self.step += 1
-            if done or fulfilled or self.step % self.TRAIN_STEP == 0:
+            if terminated or truncated or self.step % self.TRAIN_STEP == 0:
                 self.train(quest_node, train_last_node=train_last_node, finish_value=finish_value)
 
             if self.step % self.PRINT_STEP == 0:
                 self.agent.print(self.step)
 
-        if done or fulfilled:
+        if terminated or truncated:
             return return_sub_action, return_node
 
         ################# ACTION SELECTION #################
-
+        _, _, _, infos = last_observation
         action_list = [f"Action: {ac}" for ac in infos["admissible_commands"]]
         if self.allow_relegation:
             parent_objective = self.action_parser(quest_node.objective)

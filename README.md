@@ -96,7 +96,8 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] Hierarchical RL
     -   [x] Score conversion when up-hierarchy
     -   [x] Check learnining on done within the sub-task
--   [ ] Sub-task filter
+-   [x] Sub-task filter
+-   [ ] Investigate do more than ask reward noise. Sometimes subtasks also yield unintentional side effect of increasing upper class reward. This creates noise in the reward signal.
 
 ### Backends
 
@@ -114,6 +115,8 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] Non-Markovian Reinforcement learning
     -   [x] [TextWorld](https://github.com/microsoft/TextWorld) environment
     -   [x] [ALFWorld](https://github.com/alfworld/alfworld) environment
+-   [x] Custom textworld reward structure
+    -   [x] Redefine textworld reward structure
 
 ## Note
 

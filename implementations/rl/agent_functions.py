@@ -10,7 +10,7 @@ def basic_tree(persona, focus_node):
     last_child = focus_node.get_last_child()
     parent_node = focus_node.get_parent()
 
-    if isinstance(last_child, Quest_Node) and not last_child.is_fulfilled():
+    if isinstance(last_child, Quest_Node) and not last_child.is_completed():
         return Action.ANSWER, None, last_child
     
     subact, node = persona.think(focus_node, child_nodes)
