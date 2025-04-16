@@ -86,6 +86,13 @@ class Quest_Node(RL_Node):
                     truncated = True
         return self.eval_func(self, obs, truncated)
     
+    def size(self):
+        num_children = len(self.children)
+        for child in self.children:
+            if isinstance(child, self.__class__):
+                num_children += len(child)
+        return num_children
+    
 
 class Thought_Node(RL_Node):
     def __init__(self, thought=None):

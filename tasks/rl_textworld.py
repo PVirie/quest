@@ -309,7 +309,8 @@ if __name__ == "__main__":
         target_transition = parse_transition(objective)
         progress_transition = Textworld_Transition(0, -1, -1, extract_location(infos), extract_inventory(infos))
         score_diff = target_transition - progress_transition
-        mdp_score = len(target_transition) - score_diff - num_children * 0.1
+        expected_score = len(target_transition) - node.size() * 0.05
+        mdp_score = expected_score - score_diff 
 
         if child_truncated:
             terminated = True
@@ -321,7 +322,7 @@ if __name__ == "__main__":
             truncated = False
             result = "Success"
             next_value = 50
-        elif (num_children >= 10 and not target_transition.is_main) or done:
+        elif (expected_score < 0 and not target_transition.is_main) or done:
             # too many children, stop the task
             terminated = False
             truncated = True
