@@ -25,12 +25,16 @@ import textworld.gym
 textworld_path = "/app/cache/textworld_data"
 os.makedirs(textworld_path, exist_ok=True)
 
-if len(os.listdir(textworld_path)) == 0:
+if len(os.listdir(textworld_path)) <= 3:
+    # https://textworld.readthedocs.io/en/latest/tw-make.html
     # tw-make custom --world-size 5 --nb-objects 10 --quest-length 5 --seed 1234 --output tw_games/custom_game.z8
     # subprocess.run(["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_path}/games/default/custom_game.z8"])
-    # tw-make tw-simple --rewards dense  --goal detailed --seed 18 --test --silent -f --output tw_games/tw-rewardsDense_goalDetailed.z8
-    subprocess.run(["tw-make", "tw-simple", "--rewards", "dense", "--goal", "detailed", "--seed", "18", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsDense_goalDetailed_18.z8"])
-    subprocess.run(["tw-make", "tw-simple", "--rewards", "dense", "--goal", "detailed", "--seed", "19", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsDense_goalDetailed_19.z8"])
+    # tw-make tw-simple --rewards dense  --goal detailed --seed 18 --test --silent -f --output tw_games/tw-rewardsDense_goalBrief.z8
+    subprocess.run(["tw-make", "tw-simple", "--rewards", "dense", "--goal", "brief", "--seed", "20250301", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsDense_goalBrief.z8"])
+    # tw-make tw-simple --rewards dense    --goal brief    --seed 18 --test --silent -f --output games/tw-rewardsBalanced_goalBrief.z8
+    subprocess.run(["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250302", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsBalanced_goalBrief.z8"])
+    # tw-make tw-simple --rewards balanced --goal brief    --seed 20 --test --silent -f --output games/tw-rewardsSparse_goalBrief.z8
+    subprocess.run(["tw-make", "tw-simple", "--rewards", "sparse", "--goal", "brief", "--seed", "20250303", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsSparse_goalBrief.z8"])
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -237,7 +241,7 @@ if __name__ == "__main__":
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    game_path = f"{textworld_path}/games/default/tw-rewardsDense_goalDetailed_18.z8"
+    game_path = f"{textworld_path}/games/default/tw-rewardsDense_goalBrief.z8"
 
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
@@ -306,7 +310,7 @@ if __name__ == "__main__":
             fulfilled = True
             success = True
             next_value = 50
-        elif num_children > 20:
+        elif num_children >= 10:
             # too many children, stop the task
             fulfilled = True
             success = False
@@ -340,7 +344,7 @@ if __name__ == "__main__":
         # gap greater than 4 steps
         selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4]
         # return fixed end state value of 100 for first training
-        return [(50, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1 and st < objective_transition]
+        return [(10, -1, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1]
     
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
@@ -356,8 +360,8 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        persona.set_allow_relegation(True)
-        play(env, persona, nb_episodes=1000, verbose=True)
+        persona.set_allow_relegation(False)
+        play(env, persona, nb_episodes=500, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

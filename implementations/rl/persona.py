@@ -155,7 +155,7 @@ class Persona:
             last_state_value = finish_value
 
         folds = self.compute_folds(quest_node.objective, selected_nodes)
-        for _, diff_str, obj, from_transition_index, to_transition_index in folds:
+        for _, _, diff_str, obj, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {diff_str}"
             self.extra_actions[fold_action] = obj
             # train_data.append((fold_action, from_transition_index, to_transition_index))
@@ -169,14 +169,14 @@ class Persona:
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
             self.agent.train(last_state_value, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
-            for value, diff_str, _, from_transition_index, to_transition_index in folds:
+            for value, step_cost, diff_str, _, from_transition_index, to_transition_index in folds:
                 sub_objective_tensor = self.tokenizer([diff_str], stack=True)
                 sub_pivots = []
                 sub_train_data = []
                 start_context_mark = pivots[from_transition_index][1]
                 end_context_mark = pivots[to_transition_index][1]
                 for i in range(from_transition_index, to_transition_index + 1):
-                    sub_pivots.append((0, pivots[i][1] - start_context_mark))
+                    sub_pivots.append((step_cost, pivots[i][1] - start_context_mark))
                     sub_train_data.append((train_data[i][0], len(sub_pivots) - 1, len(sub_pivots)))
                 self.agent.train(value, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
