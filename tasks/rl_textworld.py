@@ -121,8 +121,13 @@ class Textworld_Transition(mdp_state.MDP_Transition):
 
     def difference(self, obs):
         _, _, _, infos = obs
-        progress_transition = Textworld_Transition(0, -1, -1, extract_location(infos), extract_inventory(infos))
-        return self - progress_transition
+        location = extract_location(infos)
+        inventory = extract_inventory(infos)
+        diff = 0
+        if self.new_location is not None and self.new_location != location:
+            diff += 1
+        diff += len(self.added_items - inventory)
+        return diff
     
 
     def __lt__(self, other):
@@ -176,8 +181,9 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
     
     with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
         # mark date
-        f.write(f"====================================\n")
+        f.write(f"========================================================================\n")
         f.write(f"Date: {utilities.get_current_time_string()}\n")
+        f.write(f"------------------------------------------------------------------------\n")
 
     # Collect some statistics: nb_steps, final reward.
     avg_move = 0
@@ -190,7 +196,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         done = False
         nb_moves = 0
 
-        objective = "(Main) Go to Kitchen and Find a carrot"
+        objective = "(Main) Go to Kitchen"
         objective_transition = parse_transition(objective)
         max_score = len(objective_transition)
         eval_func = goal_pursuit_eval
@@ -317,7 +323,10 @@ if __name__ == "__main__":
         return mdp_score, terminated, truncated, result, next_value
 
     def goal_pursuit_eval(node, obs):
+        _, _, done, start_infos = node.start_observation
+        start_location = extract_location(start_infos)
         _, _, done, infos = obs
+        current_location = extract_location(infos)
         objective = node.objective
         target_transition = parse_transition(objective)
         score_diff = target_transition.difference(obs)
@@ -329,13 +338,18 @@ if __name__ == "__main__":
             terminated = True
             truncated = False
             result = "Success"
-            next_value = 50
-        elif size > 10 * max_score and not target_transition.is_main:
-            # too many children, stop the task
+            next_value = 2
+        elif current_location != start_location and (not target_transition.is_main and current_location != target_transition.new_location):
             terminated = True
             truncated = False
             result = "Failed"
-            next_value = 0
+            next_value = -2
+        elif len(node.get_children()) > 20 * max_score and not target_transition.is_main:
+            # too many children, stop the task
+            terminated = False
+            truncated = True
+            result = None
+            next_value = None
         elif done:
             terminated = False
             truncated = True
@@ -371,7 +385,7 @@ if __name__ == "__main__":
         # gap greater or equal 2 steps
         selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j <=5]
         # return fixed end state value of 100 for first training
-        return [(10, -1, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1]
+        return [(10, -0.1, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1]
     
     def compute_action(start_obs, end_obs):
         _, _, _, start_infos = start_obs
@@ -395,7 +409,7 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        persona.set_allow_relegation(True)
+        persona.set_allow_relegation(False)
         play(env, persona, nb_episodes=1000, verbose=True)
         persona.save(agent_parameter_path)
 

@@ -96,7 +96,8 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] Hierarchical RL
     -   [x] Score conversion when up-hierarchy
     -   [x] Check learnining on done within the sub-task
--   [x] Sub-task filter
+-   [x] Infinite loop prevention
+    -   [x] Contracting sub-task filter
 -   [x] Target goal A but finith with goal B
     -   [x] Recompute the actual goal after sub-task end
 

@@ -25,7 +25,7 @@ def extract_command_and_detail(text):
 
 
 class Persona:
-    TRAIN_STEP=10
+    TRAIN_STEP=25
     PRINT_STEP=1000
 
     def __init__(self, agent, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, compute_action, allow_relegation=True, train_prompt=None):
@@ -37,6 +37,7 @@ class Persona:
         self.allow_relegation = allow_relegation
         self.action_parser = action_parser
         self.compute_action = compute_action
+        self.action_set = set()
         self.extra_actions = {}
 
         self.training_mode = False
@@ -102,7 +103,6 @@ class Persona:
     def train(self, quest_node, train_last_node: bool = False, finish_value=None):
         # finish_value only used when training the last node
         obs, _, _, info = quest_node.start_observation
-        all_action_set = set([f"Action: {ac}" for ac in info["admissible_commands"]])
         objective_context, start_obs_context = quest_node.get_start_contexts()
         objective_contexts = [objective_context]
         rl_contexts = [start_obs_context] 
@@ -124,11 +124,10 @@ class Persona:
             else:
                 continue
 
-            all_action_set = all_action_set.union(set([f"Action: {ac}" for ac in info["admissible_commands"]]))
             train_ref = node.train_ref
             score = train_ref.mdp_score
             last_state_value = train_ref.state_value
-            if not train_ref.has_released:
+            if i >= 0:
                 if i < len(supports) - 1 or train_last_node:
                     selected_nodes.append((obs, score, info, last_context_mark))
                     pivots.append((score - last_score, last_context_mark))
@@ -149,7 +148,7 @@ class Persona:
             # train_data.append((fold_action, from_transition_index, to_transition_index))
 
         # add extra actions
-        all_action_list = list(all_action_set) + list(self.extra_actions.keys())
+        all_action_list = list(self.action_set.union(self.extra_actions.keys()))
 
         if len(train_data) > 0:
             objective_tensor = self.tokenizer(objective_contexts, stack=True)
@@ -192,13 +191,13 @@ class Persona:
             # I'll just update the last child's mdp_score
             last_node = supports[-1]
             last_node.train_ref.mdp_score = mdp_score
-            # now compute the correct Sub Task (sometimes, sub task does not follow the original objective)
-            if isinstance(last_node, Quest_Node):
-                diff_str, action_obj = self.compute_action(last_node.start_observation, last_node.end_observation)
-                if len(action_obj) > 0:
-                    action_str = f"Sub Task: {diff_str}"
-                    last_node.train_ref.selected_action = action_str
-                    self.extra_actions[action_str] = action_obj
+            # # now compute the correct Sub Task (sometimes, sub task does not follow the original objective)
+            # if isinstance(last_node, Quest_Node):
+            #     diff_str, action_obj = self.compute_action(last_node.start_observation, last_node.end_observation)
+            #     if len(action_obj) > 0:
+            #         action_str = f"Sub Task: {diff_str}"
+            #         last_node.train_ref.selected_action = action_str
+            #         self.extra_actions[action_str] = action_obj
 
         train_last_node = False
         if terminated:
@@ -223,6 +222,7 @@ class Persona:
         ################# ACTION SELECTION #################
         _, _, _, infos = last_observation
         action_list = [f"Action: {ac}" for ac in infos["admissible_commands"]]
+        self.action_set.update(action_list)
         if self.allow_relegation:
             current_objective = self.action_parser(quest_node.objective)
             for key, obj in self.extra_actions.items():
