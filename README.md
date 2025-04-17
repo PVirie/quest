@@ -97,7 +97,8 @@ Apart from the above environment variables, you must also include _third-party A
     -   [x] Score conversion when up-hierarchy
     -   [x] Check learnining on done within the sub-task
 -   [x] Sub-task filter
--   [ ] Investigate do more than ask reward noise. Sometimes subtasks also yield unintentional side effect of increasing upper class reward. This creates noise in the reward signal.
+-   [x] Target goal A but finith with goal B
+    -   [x] Recompute the actual goal after sub-task end
 
 ### Backends
 

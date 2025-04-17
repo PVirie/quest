@@ -28,7 +28,7 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, agent, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, allow_relegation=True, train_prompt=None):
+    def __init__(self, agent, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, compute_action, allow_relegation=True, train_prompt=None):
         self.agent = agent
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
@@ -36,6 +36,7 @@ class Persona:
         self.goal_pursuit_eval = goal_pursuit_eval
         self.allow_relegation = allow_relegation
         self.action_parser = action_parser
+        self.compute_action = compute_action
         self.extra_actions = {}
 
         self.training_mode = False
@@ -189,7 +190,14 @@ class Persona:
         if len(supports) > 0:
             # Because training has to update weight anyway, which violate the functional programming paradigm
             # I'll just update the last child's mdp_score
-            supports[-1].train_ref.mdp_score = mdp_score
+            last_node = supports[-1]
+            last_node.train_ref.mdp_score = mdp_score
+            # now compute the correct Sub Task (sometimes, sub task does not follow the original objective)
+            if isinstance(last_node, Quest_Node):
+                diff_str, action_obj = self.compute_action(last_node.start_observation, last_node.end_observation)
+                action_str = f"Sub Task: {diff_str}"
+                last_node.train_ref.selected_action = action_str
+                self.extra_actions[action_str] = action_obj
 
         train_last_node = False
         if terminated:

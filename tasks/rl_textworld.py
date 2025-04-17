@@ -194,7 +194,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         # objective_transition = parse_transition(objective)
         # max_score = len(objective_transition)
 
-        objective = infos["objective"]
+        objective = "(Main) " + infos["objective"]
         max_score = infos["max_score"]
         root_node = rl_graph.Quest_Node(
             objective = objective,
@@ -319,16 +319,22 @@ if __name__ == "__main__":
         objective = node.objective
         target_transition = parse_transition(objective)
         score_diff = target_transition.diff(obs)
-        expected_score = len(target_transition) - node.size() * 0.01
-        mdp_score = expected_score - score_diff 
+        size = node.size()
+        max_score = len(target_transition)
+        mdp_score = max_score - score_diff  - size * 0.01
 
         if score_diff == 0:
             terminated = True
             truncated = False
             result = "Success"
             next_value = 50
-        elif (expected_score < 0 and not target_transition.is_main) or done:
+        elif size > 20 * max_score and not target_transition.is_main:
             # too many children, stop the task
+            terminated = True
+            truncated = False
+            result = "Failed"
+            next_value = 0
+        elif done:
             terminated = False
             truncated = True
             result = None
@@ -361,10 +367,18 @@ if __name__ == "__main__":
         # now compute all pairs of pivots
         pairs = combinations(reversed(pivots), 2)
         # gap greater or equal 2 steps
-        selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 5]
+        selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j <=5]
         # return fixed end state value of 100 for first training
-        return [(10, -1, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score > 0]
+        return [(10, -1, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score >= 1]
     
+    def compute_action(start_obs, end_obs):
+        _, _, _, start_infos = start_obs
+        _, _, _, end_infos = end_obs
+        start_state = Textworld_State(0, start_infos, 0)
+        end_state = Textworld_State(0, end_infos, 0)
+        transition = start_state - end_state
+        return transition.objective, transition
+
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
     # agent = RandomAgent()
@@ -372,14 +386,14 @@ if __name__ == "__main__":
     from implementations.tw_agents.hierarchy_agent import Hierarchy_Agent
     agent = Hierarchy_Agent(input_size=MAX_VOCAB_SIZE, device=device)
 
-    persona = Persona(agent, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition)
+    persona = Persona(agent, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition, compute_action=compute_action)
 
     # play(env, persona, nb_episodes=100, verbose=True)
     
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        persona.set_allow_relegation(False)
+        persona.set_allow_relegation(True)
         play(env, persona, nb_episodes=1000, verbose=True)
         persona.save(agent_parameter_path)
 
