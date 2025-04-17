@@ -35,7 +35,7 @@ class Hierarchy_Agent:
     def __init__(self, input_size, device) -> None:
         self.device = device
         self.model = Command_Scorer(input_size=input_size, hidden_size=128, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.0001)
+        self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
 
         self.ave_loss = 0
         self.iteration = 0
@@ -158,21 +158,6 @@ class Hierarchy_Agent:
             returns = all_returns[from_indexes, to_indexes]
             advantages = returns - values
 
-        # loss = 0
-        # for transition, ret, adv in zip(transitions, returns, advantages):
-        #     reward_, tf = transition
-        #     if tf.iteration != self.iteration:
-        #         # skip
-        #         continue
-            
-        #     probs            = F.softmax(tf.action_scores, dim=0)
-        #     log_probs        = torch.log(probs)
-        #     log_action_probs = log_probs[tf.indexes]
-        #     policy_loss      = (-log_action_probs * adv).sum()
-        #     value_loss       = (.5 * (tf.values - ret) ** 2.).sum()
-        #     entropy          = (-probs * log_probs).sum()
-        #     loss            += policy_loss + 0.5 * value_loss - 0.1 * entropy
-
         # use vector instead of loops
         probs = torch.clip(torch.nn.functional.softmax(action_scores, dim=1), min=1e-8)
         log_probs = torch.log(probs)
@@ -181,7 +166,7 @@ class Hierarchy_Agent:
         policy_loss = (-log_action_probs * advantages).sum()
         value_loss = (.5 * (values - returns) ** 2.).sum()
         entropy = (-probs * log_probs).sum()
-        loss = policy_loss + 0.5 * value_loss - 0.5 * entropy
+        loss = policy_loss + 0.5 * value_loss - 1.0 * entropy
 
         loss.backward()
         nn.utils.clip_grad_norm_(self.model.parameters(), 40)

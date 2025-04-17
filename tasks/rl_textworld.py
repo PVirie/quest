@@ -180,7 +180,8 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         f.write(f"Date: {utilities.get_current_time_string()}\n")
 
     # Collect some statistics: nb_steps, final reward.
-    avg_moves, avg_scores = [], []
+    avg_move = 0
+    avg_score = 0
     for no_episode in range(1, nb_episodes + 1):
         obs, infos = env.reset()  # Start new episode.
         infos = flatten_batch(infos)
@@ -189,11 +190,15 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         done = False
         nb_moves = 0
 
-        objective = "(Main) Go to Kitchen and Find a note , a carrot"
-        objective_transition = parse_transition(objective)
+        # objective = "(Main) Go to Kitchen and Find a note , a carrot"
+        # objective_transition = parse_transition(objective)
+        # max_score = len(objective_transition)
+
+        objective = infos["objective"]
+        max_score = infos["max_score"]
         root_node = rl_graph.Quest_Node(
             objective = objective,
-            eval_func = goal_pursuit_eval,
+            eval_func = env_eval,
             start_observation = (obs, score, done, infos)
         )
         working_memory = Quest_Graph(root_node)
@@ -215,15 +220,14 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         if root_node.end_observation is None:
             # error skip
             continue
-        score, _, _, _, _ = goal_pursuit_eval(root_node, root_node.end_observation)
+        score, _, _, _, _ = env_eval(root_node, root_node.end_observation)
 
-        avg_moves.append(nb_moves)
-        avg_scores.append(score)
+        avg_move = nb_moves*0.05 + avg_move*0.95
+        avg_score = score*0.05 + avg_score*0.95
 
         if verbose and no_episode % verbose_step == 0:
             msg = "\tavg. steps: {:5.1f}; avg. score: {:4.1f} / {}."
-            logging.info(msg.format(np.mean(avg_moves), np.mean(avg_scores), len(objective_transition)))
-            avg_moves, avg_scores = [], []
+            logging.info(msg.format(avg_move, avg_score, max_score))
 
             with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
                 data = persona.print_context(root_node)
@@ -283,7 +287,7 @@ if __name__ == "__main__":
 
     def env_eval(node, obs):
         _, env_score, done, infos = obs
-        mdp_score = env_score - node.size() * 0.05
+        mdp_score = env_score - node.size() * 0.01
 
         if infos["won"]:
             terminated = True
@@ -315,7 +319,7 @@ if __name__ == "__main__":
         objective = node.objective
         target_transition = parse_transition(objective)
         score_diff = target_transition.diff(obs)
-        expected_score = len(target_transition) - node.size() * 0.05
+        expected_score = len(target_transition) - node.size() * 0.01
         mdp_score = expected_score - score_diff 
 
         if score_diff == 0:
@@ -357,9 +361,9 @@ if __name__ == "__main__":
         # now compute all pairs of pivots
         pairs = combinations(reversed(pivots), 2)
         # gap greater or equal 2 steps
-        selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 2]
+        selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 5]
         # return fixed end state value of 100 for first training
-        return [(10, -1, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1]
+        return [(10, -1, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1 and st.delta_score > 0]
     
 
     # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
@@ -375,7 +379,7 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        persona.set_allow_relegation(True)
+        persona.set_allow_relegation(False)
         play(env, persona, nb_episodes=1000, verbose=True)
         persona.save(agent_parameter_path)
 
