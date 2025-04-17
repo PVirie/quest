@@ -67,7 +67,7 @@ def extract_inventory(infos):
 def parse_transition(objective):
     if "(Main)" in objective:
         is_main = True
-        objective = objective.replace("(Main)", "").strip()
+        objective = objective.replace("(Main) ", "").strip()
     else:
         is_main = False
     
@@ -79,7 +79,7 @@ def parse_transition(objective):
         if part.startswith("Go to "):
             go_to = part.replace("Go to ", "")
         elif part.startswith("Find "):
-            find_items = part.replace("Find ", "").split(" , ")
+            find_items = [item for item in part.replace("Find ", "").split(" , ") if item.strip() != ""]
 
     return Textworld_Transition(0, -1, -1, go_to, set(find_items), is_main=is_main)
 
@@ -119,7 +119,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         return diff
     
 
-    def diff(self, obs):
+    def difference(self, obs):
         _, _, _, infos = obs
         progress_transition = Textworld_Transition(0, -1, -1, extract_location(infos), extract_inventory(infos))
         return self - progress_transition
@@ -190,15 +190,17 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         done = False
         nb_moves = 0
 
-        # objective = "(Main) Go to Kitchen and Find a note , a carrot"
-        # objective_transition = parse_transition(objective)
-        # max_score = len(objective_transition)
+        objective = "(Main) Go to Kitchen and Find a carrot"
+        objective_transition = parse_transition(objective)
+        max_score = len(objective_transition)
+        eval_func = goal_pursuit_eval
 
-        objective = "(Main) " + infos["objective"]
-        max_score = infos["max_score"]
+        # objective = "(Main) " + infos["objective"]
+        # max_score = infos["max_score"]
+        # eval_func = env_eval
         root_node = rl_graph.Quest_Node(
             objective = objective,
-            eval_func = env_eval,
+            eval_func = eval_func,
             start_observation = (obs, score, done, infos)
         )
         working_memory = Quest_Graph(root_node)
@@ -220,7 +222,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         if root_node.end_observation is None:
             # error skip
             continue
-        score, _, _, _, _ = env_eval(root_node, root_node.end_observation)
+        score, _, _, _, _ = eval_func(root_node, root_node.end_observation)
 
         avg_move = nb_moves*0.05 + avg_move*0.95
         avg_score = score*0.05 + avg_score*0.95
@@ -318,7 +320,7 @@ if __name__ == "__main__":
         _, _, done, infos = obs
         objective = node.objective
         target_transition = parse_transition(objective)
-        score_diff = target_transition.diff(obs)
+        score_diff = target_transition.difference(obs)
         size = node.size()
         max_score = len(target_transition)
         mdp_score = max_score - score_diff  - size * 0.01
@@ -328,7 +330,7 @@ if __name__ == "__main__":
             truncated = False
             result = "Success"
             next_value = 50
-        elif size > 20 * max_score and not target_transition.is_main:
+        elif size > 10 * max_score and not target_transition.is_main:
             # too many children, stop the task
             terminated = True
             truncated = False

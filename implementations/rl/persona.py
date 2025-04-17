@@ -95,7 +95,7 @@ class Persona:
                 node_contexts.insert(2, sub_task_context)
             contexts.extend(node_contexts)
         if len(prefix) == 0:
-            contexts.append(f"{prefix}Extra Actions: {", ".join(self.extra_actions.keys())}")
+            contexts.append(f"{prefix}Extra Actions: {";".join(self.extra_actions.keys())}")
         return f"\n".join(contexts)
 
 
@@ -195,9 +195,10 @@ class Persona:
             # now compute the correct Sub Task (sometimes, sub task does not follow the original objective)
             if isinstance(last_node, Quest_Node):
                 diff_str, action_obj = self.compute_action(last_node.start_observation, last_node.end_observation)
-                action_str = f"Sub Task: {diff_str}"
-                last_node.train_ref.selected_action = action_str
-                self.extra_actions[action_str] = action_obj
+                if len(action_obj) > 0:
+                    action_str = f"Sub Task: {diff_str}"
+                    last_node.train_ref.selected_action = action_str
+                    self.extra_actions[action_str] = action_obj
 
         train_last_node = False
         if terminated:
@@ -225,7 +226,7 @@ class Persona:
         if self.allow_relegation:
             current_objective = self.action_parser(quest_node.objective)
             for key, obj in self.extra_actions.items():
-                if obj < current_objective and obj.diff(last_observation) > 0:
+                if obj < current_objective and obj.difference(last_observation) == len(obj):
                     # must check less than and diff to prevent infinite loop
                     action_list.append(key)
 
