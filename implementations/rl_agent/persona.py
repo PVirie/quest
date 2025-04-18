@@ -25,7 +25,7 @@ def extract_command_and_detail(text):
 
 
 class Persona:
-    TRAIN_STEP=100
+    TRAIN_STEP=10
     PRINT_STEP=1000
 
     def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, compute_action, allow_relegation=True, train_prompt=None):
@@ -112,7 +112,6 @@ class Persona:
         selected_nodes = []
         last_score = 0
         supports = quest_node.get_children()
-        max_action_pool_size = max([len(node.train_ref.available_actions) for node in supports if isinstance(node, Quest_Node) or isinstance(node, Observation_Node)])
         i = 0
         while i < len(supports):
             node = supports[i]
@@ -128,11 +127,11 @@ class Persona:
             train_ref = node.train_ref
             score = train_ref.mdp_score
             selected_nodes.append((obs, score, info, last_context_mark))
-            train_ref.available_actions.update(random.sample(list(self.action_set - train_ref.available_actions), k=max_action_pool_size - len(train_ref.available_actions)))
             pivots.append((score - last_score, last_context_mark, list(train_ref.available_actions)))
-            if i < len(supports) - 1 or train_last_node:
-                train_data.append((train_ref.selected_action, len(pivots) - 1, len(pivots)))
-                train_ref.release()
+            if not train_ref.has_released:
+                if i < len(supports) - 1 or train_last_node:
+                    train_data.append((train_ref.selected_action, len(pivots) - 1, len(pivots)))
+                    train_ref.release()
 
             last_context_mark = len(rl_contexts) - 1
             last_score = score
@@ -207,7 +206,7 @@ class Persona:
 
         if self.training_mode:
             self.step += 1
-            if terminated or truncated:
+            if terminated or truncated or self.step % self.TRAIN_STEP == 0:
                 self.train(quest_node, train_last_node=train_last_node)
 
             if self.step % self.PRINT_STEP == 0:
@@ -247,16 +246,16 @@ class Persona:
         objective_tensor = self.tokenizer(objective_contexts, stack=True)
         state_tensor = self.tokenizer(rl_contexts, stack=True)
         action_list_tensor = self.tokenizer(selectible_action_set, stack=True)
-        va = self.rl_core.act(objective_tensor, state_tensor, action_list_tensor, list(selectible_action_set), sample_action=self.training_mode)
-        va.available_actions = selectible_action_set
-        rl_response = va.selected_action
+        train_ref = self.rl_core.act(objective_tensor, state_tensor, action_list_tensor, list(selectible_action_set), sample_action=self.training_mode)
+        train_ref.available_actions = selectible_action_set
+        rl_response = train_ref.selected_action
 
-        if not self.training_mode and va is not None:
-            va.release()
+        if not self.training_mode and train_ref is not None:
+            train_ref.release()
 
         if len(lm_response) > 0 and random.random() < 0.1:
             # override RL response with the index of LM response
-            va.selected_action = lm_response
+            train_ref.selected_action = lm_response
             response = lm_response
         else:
             response = rl_response
@@ -272,7 +271,7 @@ class Persona:
                 objective=sub_objective,
                 eval_func=self.goal_pursuit_eval,
                 start_observation=last_observation,
-                train_ref=va
+                train_ref=train_ref
             )
             return return_sub_action, return_node
         elif command.startswith("Action"):
@@ -282,7 +281,7 @@ class Persona:
             return_node = Observation_Node(
                 action=action, 
                 observation=(obs, env_score, done, infos), 
-                train_ref=va
+                train_ref=train_ref
             )
             return return_sub_action, return_node
 

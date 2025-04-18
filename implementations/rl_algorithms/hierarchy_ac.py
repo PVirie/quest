@@ -135,33 +135,51 @@ class Hierarchy_AC:
         context_size = state_tensor.size(0)
         action_size = action_list_tensor.size(1)
 
+        # first compute values of all context steps
         objective_tensor = torch.reshape(objective_tensor, [1, -1])
         state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
         values, carry = self.model.evaluate_state(objective_tensor, state_tensor)
 
+        # now specialize truncated end
         if not train_last_node:
             pivot = pivot[:-1]
             last_value = values[0, -1, 0].item()
         else:
             last_value = 0
 
+        # compute all indices
         action_indexes = torch.reshape(torch.tensor([pivot[p][2].index(a) for a, p, _ in train_data], dtype=torch.int64, device=self.device), (-1, 1))
-        from_indexes = torch.tensor([m for _, m, _ in train_data], dtype=torch.int64, device=self.device)
-        to_indexes = torch.tensor([m for _, _, m in train_data], dtype=torch.int64, device=self.device)
+        from_indexes = torch.tensor([p for _, p, _ in train_data], dtype=torch.int64, device=self.device)
+        to_indexes = torch.tensor([p for _, _, p in train_data], dtype=torch.int64, device=self.device)
 
         context_marks = torch.tensor([m for _, m, _ in pivot], dtype=torch.int64, device=self.device)
         rewards = torch.tensor([r for r, _, _ in pivot], dtype=torch.float32, device=self.device)
         
         from_marks = torch.gather(context_marks, 0, from_indexes)
 
-        available_actions_indices = torch.tensor([[action_list.index(a) for a in aa] for _, _, aa in pivot], dtype=torch.int64, device=self.device) # shape: (pivot_length, action_length)
-        # action_list_tensor has shape (all_action_length, action_size) must be expanded to (pivot_length, all_action_length, action_size)
-        # available_actions_indices has shape (pivot_length, action_length) must be expanded to (pivot_length, action_length, action_size)
-        available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(len(pivot), -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size))
-        available_actions_by_context = torch.reshape(available_actions_by_context, [1, len(pivot), -1, action_size])
-
-        carry = torch.gather(carry[0, :, :], 0, from_marks.unsqueeze(1).expand(-1, carry.size(2)))
-        action_scores = self.model.evaluate_actions(carry, available_actions_by_context)[0, :, :]
+        # now prepare available actions
+        max_available_actions = max([len(pivot[p][2]) for _, p, _ in train_data])
+        available_actions_indices = []
+        action_set = set(action_list)
+        for _, p, _ in train_data:
+            __, __, aa = pivot[p]
+            # compute free actions
+            free_actions = action_set - set(aa)
+            new_aa = aa.copy()
+            # now add missing
+            while len(new_aa) < max_available_actions:
+                new_aa.append(random.choice(list(free_actions)))
+            available_actions_indices.append([action_list.index(a) for a in new_aa])
+        available_actions_indices = torch.tensor(available_actions_indices, dtype=torch.int64, device=self.device) # shape: (train_data_length, action_length)
+        
+        # action_list_tensor has shape (all_action_length, action_size) must be expanded to (train_data_length, all_action_length, action_size)
+        # available_actions_indices has shape (train_data_length, action_length) must be expanded to (train_data_length, action_length, action_size)
+        available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(len(train_data), -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size)) # shape: (train_data_length, action_length, action_size)
+        
+        available_actions_by_context = torch.reshape(available_actions_by_context, [1, len(train_data), -1, action_size])
+        carry = torch.gather(carry[0, :, :], 0, from_marks.unsqueeze(1).expand(-1, carry.size(2))) # shape: (train_data_length, carry_size)
+        action_scores = self.model.evaluate_actions(torch.reshape(carry, (1, len(train_data), -1)), available_actions_by_context)
+        action_scores = action_scores[0, :, :]
         values = torch.gather(values[0, :, 0], 0, from_marks)
 
         with torch.no_grad():
