@@ -111,6 +111,14 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         return self.count_diff
     
 
+    def __eq__(self, other):
+        if self.new_location != other.new_location:
+            return False
+        if len(self.added_items.symmetric_difference(other.added_items)) > 0:
+            return False
+        return True
+    
+
     def __sub__(self, other):
         diff = 0
         if self.new_location is not None and self.new_location != other.new_location:
@@ -228,7 +236,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         if root_node.end_observation is None:
             # error skip
             continue
-        score, _, _, _, _ = eval_func(root_node, root_node.end_observation)
+        score, _, _, _ = eval_func(root_node, root_node.end_observation)
 
         avg_move = nb_moves*0.05 + avg_move*0.95
         avg_score = score*0.05 + avg_score*0.95
@@ -301,26 +309,24 @@ if __name__ == "__main__":
             terminated = True
             truncated = False
             result = "Success"
-            next_value = 100
+            mdp_score = mdp_score + 100
         elif infos["lost"]:
             terminated = True
             truncated = False
             result = "Failed"
-            next_value = -10
+            mdp_score = mdp_score - 10
         elif done:
             terminated = False
             truncated = True
             result = None
-            next_value = None
         else:
             terminated = False
             truncated = False
             result = None
-            next_value = None
-        # mdp_score, terminated, truncated, result, finish_value
+        # mdp_score, terminated, truncated, result
         # mdp_score is the main env score
         # fulfill is for sub task, success 
-        return mdp_score, terminated, truncated, result, next_value
+        return mdp_score, terminated, truncated, result
 
     def goal_pursuit_eval(node, obs):
         _, _, done, start_infos = node.start_observation
@@ -338,31 +344,28 @@ if __name__ == "__main__":
             terminated = True
             truncated = False
             result = "Success"
-            next_value = 10
+            mdp_score = mdp_score + 10
         elif current_location != start_location and (not target_transition.is_main and current_location != target_transition.new_location):
             terminated = True
             truncated = False
             result = "Failed"
-            next_value = -10
+            mdp_score = mdp_score - 10
         elif len(node.get_children()) > 20 * max_score and not target_transition.is_main:
             # too many children, stop the task
             terminated = False
             truncated = True
             result = None
-            next_value = None
         elif done:
             terminated = False
             truncated = True
             result = None
-            next_value = None
         else:
             terminated = False
             truncated = False
             result = None
-            next_value = None
 
-        # mdp_score, terminated, truncated, result, finish_value
-        return mdp_score, terminated, truncated, result, next_value
+        # mdp_score, terminated, truncated, result
+        return mdp_score, terminated, truncated, result
 
     
     def compute_folds(objective, states):
@@ -382,8 +385,8 @@ if __name__ == "__main__":
                 pivots.append(i+1)
         # now compute all pairs of pivots
         pairs = combinations(reversed(pivots), 2)
-        # gap greater or equal 2 steps
-        selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j <=5]
+        # check fit gap size, and also whether all the changes are the same
+        selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4 and i - j <= 10 and transition_matrix[i - 1][j] == transition_matrix[i - 1][i - 1]]
         # return fixed end state value of 100 for first training
         return [(10, -0.1, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1]
     

@@ -128,10 +128,10 @@ class Hierarchy_AC:
 
 
 
-    def train(self, last_value, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
-        # pivot is a list of tuples (you will get this reward, moving from this context index)
+    def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
+        # pivot is a list of tuples (you will get this reward, moving from this context index), must be sorted
         # train_data is a list of tuples (you use this action, to go from this pivot, to this pivot)
-        
+
         # selected_action_set = set([action for action, _, _ in train_data])
         # unused_actions = set(action_list) - selected_action_set
         # # make a new list, fill the rest with unused actions
@@ -141,6 +141,12 @@ class Hierarchy_AC:
         state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
         action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
         action_scores, values = self.model(objective_tensor, state_tensor, action_list_tensor)
+
+        if not train_last_node:
+            pivot = pivot[:-1]
+            last_value = values[0, -1, 0].item()
+        else:
+            last_value = 0
 
         context_marks = torch.tensor([m for _, m in pivot], dtype=torch.int64, device=self.device)
         rewards = torch.tensor([r for r, _ in pivot], dtype=torch.float32, device=self.device)

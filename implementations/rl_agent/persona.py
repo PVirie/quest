@@ -28,8 +28,8 @@ class Persona:
     TRAIN_STEP=100
     PRINT_STEP=1000
 
-    def __init__(self, agent, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, compute_action, allow_relegation=True, train_prompt=None):
-        self.agent = agent
+    def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, compute_action, allow_relegation=True, train_prompt=None):
+        self.rl_core = rl_core
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
         self.env_step = env_step
@@ -62,10 +62,10 @@ class Persona:
 
 
     def save(self, path):
-        # save the agent and the extra actions
-        agent_path = os.path.join(path, "agent")
-        os.makedirs(agent_path, exist_ok=True)
-        self.agent.save(agent_path)
+        # save the rl_core and the extra actions
+        rl_core_path = os.path.join(path, "rl_core")
+        os.makedirs(rl_core_path, exist_ok=True)
+        self.rl_core.save(rl_core_path)
         with open(os.path.join(path, "extra_actions.txt"), "w", encoding="utf-8") as f:
             for action in self.extra_actions.keys():
                 f.write(action[10:] + "\n")
@@ -74,8 +74,8 @@ class Persona:
     def load(self, path):
         if not os.path.exists(path):
             return False
-        # load the agent and the extra actions
-        success = self.agent.load(os.path.join(path, "agent"))
+        # load the rl_core and the extra actions
+        success = self.rl_core.load(os.path.join(path, "rl_core"))
         if success:
             with open(os.path.join(path, "extra_actions.txt"), "r", encoding="utf-8") as f:
                 action_keys = set([line.strip() for line in f.readlines()])
@@ -100,7 +100,7 @@ class Persona:
         return f"\n".join(contexts)
 
 
-    def train(self, quest_node, train_last_node: bool = False, finish_value=None):
+    def train(self, quest_node, train_last_node: bool = False):
         # finish_value only used when training the last node
         obs, _, _, info = quest_node.start_observation
         objective_context, start_obs_context = quest_node.get_start_contexts()
@@ -126,21 +126,16 @@ class Persona:
 
             train_ref = node.train_ref
             score = train_ref.mdp_score
-            last_state_value = train_ref.state_value
-            if i >= 0:
-                if i < len(supports) - 1 or train_last_node:
-                    selected_nodes.append((obs, score, info, last_context_mark))
-                    pivots.append((score - last_score, last_context_mark))
-                    train_data.append((train_ref.selected_action, len(pivots) - 1, len(pivots)))
-                    train_ref.release()
+            selected_nodes.append((obs, score, info, last_context_mark))
+            pivots.append((score - last_score, last_context_mark))
+            if i < len(supports) - 1 or train_last_node:
+                train_data.append((train_ref.selected_action, len(pivots) - 1, len(pivots)))
+                train_ref.release()
 
             last_context_mark = len(rl_contexts) - 1
             last_score = score
             i += 1
         
-        if train_last_node:
-            last_state_value = finish_value
-
         folds = self.compute_folds(quest_node.objective, selected_nodes)
         for _, _, diff_str, obj, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {diff_str}"
@@ -154,7 +149,7 @@ class Persona:
             objective_tensor = self.tokenizer(objective_contexts, stack=True)
             state_tensor = self.tokenizer(rl_contexts, stack=True)
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
-            self.agent.train(last_state_value, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
+            self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
             for value, step_cost, diff_str, _, from_transition_index, to_transition_index in folds:
                 sub_objective_tensor = self.tokenizer([diff_str], stack=True)
@@ -163,9 +158,9 @@ class Persona:
                 start_context_mark = pivots[from_transition_index][1]
                 end_context_mark = pivots[to_transition_index][1]
                 for i in range(from_transition_index, to_transition_index + 1):
-                    sub_pivots.append((step_cost, pivots[i][1] - start_context_mark))
-                    sub_train_data.append((train_data[i][0], len(sub_pivots) - 1, len(sub_pivots)))
-                self.agent.train(value, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
+                    sub_pivots.append((step_cost if i < to_transition_index else value, pivots[i][1] - start_context_mark))
+                    sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
+                self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
 
     def think(self, quest_node, supports):
@@ -185,7 +180,7 @@ class Persona:
                 contexts.extend(node.get_context())
                 continue
 
-        mdp_score, terminated, truncated, result, finish_value = quest_node.eval(last_observation)
+        mdp_score, terminated, truncated, result = quest_node.eval(last_observation)
         if len(supports) > 0:
             # Because training has to update weight anyway, which violate the functional programming paradigm
             # I'll just update the last child's mdp_score
@@ -211,10 +206,10 @@ class Persona:
         if self.training_mode:
             self.step += 1
             if terminated or truncated:
-                self.train(quest_node, train_last_node=train_last_node, finish_value=finish_value)
+                self.train(quest_node, train_last_node=train_last_node)
 
             if self.step % self.PRINT_STEP == 0:
-                self.agent.print(self.step)
+                self.rl_core.print(self.step)
 
         if terminated or truncated:
             return return_sub_action, return_node
@@ -251,7 +246,7 @@ class Persona:
         objective_tensor = self.tokenizer(objective_contexts, stack=True)
         state_tensor = self.tokenizer(rl_contexts, stack=True)
         action_list_tensor = self.tokenizer(action_list, stack=True)
-        va = self.agent.act(objective_tensor, state_tensor, action_list_tensor, action_list, sample_action=self.training_mode)
+        va = self.rl_core.act(objective_tensor, state_tensor, action_list_tensor, action_list, sample_action=self.training_mode)
         rl_response = va.selected_action
 
         if not self.training_mode and va is not None:
