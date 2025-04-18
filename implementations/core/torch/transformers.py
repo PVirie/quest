@@ -85,19 +85,14 @@ class Command_Scorer(nn.Module, Q_Table):
 
 
     def forward(self, objectives, observations, actions, **kwargs):
-        # objectives has shape batch x objective_context_size
-        # observations has shape batch x n_contexts x context_size
-        # actions has shape batch x n_actions x action_size
-
         values, state_internal = self.evaluate_state(objectives, observations, **kwargs)
         scores = self.evaluate_actions(state_internal, actions, **kwargs)
-
-        # scores has shape batch x n_contexts x n_actions; is the scores of individual actions along the context length
-        # values has shape batch x n_contexts x 1; is the values of the states
         return scores, values
 
 
     def evaluate_state(self, objectives, observations, **kwargs):
+        # objectives has shape batch x objective_context_size
+        # observations has shape batch x n_contexts x context_size
         objective_context_size = objectives.size(1)
         n_contexts = observations.size(1)
         context_size = observations.size(2)
@@ -114,20 +109,26 @@ class Command_Scorer(nn.Module, Q_Table):
         state_internal = apply_transformer(self.state_decoder, obs_embedding, memory=objective_embedding, tgt_mask=causal_mask(n_contexts, self.device), tgt_is_causal=True) # batch x n_contexts x hidden
         values = self.critic(state_internal)
 
+        # values has shape batch x n_contexts x 1; is the values of the states
         return values, state_internal
 
 
     def evaluate_actions(self, state_internal, actions, **kwargs):
-        n_actions = actions.size(1)
-        action_size = actions.size(2)
+        # state_internal has shape batch x n_contexts x n_dim
+        # actions has shape batch x n_contexts x n_actions x action_size
+        batch = actions.size(0)
+        n_contexts = actions.size(1)
+        n_actions = actions.size(2)
+        action_size = actions.size(3)
 
-        action_embedding = self.embedding(actions) # batch x n_actions x action_size x hidden
+        action_embedding = self.embedding(actions) # batch x n_contexts x n_actions x action_size x hidden
         action_embedding = action_embedding + self.pe[:action_size, :] # add positional encoding
         action_embedding = apply_transformer(self.action_decoder, torch.reshape(action_embedding, (-1, action_size, self.hidden_size)))
-        action_embedding = torch.reshape(action_embedding[:, 0, :], (-1, n_actions, self.hidden_size)) # batch x n_actions x hidden
+        action_embedding = torch.reshape(action_embedding[:, 0, :], (batch, n_contexts, n_actions, self.hidden_size)) # batch x n_contexts x n_actions x hidden
 
         # now cross product between the state_internal and the action_embedding
-        pre_actions = self.actor(state_internal) # batch x n_contexts x hidden
-        scores = torch.matmul(pre_actions, action_embedding.permute(0, 2, 1)) # batch x n_contexts x n_actions
+        pre_actions = torch.reshape(self.actor(state_internal), (batch, n_contexts, self.hidden_size, 1)) # batch x n_contexts x hidden x 1
+        scores = torch.matmul(action_embedding, pre_actions) # batch x n_contexts x n_actions x 1
 
-        return scores
+        # return scores has shape batch x n_contexts x n_actions; is the scores of individual actions along the context length
+        return scores.squeeze(-1)

@@ -314,7 +314,7 @@ if __name__ == "__main__":
             terminated = True
             truncated = False
             result = "Failed"
-            mdp_score = mdp_score - 10
+            mdp_score = mdp_score + 0
         elif done:
             terminated = False
             truncated = True

@@ -19,6 +19,7 @@ class Value_Action:
         self.state_value = state_value
         self.selected_action = selected_action
         self.mdp_score = None
+        self.available_actions = None
 
         self.has_released = False
         self.iteration = iteration
@@ -35,7 +36,7 @@ class Hierarchy_AC:
     def __init__(self, input_size, device) -> None:
         self.device = device
         self.model = Command_Scorer(input_size=input_size, hidden_size=256, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
+        self.optimizer = optim.Adam(self.model.parameters(), 0.0001)
 
         self.ave_loss = 0
         self.iteration = 0
@@ -72,16 +73,16 @@ class Hierarchy_AC:
 
 
     def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
+        # action_list_tensor has shape (all_action_length, action_size)
         
         with torch.no_grad():
             objective_tensor = torch.reshape(objective_tensor, [1, -1])
             state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
-            action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
+            action_list_tensor = torch.reshape(action_list_tensor, [1, 1, -1, action_list_tensor.size(1)])
 
-            # Get our next action and value prediction.
-            action_scores, values = self.model(objective_tensor, state_tensor, action_list_tensor)
-
-            action_scores = action_scores[0, -1, :]
+            # Get our next action and value prediction; only need the last state
+            values, carry = self.model.evaluate_state(objective_tensor, state_tensor)
+            action_scores = self.model.evaluate_actions(carry[:, -1:, :], action_list_tensor)[0, -1, :]
             values = values[0, -1, :].item()
 
             if sample_action:
@@ -127,20 +128,16 @@ class Hierarchy_AC:
         return W
 
 
-
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
-        # pivot is a list of tuples (you will get this reward, moving from this context index), must be sorted
+        # pivot is a list of tuples (you will get this reward, moving from this context index, with the following available actions), must be sorted
         # train_data is a list of tuples (you use this action, to go from this pivot, to this pivot)
 
-        # selected_action_set = set([action for action, _, _ in train_data])
-        # unused_actions = set(action_list) - selected_action_set
-        # # make a new list, fill the rest with unused actions
-        # action_list = list(selected_action_set) + random.sample(list(unused_actions), min(10, len(unused_actions)))
+        context_size = state_tensor.size(0)
+        action_size = action_list_tensor.size(1)
 
         objective_tensor = torch.reshape(objective_tensor, [1, -1])
         state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
-        action_list_tensor = torch.reshape(action_list_tensor, [1, -1, action_list_tensor.size(1)])
-        action_scores, values = self.model(objective_tensor, state_tensor, action_list_tensor)
+        values, carry = self.model.evaluate_state(objective_tensor, state_tensor)
 
         if not train_last_node:
             pivot = pivot[:-1]
@@ -148,15 +145,23 @@ class Hierarchy_AC:
         else:
             last_value = 0
 
-        context_marks = torch.tensor([m for _, m in pivot], dtype=torch.int64, device=self.device)
-        rewards = torch.tensor([r for r, _ in pivot], dtype=torch.float32, device=self.device)
-
         action_indexes = torch.reshape(torch.tensor([action_list.index(a) for a, _, _ in train_data], dtype=torch.int64, device=self.device), (-1, 1))
         from_indexes = torch.tensor([m for _, m, _ in train_data], dtype=torch.int64, device=self.device)
         to_indexes = torch.tensor([m for _, _, m in train_data], dtype=torch.int64, device=self.device)
 
+        context_marks = torch.tensor([m for _, m, _ in pivot], dtype=torch.int64, device=self.device)
+        rewards = torch.tensor([r for r, _, _ in pivot], dtype=torch.float32, device=self.device)
+        
         from_marks = torch.gather(context_marks, 0, from_indexes)
-        action_scores = torch.gather(action_scores[0, :, :], 0, torch.unsqueeze(from_marks, 1).expand(-1, action_scores.size(2)))
+
+        available_actions_indices = torch.tensor([[action_list.index(a) for a in aa] for _, _, aa in pivot], dtype=torch.int64, device=self.device) # shape: (pivot_length, action_length)
+        # action_list_tensor has shape (all_action_length, action_size) must be expanded to (pivot_length, all_action_length, action_size)
+        # available_actions_indices has shape (pivot_length, action_length) must be expanded to (pivot_length, action_length, action_size)
+        available_actions_by_context = torch.gather(torch.unsqueeze(action_list_tensor, 0).expand(len(pivot), -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size))
+        available_actions_by_context = torch.reshape(available_actions_by_context, [1, len(pivot), -1, action_size])
+
+        carry = torch.gather(carry[0, :, :], 0, torch.unsqueeze(from_marks, 1).expand(-1, carry.size(2)))
+        action_scores = self.model.evaluate_actions(carry, available_actions_by_context)[0, :, :]
         values = torch.gather(values[0, :, 0], 0, from_marks)
 
         with torch.no_grad():
@@ -172,7 +177,7 @@ class Hierarchy_AC:
         policy_loss = (-log_action_probs * advantages).mean()
         value_loss = (.5 * (values - returns) ** 2.).mean()
         entropy = (-probs * log_probs).sum(dim=1).mean()
-        loss = policy_loss + 0.5 * value_loss - 0.1 * entropy
+        loss = policy_loss + 0.5 * value_loss - 1.0 * entropy # for many action, 1.0 seem to be optimal. (Originally it was 0.1.)
 
         loss.backward()
         nn.utils.clip_grad_norm_(self.model.parameters(), 40)

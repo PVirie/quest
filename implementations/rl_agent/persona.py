@@ -112,6 +112,7 @@ class Persona:
         selected_nodes = []
         last_score = 0
         supports = quest_node.get_children()
+        max_action_pool_size = max([len(node.train_ref.available_actions) for node in supports if isinstance(node, Quest_Node) or isinstance(node, Observation_Node)])
         i = 0
         while i < len(supports):
             node = supports[i]
@@ -127,7 +128,8 @@ class Persona:
             train_ref = node.train_ref
             score = train_ref.mdp_score
             selected_nodes.append((obs, score, info, last_context_mark))
-            pivots.append((score - last_score, last_context_mark))
+            train_ref.available_actions.update(random.sample(list(self.action_set - train_ref.available_actions), k=max_action_pool_size - len(train_ref.available_actions)))
+            pivots.append((score - last_score, last_context_mark, list(train_ref.available_actions)))
             if i < len(supports) - 1 or train_last_node:
                 train_data.append((train_ref.selected_action, len(pivots) - 1, len(pivots)))
                 train_ref.release()
@@ -158,7 +160,7 @@ class Persona:
                 start_context_mark = pivots[from_transition_index][1]
                 end_context_mark = pivots[to_transition_index][1]
                 for i in range(from_transition_index, to_transition_index + 1):
-                    sub_pivots.append((step_cost if i < to_transition_index else value, pivots[i][1] - start_context_mark))
+                    sub_pivots.append((step_cost if i < to_transition_index else value, pivots[i][1] - start_context_mark, pivots[i][2]))
                     sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
                 self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
@@ -216,18 +218,18 @@ class Persona:
 
         ################# ACTION SELECTION #################
         _, _, _, infos = last_observation
-        action_list = [f"Action: {ac}" for ac in infos["admissible_commands"]]
-        self.action_set.update(action_list)
+        selectible_action_set = set([f"Action: {ac}" for ac in infos["admissible_commands"]])
+        self.action_set.update(selectible_action_set)
         if self.allow_relegation:
             current_objective = self.action_parser(quest_node.objective)
             for key, obj in self.extra_actions.items():
                 if obj < current_objective and obj.difference(last_observation) == len(obj):
                     # must check less than and diff to prevent infinite loop
-                    action_list.append(key)
+                    selectible_action_set.add(key)
 
         lm_response = ""
         if self.use_lm:
-            text_response = self.long_lm.complete_text(self.prompt.format(action_list=",".join(action_list), contexts="\n".join(objective_contexts + contexts)))
+            text_response = self.long_lm.complete_text(self.prompt.format(action_list=",".join(selectible_action_set), contexts="\n".join(objective_contexts + contexts)))
             # get the first part before newline
             lm_response = text_response.split("\n")[0]
             lm_command, lm_detail = extract_command_and_detail(lm_response)
@@ -237,16 +239,16 @@ class Persona:
                 # if the response is not an action, sub task or final respond, ignore it
                 lm_response = ""
             else:
-                if lm_response not in action_list:
-                    action_list.append(lm_response)
+                selectible_action_set.add(lm_response)
 
         rl_response = ""
         # remove thoughts from the context for RL
         rl_contexts = [c for c in contexts if not c.startswith("Thought")]
         objective_tensor = self.tokenizer(objective_contexts, stack=True)
         state_tensor = self.tokenizer(rl_contexts, stack=True)
-        action_list_tensor = self.tokenizer(action_list, stack=True)
-        va = self.rl_core.act(objective_tensor, state_tensor, action_list_tensor, action_list, sample_action=self.training_mode)
+        action_list_tensor = self.tokenizer(selectible_action_set, stack=True)
+        va = self.rl_core.act(objective_tensor, state_tensor, action_list_tensor, list(selectible_action_set), sample_action=self.training_mode)
+        va.available_actions = selectible_action_set
         rl_response = va.selected_action
 
         if not self.training_mode and va is not None:
