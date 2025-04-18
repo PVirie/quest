@@ -145,7 +145,7 @@ class Hierarchy_AC:
         else:
             last_value = 0
 
-        action_indexes = torch.reshape(torch.tensor([action_list.index(a) for a, _, _ in train_data], dtype=torch.int64, device=self.device), (-1, 1))
+        action_indexes = torch.reshape(torch.tensor([pivot[p][2].index(a) for a, p, _ in train_data], dtype=torch.int64, device=self.device), (-1, 1))
         from_indexes = torch.tensor([m for _, m, _ in train_data], dtype=torch.int64, device=self.device)
         to_indexes = torch.tensor([m for _, _, m in train_data], dtype=torch.int64, device=self.device)
 
@@ -157,10 +157,10 @@ class Hierarchy_AC:
         available_actions_indices = torch.tensor([[action_list.index(a) for a in aa] for _, _, aa in pivot], dtype=torch.int64, device=self.device) # shape: (pivot_length, action_length)
         # action_list_tensor has shape (all_action_length, action_size) must be expanded to (pivot_length, all_action_length, action_size)
         # available_actions_indices has shape (pivot_length, action_length) must be expanded to (pivot_length, action_length, action_size)
-        available_actions_by_context = torch.gather(torch.unsqueeze(action_list_tensor, 0).expand(len(pivot), -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size))
+        available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(len(pivot), -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size))
         available_actions_by_context = torch.reshape(available_actions_by_context, [1, len(pivot), -1, action_size])
 
-        carry = torch.gather(carry[0, :, :], 0, torch.unsqueeze(from_marks, 1).expand(-1, carry.size(2)))
+        carry = torch.gather(carry[0, :, :], 0, from_marks.unsqueeze(1).expand(-1, carry.size(2)))
         action_scores = self.model.evaluate_actions(carry, available_actions_by_context)[0, :, :]
         values = torch.gather(values[0, :, 0], 0, from_marks)
 
@@ -172,12 +172,16 @@ class Hierarchy_AC:
         # use vector instead of loops
         probs = torch.nn.functional.softmax(action_scores, dim=1)
         log_probs = torch.log(probs)
-        log_action_probs = torch.clamp(torch.gather(log_probs, 1, action_indexes), min=-10)
+        log_action_probs = torch.clamp(torch.gather(log_probs, 1, action_indexes), min=-8)
         log_action_probs = log_action_probs.flatten()
         policy_loss = (-log_action_probs * advantages).mean()
         value_loss = (.5 * (values - returns) ** 2.).mean()
         entropy = (-probs * log_probs).sum(dim=1).mean()
         loss = policy_loss + 0.5 * value_loss - 1.0 * entropy # for many action, 1.0 seem to be optimal. (Originally it was 0.1.)
+        is_nan = torch.isnan(loss)
+        if is_nan:
+            logging.warning("Loss is NaN, skipping training")
+            return
 
         loss.backward()
         nn.utils.clip_grad_norm_(self.model.parameters(), 40)
