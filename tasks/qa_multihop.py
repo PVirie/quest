@@ -11,8 +11,8 @@ import argparse
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from quest_interface import Quest_Graph, Action
-from implementations.thoughts import agent_functions, text_graph
-from implementations.thoughts.persona import Persona
+from implementations.language_agent import agent_functions, text_graph
+from implementations.language_agent.persona import Persona
 
 with open("/app/prompt_directory/react_tree.txt", "r") as file:
     prompt = file.read()

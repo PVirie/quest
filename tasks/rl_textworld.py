@@ -43,8 +43,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 from quest_interface import Quest_Graph, Action
-from implementations.rl import agent_functions, rl_graph, mdp_state
-from implementations.rl.persona import Persona
+from implementations.rl_agent import agent_functions, rl_graph, mdp_state
+from implementations.rl_agent.persona import Persona
 
 
 def extract_location(infos):
@@ -196,14 +196,14 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         done = False
         nb_moves = 0
 
-        objective = "(Main) Go to Kitchen"
-        objective_transition = parse_transition(objective)
-        max_score = len(objective_transition)
-        eval_func = goal_pursuit_eval
+        # objective = "(Main) Go to Kitchen"
+        # objective_transition = parse_transition(objective)
+        # max_score = len(objective_transition)
+        # eval_func = goal_pursuit_eval
 
-        # objective = "(Main) " + infos["objective"]
-        # max_score = infos["max_score"]
-        # eval_func = env_eval
+        objective = "(Main) " + infos["objective"]
+        max_score = infos["max_score"]
+        eval_func = env_eval
         root_node = rl_graph.Quest_Node(
             objective = objective,
             eval_func = eval_func,
@@ -338,12 +338,12 @@ if __name__ == "__main__":
             terminated = True
             truncated = False
             result = "Success"
-            next_value = 2
+            next_value = 10
         elif current_location != start_location and (not target_transition.is_main and current_location != target_transition.new_location):
             terminated = True
             truncated = False
             result = "Failed"
-            next_value = -2
+            next_value = -10
         elif len(node.get_children()) > 20 * max_score and not target_transition.is_main:
             # too many children, stop the task
             terminated = False
@@ -396,13 +396,10 @@ if __name__ == "__main__":
         return transition.objective, transition
 
 
-    # from implementations.tw_agents.agent_neural import Random_Agent, Neural_Agent
-    # agent = RandomAgent()
-    # agent = Neural_Agent(input_size=MAX_VOCAB_SIZE, device=device)
-    from implementations.tw_agents.hierarchy_agent import Hierarchy_Agent
-    agent = Hierarchy_Agent(input_size=MAX_VOCAB_SIZE, device=device)
+    from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC
+    rl_core = Hierarchy_AC(input_size=MAX_VOCAB_SIZE, device=device)
 
-    persona = Persona(agent, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition, compute_action=compute_action)
+    persona = Persona(rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition, compute_action=compute_action)
 
     # play(env, persona, nb_episodes=100, verbose=True)
     

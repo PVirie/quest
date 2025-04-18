@@ -25,7 +25,7 @@ def extract_command_and_detail(text):
 
 
 class Persona:
-    TRAIN_STEP=25
+    TRAIN_STEP=100
     PRINT_STEP=1000
 
     def __init__(self, agent, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, compute_action, allow_relegation=True, train_prompt=None):
@@ -34,9 +34,9 @@ class Persona:
         self.compute_folds = compute_folds
         self.env_step = env_step
         self.goal_pursuit_eval = goal_pursuit_eval
-        self.allow_relegation = allow_relegation
         self.action_parser = action_parser
         self.compute_action = compute_action
+        self.allow_relegation = allow_relegation
         self.action_set = set()
         self.extra_actions = {}
 
@@ -210,7 +210,7 @@ class Persona:
 
         if self.training_mode:
             self.step += 1
-            if terminated or truncated or self.step % self.TRAIN_STEP == 0:
+            if terminated or truncated:
                 self.train(quest_node, train_last_node=train_last_node, finish_value=finish_value)
 
             if self.step % self.PRINT_STEP == 0:
