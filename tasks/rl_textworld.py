@@ -303,7 +303,7 @@ if __name__ == "__main__":
 
     def env_eval(node, obs):
         _, env_score, done, infos = obs
-        mdp_score = env_score - node.size() * 0.01
+        mdp_score = env_score
 
         if infos["won"]:
             terminated = True
@@ -399,8 +399,8 @@ if __name__ == "__main__":
         return transition.objective, transition
 
 
-    from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC
-    rl_core = Hierarchy_AC(input_size=MAX_VOCAB_SIZE, device=device)
+    from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q
+    rl_core = Hierarchy_Q(input_size=MAX_VOCAB_SIZE, device=device)
 
     persona = Persona(rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition, compute_action=compute_action)
 

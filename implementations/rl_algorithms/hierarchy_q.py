@@ -5,7 +5,7 @@ import random
 import os
 import logging
 
-from implementations.core.torch.transformers import Command_Scorer
+from implementations.core.torch.qformers import Q_Table
 from .base import Value_Action, Hierarchy_Base
 
 import torch
@@ -15,12 +15,11 @@ from torch import optim
 torch.autograd.set_detect_anomaly(False)
 
 
-
-class Hierarchy_AC(Hierarchy_Base):
+class Hierarchy_Q(Hierarchy_Base):
 
     def __init__(self, input_size, device) -> None:
         super().__init__(device)
-        self.model = Command_Scorer(input_size=input_size, hidden_size=128, device=device)
+        self.model = Q_Table(input_size=input_size, hidden_size=128, num_output_qs=16, device=device)
         self.optimizer = optim.Adam(self.model.parameters(), 0.0001)
 
 
@@ -41,16 +40,17 @@ class Hierarchy_AC(Hierarchy_Base):
 
     def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
         # action_list_tensor has shape (all_action_length, action_size)
+        n_context = state_tensor.size(0)
         
         with torch.no_grad():
             objective_tensor = torch.reshape(objective_tensor, [1, -1])
             state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
             action_list_tensor = torch.reshape(action_list_tensor, [1, 1, -1, action_list_tensor.size(1)])
+            pivot_positions = torch.tensor([[n_context - 1]], dtype=torch.int64, device=self.device) # shape: (1, 1)
 
-            # Get our next action and value prediction; only need the last state
-            values, carry = self.model.evaluate_state(objective_tensor, state_tensor)
-            action_scores = self.model.evaluate_actions(carry[:, -1:, :], action_list_tensor)[0, -1, :]
-            values = values[0, -1, :].item()
+            action_scores, values = self.model(objective_tensor, state_tensor, action_list_tensor, pivot_positions)
+            action_scores = action_scores[0, 0, :]
+            values = values.item()
 
             if sample_action:
                 # lower_bound = torch.min(action_scores)
@@ -75,14 +75,6 @@ class Hierarchy_AC(Hierarchy_Base):
         # first compute values of all context steps
         objective_tensor = torch.reshape(objective_tensor, [1, -1])
         state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
-        values, carry = self.model.evaluate_state(objective_tensor, state_tensor)
-
-        # now specialize truncated end
-        if not train_last_node:
-            pivot = pivot[:-1]
-            last_value = values[0, -1, 0].item()
-        else:
-            last_value = 0
 
         # compute all indices
         action_indexes = torch.reshape(torch.tensor([pivot[p][2].index(a) for a, p, _ in train_data], dtype=torch.int64, device=self.device), (-1, 1))
@@ -114,10 +106,16 @@ class Hierarchy_AC(Hierarchy_Base):
         available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(len(train_data), -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size)) # shape: (train_data_length, action_length, action_size)
         
         available_actions_by_context = torch.reshape(available_actions_by_context, [1, len(train_data), -1, action_size])
-        carry = torch.gather(carry[0, :, :], 0, from_marks.unsqueeze(1).expand(-1, carry.size(2))) # shape: (train_data_length, carry_size)
-        action_scores = self.model.evaluate_actions(torch.reshape(carry, (1, len(train_data), -1)), available_actions_by_context)
+        action_scores, values = self.model(objective_tensor, state_tensor, available_actions_by_context, torch.reshape(from_marks, (1, -1)))
         action_scores = action_scores[0, :, :]
-        values = torch.gather(values[0, :, 0], 0, from_marks)
+        values = values[0, :]
+
+        # now specialize truncated end
+        if not train_last_node:
+            last_value = values[-1].item()
+            rewards = rewards[:-1]
+        else:
+            last_value = 0
 
         with torch.no_grad():
             all_returns = self._compute_snake_ladder(last_value, rewards)

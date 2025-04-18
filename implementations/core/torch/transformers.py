@@ -2,63 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .base import Q_Table
+from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding
 
 
-def positional_encoding(seq_len, embed_dim):
-    pe = torch.zeros(seq_len, embed_dim)
-    position = torch.arange(0, seq_len, dtype=torch.float).unsqueeze(1)
-    div_term = torch.exp(torch.arange(0, embed_dim, 2).float() * -(torch.log(torch.tensor(10000.0)) / embed_dim))
-    pe[:, 0::2] = torch.sin(position * div_term)
-    pe[:, 1::2] = torch.cos(position * div_term)
-    return pe
-
-
-def causal_mask(size, device):
-    """
-    in pytorch 2.6, mask is a boolean tensor where True means to be masked out.
-    """
-    # make
-    # tensor([
-    #     [F, T, T, T],
-    #     [F, F, T, T],
-    #     [F, F, F, T],
-    #     [F, F, F, F]
-    # ])
-    mask = torch.triu(torch.ones(size, size, device=device), diagonal=1).bool()
-    return mask
-
-
-def apply_transformer(decoder, input, memory=None, tgt_mask=None, tgt_is_causal=False):
-    input = input.permute(1, 0, 2)
-    if memory is not None:
-        memory = memory.permute(1, 0, 2)
-    else:
-        memory = input
-    output = decoder(input, memory, tgt_mask=tgt_mask, tgt_is_causal=tgt_is_causal) # n_contexts x batch x hidden
-    output = output.permute(1, 0, 2) # batch x n_contexts x hidden
-    return output
-
-
-class Multilayer_Relu(nn.Module):
-    def __init__(self, input_size, output_size, hidden_size, n_layers=1, device=None):
-        super(Multilayer_Relu, self).__init__()
-        self.device = device
-        self.hidden_size = hidden_size
-        self.layers = nn.ModuleList()
-        self.layers.append(nn.Linear(input_size, hidden_size, device=device))
-        for _ in range(n_layers - 1):
-            self.layers.append(nn.Linear(hidden_size, hidden_size, device=device))
-        self.layers.append(nn.Linear(hidden_size, output_size, device=device))
-
-    def forward(self, x):
-        for layer in self.layers[:-1]:
-            x = F.relu(layer(x))
-        x = self.layers[-1](x)
-        return x
-
-
-class Command_Scorer(nn.Module, Q_Table):
+class Command_Scorer(nn.Module):
     def __init__(self, input_size, hidden_size, device):
         super(Command_Scorer, self).__init__()
 
@@ -69,17 +16,17 @@ class Command_Scorer(nn.Module, Q_Table):
         self.embedding    = nn.Embedding(input_size, hidden_size, device=device)
         # state encoder
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=32, device=device)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.context_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
 
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=32, device=device)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
 
-        self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 2, device=device)
-        self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 2, device=device)
+        self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 1, device=device)
+        self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 1, device=device)
 
         self.pe = positional_encoding(256, hidden_size).to(device) # 256 is the maximum length of the context
 

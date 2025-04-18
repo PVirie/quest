@@ -25,7 +25,7 @@ def extract_command_and_detail(text):
 
 
 class Persona:
-    TRAIN_STEP=10
+    TRAIN_STEP=100
     PRINT_STEP=1000
 
     def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, compute_action, allow_relegation=True, train_prompt=None):
@@ -128,10 +128,9 @@ class Persona:
             score = train_ref.mdp_score
             selected_nodes.append((obs, score, info, last_context_mark))
             pivots.append((score - last_score, last_context_mark, list(train_ref.available_actions)))
-            if not train_ref.has_released:
-                if i < len(supports) - 1 or train_last_node:
-                    train_data.append((train_ref.selected_action, len(pivots) - 1, len(pivots)))
-                    train_ref.release()
+            if i < len(supports) - 1 or train_last_node:
+                train_data.append((train_ref.selected_action, len(pivots) - 1, len(pivots)))
+                train_ref.release()
 
             last_context_mark = len(rl_contexts) - 1
             last_score = score
