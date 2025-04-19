@@ -125,18 +125,18 @@ class Hierarchy_AC(Hierarchy_Base):
 
         with torch.no_grad():
             all_returns = self._compute_snake_ladder(rewards, last_value)
-            returns = all_returns[train_from_indexes, train_to_indexes]
-            advantages = returns - train_state_values
+            train_returns = all_returns[train_from_indexes, train_to_indexes]
+            train_advantages = train_returns - train_state_values
 
         # use vector instead of loops
         probs = torch.nn.functional.softmax(train_action_scores, dim=1)
         log_probs = torch.log(probs)
         log_action_probs = torch.clamp(torch.gather(log_probs, 1, train_action_indexes), min=-8)
         log_action_probs = log_action_probs.flatten()
-        policy_loss = (-log_action_probs * advantages).mean()
-        value_loss = (.5 * (train_state_values - returns) ** 2.).mean()
+        policy_loss = (-log_action_probs * train_advantages).mean()
+        value_loss = (.5 * (train_state_values - train_returns) ** 2.).mean()
         entropy = (-probs * log_probs).sum(dim=1).mean()
-        loss = policy_loss + 0.5 * value_loss - 0.1 * entropy
+        loss = policy_loss + 0.5 * value_loss - 0.25 * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
         is_nan = torch.isnan(loss)
         if is_nan:
             logging.warning("Loss is NaN, skipping training")
