@@ -110,7 +110,7 @@ class Hierarchy_Q(Hierarchy_Base):
         if not train_last_node:
             rewards = rewards[:-1]
         else:
-            state_q = torch.concat([state_q, 0], dim=0)
+            state_q = torch.concat([state_q, torch.zeros(1, device=self.device)], dim=0)
 
         # ----------------------
         # now map to training data items
@@ -131,7 +131,7 @@ class Hierarchy_Q(Hierarchy_Base):
         current_scores = current_scores.flatten()
         q_loss = (.5 * (current_scores - train_returns) ** 2.).mean()
         entropy = (-probs * log_probs).sum(dim=1).mean()
-        loss = q_loss - 1.0 * entropy # for many action, 1.0 seem to be optimal. (Originally it was 0.1.)
+        loss = q_loss - 0.1 * entropy # for many action, 1.0 seem to be optimal. (Originally it was 0.1.)
         is_nan = torch.isnan(loss)
         if is_nan:
             logging.warning("Loss is NaN, skipping training")

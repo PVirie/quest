@@ -99,5 +99,6 @@ class Q_Table(nn.Module):
         qs = torch.reshape(qs, (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
         qs = qs[:, :, :, 0] # batch x n_pivots x n_actions
 
-        state_values = torch.max(qs, dim=2, keepdim=False)[0] # batch x n_pivots use means instead of max
+        # state_values = torch.max(qs, dim=2, keepdim=False)[0] # batch x n_pivots
+        state_values = torch.mean(qs, dim=2, keepdim=False) # batch x n_pivots; use means stabilize training
         return qs, state_values

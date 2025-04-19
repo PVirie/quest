@@ -25,7 +25,7 @@ def extract_command_and_detail(text):
 
 
 class Persona:
-    TRAIN_STEP=10
+    TRAIN_STEP=100
     PRINT_STEP=1000
 
     def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, compute_action, allow_relegation=True, train_prompt=None):
