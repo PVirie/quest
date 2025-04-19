@@ -102,6 +102,21 @@ class Hierarchy_Base:
         return W
     
 
+    def _compute_snake_ladder_2(self, rewards, state_q):
+        # return a 2D matrix that contains best return from step i to step j
+        # rewards is a 1D tensor of size (context_length)
+        # state_q is a 1D tensor of size (context_length + 1)
+        # return a 2D matrix of size (rewards.size(0), rewards.size(0) + 1) each element computes a return if you take action i and then go to j
+        # just compute the sum of reward return[i, j] = r[i] + r[i+1] + ... + r[j-1] + self.gamma * state_q[j]
+        context_length = rewards.size(0)
+        cR = torch.cumsum(rewards, dim=0)
+        grid_i, grid_j = torch.meshgrid(torch.arange(0, context_length, device=self.device), torch.arange(0, context_length + 1, device=self.device), indexing='ij')
+        grid_ji = grid_j - grid_i
+        K = torch.where(grid_ji > 0, cR[grid_j - 1] - cR[grid_i - 1], 0)
+        W = K + self.GAMMA * torch.reshape(state_q, (1, -1))
+        return W
+    
+
     def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
         raise NotImplementedError("act() is not implemented in base class")
 

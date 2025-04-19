@@ -137,7 +137,8 @@ class Persona:
             last_score = score
             i += 1
         
-        folds = self.compute_folds(quest_node.objective, selected_nodes)
+        # folds = self.compute_folds(quest_node.objective, selected_nodes)
+        folds = []
         for _, _, diff_str, obj, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {diff_str}"
             self.extra_actions[fold_action] = obj
