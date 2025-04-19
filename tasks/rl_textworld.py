@@ -194,8 +194,8 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         f.write(f"------------------------------------------------------------------------\n")
 
     # Collect some statistics: nb_steps, final reward.
-    avg_move = 0
-    avg_score = 0
+    avg_move = None
+    avg_score = None
     for no_episode in range(1, nb_episodes + 1):
         obs, infos = env.reset()  # Start new episode.
         infos = flatten_batch(infos)
@@ -238,8 +238,8 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
             continue
         score, _, _, _ = eval_func(root_node, root_node.end_observation)
 
-        avg_move = nb_moves*0.05 + avg_move*0.95
-        avg_score = score*0.05 + avg_score*0.95
+        avg_move = (nb_moves*0.1 + avg_move*0.9) if avg_move is not None else nb_moves
+        avg_score = (score*0.1 + avg_score*0.9) if avg_score is not None else score
 
         if verbose and no_episode % verbose_step == 0:
             msg = "\tavg. steps: {:5.1f}; avg. score: {:4.1f} / {}."
@@ -303,7 +303,8 @@ if __name__ == "__main__":
 
     def env_eval(node, obs):
         _, env_score, done, infos = obs
-        mdp_score = env_score
+        size = node.size()
+        mdp_score = env_score  - size * 0.01
 
         if infos["won"]:
             terminated = True
@@ -387,7 +388,7 @@ if __name__ == "__main__":
         # check fit gap size, and also whether all the changes are the same
         selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4 and i - j <= 10 and transition_matrix[i - 1][j] == transition_matrix[i - 1][i - 1]]
         # return fixed end state value of 100 for first training
-        return [(10, -0.1, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1]
+        return [(1, -0.01, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1]
     
     def compute_action(start_obs, end_obs):
         _, _, _, start_infos = start_obs

@@ -72,6 +72,7 @@ class Hierarchy_AC(Hierarchy_Base):
 
         context_size = state_tensor.size(0)
         action_size = action_list_tensor.size(1)
+        num_training_data = len(train_data)
 
         # first compute values of all context steps
         objective_tensor = torch.reshape(objective_tensor, [1, -1])
@@ -104,9 +105,9 @@ class Hierarchy_AC(Hierarchy_Base):
         
         # action_list_tensor has shape (all_action_length, action_size) must be expanded to (train_data_length, all_action_length, action_size)
         # available_actions_indices has shape (train_data_length, action_length) must be expanded to (train_data_length, action_length, action_size)
-        available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(len(train_data), -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size)) # shape: (train_data_length, action_length, action_size)
+        available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(num_training_data, -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size)) # shape: (train_data_length, action_length, action_size)
         
-        available_actions_by_context = torch.reshape(available_actions_by_context, [1, len(train_data), -1, action_size])
+        available_actions_by_context = torch.reshape(available_actions_by_context, [1, num_training_data, -1, action_size])
         action_scores, values = self.model(objective_tensor, state_tensor, available_actions_by_context, torch.reshape(from_marks, (1, -1)))
         action_scores = action_scores[0, :, :]
         values = values[0, :]
