@@ -401,6 +401,7 @@ if __name__ == "__main__":
 
     # from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
+    # from implementations.rl_algorithms.hierarchy_mt import Hierarchy_MT as Model
     rl_core = Model(input_size=MAX_VOCAB_SIZE, device=device)
 
     persona = Persona(rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition, compute_action=compute_action)
@@ -411,7 +412,7 @@ if __name__ == "__main__":
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
         persona.set_allow_relegation(False)
-        play(env, persona, nb_episodes=1000, verbose=True)
+        play(env, persona, nb_episodes=10000, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

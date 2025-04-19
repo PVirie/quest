@@ -100,5 +100,9 @@ class Q_Table(nn.Module):
         qs = qs[:, :, :, 0] # batch x n_pivots x n_actions
 
         # state_values = torch.max(qs, dim=2, keepdim=False)[0] # batch x n_pivots
-        state_values = torch.mean(qs, dim=2, keepdim=False) # batch x n_pivots; use means stabilize training
+        # state_values = torch.mean(qs, dim=2, keepdim=False) # batch x n_pivots; use means stabilize training
+        # use mean of top k instead
+        top_k = min(5, n_actions)
+        state_values, _ = torch.topk(qs, top_k, dim=2, largest=True, sorted=False)
+        state_values = torch.mean(state_values, dim=2, keepdim=False)
         return qs, state_values

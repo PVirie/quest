@@ -25,7 +25,7 @@ def extract_command_and_detail(text):
 
 
 class Persona:
-    TRAIN_STEP=100
+    TRAIN_STEP=10
     PRINT_STEP=1000
 
     def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, compute_action, allow_relegation=True, train_prompt=None):
@@ -137,8 +137,7 @@ class Persona:
             last_score = score
             i += 1
         
-        # folds = self.compute_folds(quest_node.objective, selected_nodes)
-        folds = []
+        folds = self.compute_folds(quest_node.objective, selected_nodes)
         for _, _, diff_str, obj, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {diff_str}"
             self.extra_actions[fold_action] = obj

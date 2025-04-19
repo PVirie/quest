@@ -131,7 +131,7 @@ class Hierarchy_Q(Hierarchy_Base):
         current_scores = current_scores.flatten()
         q_loss = (.5 * (current_scores - train_returns) ** 2.).mean()
         entropy = (-probs * log_probs).sum(dim=1).mean()
-        loss = q_loss - 0.1 * entropy # for many action, 1.0 seem to be optimal. (Originally it was 0.1.)
+        loss = q_loss - 0.1 * entropy
         is_nan = torch.isnan(loss)
         if is_nan:
             logging.warning("Loss is NaN, skipping training")
