@@ -54,8 +54,8 @@ class Q_Table(nn.Module):
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
 
-        self.q_head = Multilayer_Relu(hidden_size, num_output_qs, hidden_size, 2, device=device)
-        self.action_head = Multilayer_Relu(hidden_size, num_output_qs * hidden_size, hidden_size, 2, device=device)
+        self.q_head = Multilayer_Relu(hidden_size, num_output_qs, hidden_size, 1, device=device)
+        self.action_head = Multilayer_Relu(hidden_size, num_output_qs * hidden_size, hidden_size, 1, device=device)
 
         self.pe = positional_encoding(256, hidden_size).to(device) # 256 is the maximum length of the context
 
@@ -89,7 +89,7 @@ class Q_Table(nn.Module):
 
         q_values = torch.reshape(self.q_head(pivot_state_internal), (batch, n_pivots, self.num_output_qs)) # batch x n_pivots x n_outputs
         predicted_actions = torch.reshape(self.action_head(pivot_state_internal), (batch, n_pivots, self.num_output_qs, self.hidden_size)) # batch x n_pivots x n_outputs x hidden
-        state_values = torch.max(q_values, dim=2, keepdim=False)[0] # batch x n_pivots
+        state_values = torch.max(q_values, dim=2, keepdim=False)[0] # batch x n_pivots use means instead of max
 
         action_embedding = self.embedding(actions) # batch x n_pivots x n_actions x action_size x hidden
         action_embedding = action_embedding + self.pe[:action_size, :] # add positional encoding
@@ -97,7 +97,7 @@ class Q_Table(nn.Module):
         action_embedding = torch.reshape(action_embedding[:, 0, :], (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
 
         logits = torch.matmul(action_embedding, predicted_actions.permute(0, 1, 3, 2)) # batch x n_pivots x n_actions x n_outputs
-        argmax_indices = torch.argmax(logits, dim=3) # batch x n_pivots x n_actions
-        action_q = torch.gather(q_values, 2, argmax_indices) # batch x n_pivots x n_actions
+        sm_logits = torch.nn.functional.softmax(logits, dim=3) # batch x n_pivots x n_actions x n_outputs
+        action_q = torch.sum(q_values.unsqueeze(2) * sm_logits, dim = 3, keepdim=False) # batch x n_pivots x n_actions
 
         return action_q, state_values

@@ -20,7 +20,7 @@ class Hierarchy_Q(Hierarchy_Base):
     def __init__(self, input_size, device) -> None:
         super().__init__(device)
         self.model = Q_Table(input_size=input_size, hidden_size=128, num_output_qs=16, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.0001)
+        self.optimizer = optim.Adam(self.model.parameters(), 0.00005)
 
 
     def save(self, dir_path):
@@ -130,7 +130,7 @@ class Hierarchy_Q(Hierarchy_Base):
         policy_loss = (-log_action_probs * advantages).mean()
         value_loss = (.5 * (values - returns) ** 2.).mean()
         entropy = (-probs * log_probs).sum(dim=1).mean()
-        loss = policy_loss + 0.5 * value_loss - 2.0 * entropy # for many action, 1.0 seem to be optimal. (Originally it was 0.1.)
+        loss = policy_loss + 0.5 * value_loss - 1.0 * entropy # for many action, 1.0 seem to be optimal. (Originally it was 0.1.)
         is_nan = torch.isnan(loss)
         if is_nan:
             logging.warning("Loss is NaN, skipping training")

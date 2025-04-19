@@ -367,7 +367,6 @@ if __name__ == "__main__":
         # mdp_score, terminated, truncated, result
         return mdp_score, terminated, truncated, result
 
-    
     def compute_folds(objective, states):
         # states is a list of obs, score, info, last_context_mark
         # return list of end value, diff_str, comparable_transition, from_context_mark, to_context_mark
@@ -399,8 +398,9 @@ if __name__ == "__main__":
         return transition.objective, transition
 
 
-    from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q
-    rl_core = Hierarchy_Q(input_size=MAX_VOCAB_SIZE, device=device)
+    # from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model
+    from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, device=device)
 
     persona = Persona(rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition, compute_action=compute_action)
 
