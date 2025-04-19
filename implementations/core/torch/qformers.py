@@ -93,7 +93,7 @@ class Q_Table(nn.Module):
         action_embedding = torch.reshape(action_embedding[:, 0, :], (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
 
         collapsed_pivot_state_internal = torch.reshape(pivot_state_internal, (-1, 1, self.hidden_size))
-        collapsed_actions = torch.reshape(actions, (-1, n_actions, self.hidden_size))
+        collapsed_actions = torch.reshape(action_embedding, (-1, n_actions, self.hidden_size))
 
         qs = apply_transformer(self.q_decoder, collapsed_actions, memory=collapsed_pivot_state_internal)
         qs = torch.reshape(qs, (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
