@@ -20,7 +20,7 @@ class Hierarchy_Q(Hierarchy_Base):
     def __init__(self, input_size, device) -> None:
         super().__init__(device)
         self.model = Q_Table(input_size=input_size, hidden_size=128, num_output_qs=16, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.00005)
+        self.optimizer = optim.Adam(self.model.parameters(), 0.0005)
 
 
     def save(self, dir_path):
@@ -104,13 +104,7 @@ class Hierarchy_Q(Hierarchy_Base):
         available_actions_by_context = torch.reshape(available_actions_by_context, [1, num_pivot, max_available_actions, action_size])
         action_scores, values = self.model(objective_tensor, state_tensor, available_actions_by_context, torch.reshape(context_marks, (1, -1)))
         action_scores = action_scores[0, :, :] # shape: (num_pivot, max_available_actions)
-        state_q = values[0, :] # shape: (num_pivots)
-
-        # now specialize truncated end
-        if not train_last_node:
-            rewards = rewards[:-1]
-        else:
-            state_q = torch.concat([state_q, torch.zeros(1, device=self.device)], dim=0)
+        state_values = values[0, :] # shape: (num_pivot)
 
         # ----------------------
         # now map to training data items
@@ -119,9 +113,15 @@ class Hierarchy_Q(Hierarchy_Base):
         train_to_indexes = torch.tensor([p for _, _, p in train_data], dtype=torch.int64, device=self.device)
         train_action_scores = torch.gather(action_scores, 0, train_from_indexes.unsqueeze(-1).expand(-1, max_available_actions))
 
+        # now specialize truncated end
+        if not train_last_node:
+            rewards = rewards[:-1]
+        else:
+            state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
+
         with torch.no_grad():
             #  compute returns = rewards + self.gammas * next_state_q, but for all from to pivot
-            all_returns = self._compute_snake_ladder_2(rewards, state_q)
+            all_returns = self._compute_snake_ladder_2(rewards, state_values)
             train_returns = all_returns[train_from_indexes, train_to_indexes]
 
         # use vector instead of loops

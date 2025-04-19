@@ -72,7 +72,7 @@ class Hierarchy_Base:
         logging.info(msg)
 
 
-    def _compute_snake_ladder(self, last_value, rewards):
+    def _compute_snake_ladder(self, rewards, last_value):
         # this is not true snake ladder, but a simplified version
         # return a 2D matrix that contains best return from step i to step j
         # rewards is a 1D tensor

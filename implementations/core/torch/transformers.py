@@ -68,6 +68,6 @@ class Command_Scorer(nn.Module):
         scores = torch.matmul(action_embedding, pre_actions) # batch x n_pivots x n_actions x 1
 
         # return scores has shape batch x n_pivots x n_actions; is the scores of individual actions along the context length
-        # values has shape batch x n_pivots x 1; is the values of the states
-        return scores.squeeze(-1), values
+        # values has shape batch x n_pivots; is the values of the states
+        return scores.squeeze(-1), values.squeeze(-1)
     
