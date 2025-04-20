@@ -49,8 +49,7 @@ class Quest_Node(RL_Node):
         self.train_ref = train_ref
 
     def get_start_contexts(self):
-        obs, _, _, _ = self.start_observation
-        return f"Objective: {self.objective}", f"Observation: {obs}"
+        return f"Objective: {self.objective}", f"Observation: {self.start_observation.get_context()}"
 
     def get_context(self):
         contexts = []
@@ -59,8 +58,7 @@ class Quest_Node(RL_Node):
             contexts.append(f"Result: {self.result}")
         elif self.truncated:
             contexts.append(f"Result: Truncated")
-        obs, _, _, _ = self.end_observation
-        contexts.append(f"Observation: {obs}")
+        contexts.append(f"Observation: {self.end_observation.get_context()}")
         return contexts
 
     def set(self, another):
@@ -115,8 +113,7 @@ class Observation_Node(RL_Node):
     def get_context(self):
         contexts = []
         contexts.append(f"Action: {self.action}")
-        obs, _, _, _ = self.observation
-        contexts.append(f"Observation: {obs}")
+        contexts.append(f"Observation: {self.observation.get_context()}")
         return contexts
 
     def set(self, another):

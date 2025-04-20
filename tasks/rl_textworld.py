@@ -81,14 +81,11 @@ def parse_transition(objective):
         elif part.startswith("Find "):
             find_items = [item for item in part.replace("Find ", "").split(" , ") if item.strip() != ""]
 
-    return Textworld_Transition(0, -1, -1, go_to, set(find_items), is_main=is_main)
+    return Textworld_Transition(go_to, set(find_items), is_main=is_main)
 
 
 class Textworld_Transition(mdp_state.MDP_Transition):
-    def __init__(self, delta_score, from_context_mark, to_context_mark, new_location=None, added_items=set(), is_main=False):
-        self.delta_score = round(delta_score)
-        self.from_context_mark = from_context_mark
-        self.to_context_mark = to_context_mark
+    def __init__(self, new_location=None, added_items=set(), is_main=False):
         self.new_location = new_location
         self.added_items = set(added_items)
         self.is_main = is_main
@@ -111,6 +108,13 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         return self.count_diff
     
 
+    def __str__(self):
+        if self.is_main:
+            return f"(Main) {self.objective}"
+        else:
+            return f"{self.objective}"
+    
+
     def __eq__(self, other):
         if self.new_location != other.new_location:
             return False
@@ -128,20 +132,17 @@ class Textworld_Transition(mdp_state.MDP_Transition):
     
 
     def difference(self, obs):
-        _, _, _, infos = obs
-        location = extract_location(infos)
-        inventory = extract_inventory(infos)
         diff = 0
-        if self.new_location is not None and self.new_location != location:
+        if self.new_location is not None and self.new_location != obs.location:
             diff += 1
-        diff += len(self.added_items - inventory)
+        diff += len(self.added_items - obs.inventory)
         return diff
     
 
     def __lt__(self, other):
         # test of stictly less than
         # item change < location change < None
-        if other is None or other.is_main:
+        if other.is_main:
             return True
         elif self.new_location is None and other.new_location is not None:
             return True
@@ -162,28 +163,121 @@ class Textworld_Transition(mdp_state.MDP_Transition):
             items_compare = 1
 
         return items_compare < 0
+    
+
+    def applicable_from(self, state):
+        return self.difference(state) == len(self)
 
 
 class Textworld_State(mdp_state.MDP_State):
-    def __init__(self, score, info, last_context_mark):
+    def __init__(self, obs, score, done, info):
         self.location = extract_location(info)
         self.inventory = extract_inventory(info)
+        self.obs = obs
         self.score = score
-        self.last_context_mark = last_context_mark
+        self.done = done
+        self.info = info
 
 
     def __sub__(self, other):
         return Textworld_Transition(
-            self.score - other.score, 
-            other.last_context_mark,
-            self.last_context_mark,
             self.location if self.location != other.location else None, 
             self.inventory - other.inventory
         )
+    
+
+    def get_available_actions(self):
+        return self.info["admissible_commands"]
+    
+
+    def get_context(self):
+        return self.obs
 
 
-MAX_VOCAB_SIZE = 1000
-tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
+def env_eval(node, obs):
+    size = node.size()
+    mdp_score = obs.score
+    done = obs.done
+    infos = obs.info
+
+    if infos["won"]:
+        terminated = True
+        truncated = False
+        result = "Success"
+        mdp_score = mdp_score + 10
+    elif infos["lost"]:
+        terminated = True
+        truncated = False
+        result = "Failed"
+        mdp_score = mdp_score - 1
+    elif done:
+        terminated = False
+        truncated = True
+        result = None
+    else:
+        terminated = False
+        truncated = False
+        result = None
+    # mdp_score, terminated, truncated, result
+    # mdp_score is the main env score
+    # fulfill is for sub task, success 
+    return mdp_score, terminated, truncated, result
+
+
+def goal_pursuit_eval(node, obs):
+    done = obs.done
+    objective = node.objective
+    target_transition = parse_transition(objective)
+    score_diff = target_transition.difference(obs)
+    size = node.size()
+    max_score = len(target_transition)
+    mdp_score = max_score - score_diff  - size * 0.01
+
+    if score_diff == 0:
+        terminated = True
+        truncated = False
+        result = "Success"
+        mdp_score = mdp_score + 10
+    elif len(node.get_children()) > 20 * max_score and not target_transition.is_main:
+        # too many children, stop the task
+        terminated = False
+        truncated = True
+        result = None
+    elif done:
+        terminated = False
+        truncated = True
+        result = None
+    else:
+        terminated = False
+        truncated = False
+        result = None
+
+    # mdp_score, terminated, truncated, result
+    return mdp_score, terminated, truncated, result
+
+
+def compute_folds(objective, state_scores):
+    # states is a list of obs, score, info, last_context_mark
+    # return list of end value, diff_str, comparable_transition, from_context_mark, to_context_mark
+    objective_transition = parse_transition(objective)
+    states = [state for state, mdp_score in state_scores]
+    transition_matrix = [] # the first row is at index 1 but the first column is at index 0
+    for i in range(1, len(states)):
+        transition_row = []
+        for j in range(0, i):
+            transition_row.append(states[i] - states[j])
+        transition_matrix.append(transition_row)
+    pivots = [0]
+    for i in range(0, len(transition_matrix)):
+        if len(transition_matrix[i][i]) > 0:
+            pivots.append(i+1)
+    # now compute all pairs of pivots
+    pairs = combinations(reversed(pivots), 2)
+    # check fit gap size, and also whether all the changes are the same
+    selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4 and i - j <= 10 and transition_matrix[i - 1][j] == transition_matrix[i - 1][i - 1]]
+    # return fixed end state value of 100 for first training
+    return [(1, -0.01, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff == 1]
+
 
 def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
     
@@ -200,6 +294,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         obs, infos = env.reset()  # Start new episode.
         infos = flatten_batch(infos)
         obs = infos["description"]
+        obs = re.sub(r"\n+", "\n", obs)
         score = 0
         done = False
         nb_moves = 0
@@ -215,7 +310,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         root_node = rl_graph.Quest_Node(
             objective = objective,
             eval_func = eval_func,
-            start_observation = (obs, score, done, infos)
+            start_observation = Textworld_State(obs, score, done, infos)
         )
         working_memory = Quest_Graph(root_node)
 
@@ -290,120 +385,27 @@ if __name__ == "__main__":
     env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
     env = textworld.gym.make(env_id)
 
+    MAX_VOCAB_SIZE = 1000
+    tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
+
     def flatten_batch(infos):
         return {k: v[0] for k, v in infos.items()}
 
     def env_step(action):
         obs, score, done, infos = env.step([action])
         obs = obs[0]
+        # use regex to suppress multiple \n\n to one
+        obs = re.sub(r"\n+", "\n", obs)
         score = score[0]
         done = done[0]
         infos = flatten_batch(infos)
-        return obs, score, done, infos
-
-    def env_eval(node, obs):
-        _, env_score, done, infos = obs
-        size = node.size()
-        mdp_score = env_score
-
-        if infos["won"]:
-            terminated = True
-            truncated = False
-            result = "Success"
-            mdp_score = mdp_score + 10
-        elif infos["lost"]:
-            terminated = True
-            truncated = False
-            result = "Failed"
-            mdp_score = mdp_score - 1
-        elif done:
-            terminated = False
-            truncated = True
-            result = None
-        else:
-            terminated = False
-            truncated = False
-            result = None
-        # mdp_score, terminated, truncated, result
-        # mdp_score is the main env score
-        # fulfill is for sub task, success 
-        return mdp_score, terminated, truncated, result
-
-    def goal_pursuit_eval(node, obs):
-        _, _, done, start_infos = node.start_observation
-        start_location = extract_location(start_infos)
-        _, _, done, infos = obs
-        current_location = extract_location(infos)
-        objective = node.objective
-        target_transition = parse_transition(objective)
-        score_diff = target_transition.difference(obs)
-        size = node.size()
-        max_score = len(target_transition)
-        mdp_score = max_score - score_diff  - size * 0.01
-
-        if score_diff == 0:
-            terminated = True
-            truncated = False
-            result = "Success"
-            mdp_score = mdp_score + 10
-        elif current_location != start_location and (not target_transition.is_main and current_location != target_transition.new_location):
-            terminated = True
-            truncated = False
-            result = "Failed"
-            mdp_score = mdp_score - 10
-        elif len(node.get_children()) > 20 * max_score and not target_transition.is_main:
-            # too many children, stop the task
-            terminated = False
-            truncated = True
-            result = None
-        elif done:
-            terminated = False
-            truncated = True
-            result = None
-        else:
-            terminated = False
-            truncated = False
-            result = None
-
-        # mdp_score, terminated, truncated, result
-        return mdp_score, terminated, truncated, result
-
-    def compute_folds(objective, states):
-        # states is a list of obs, score, info, last_context_mark
-        # return list of end value, diff_str, comparable_transition, from_context_mark, to_context_mark
-        objective_transition = parse_transition(objective)
-        states = [Textworld_State(score, info, lcm) for _, score, info, lcm in states]
-        transition_matrix = [] # the first row is at index 1 but the first column is at index 0
-        for i in range(1, len(states)):
-            transition_row = []
-            for j in range(0, i):
-                transition_row.append(states[i] - states[j])
-            transition_matrix.append(transition_row)
-        pivots = [0]
-        for i in range(0, len(transition_matrix)):
-            if len(transition_matrix[i][i]) > 0:
-                pivots.append(i+1)
-        # now compute all pairs of pivots
-        pairs = combinations(reversed(pivots), 2)
-        # check fit gap size, and also whether all the changes are the same
-        selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4 and i - j <= 10 and transition_matrix[i - 1][j] == transition_matrix[i - 1][i - 1]]
-        # return fixed end state value of 100 for first training
-        return [(1, -0.01, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff >= 1]
-    
-    def compute_action(start_obs, end_obs):
-        _, _, _, start_infos = start_obs
-        _, _, _, end_infos = end_obs
-        start_state = Textworld_State(0, start_infos, 0)
-        end_state = Textworld_State(0, end_infos, 0)
-        transition = start_state - end_state
-        return transition.objective, transition
-
+        return Textworld_State(obs, score, done, infos)
 
     # from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
     rl_core = Model(input_size=MAX_VOCAB_SIZE, device=device)
 
-    persona = Persona(rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition, compute_action=compute_action)
+    persona = Persona(rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition)
 
     # play(env, persona, nb_episodes=100, verbose=True)
     

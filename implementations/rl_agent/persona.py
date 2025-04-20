@@ -28,14 +28,13 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, compute_action, allow_relegation=True, train_prompt=None):
+    def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, allow_relegation=True, train_prompt=None):
         self.rl_core = rl_core
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
         self.env_step = env_step
         self.goal_pursuit_eval = goal_pursuit_eval
         self.action_parser = action_parser
-        self.compute_action = compute_action
         self.allow_relegation = allow_relegation
         self.action_set = set()
         self.extra_actions = {}
@@ -86,11 +85,11 @@ class Persona:
     def print_context(self, quest_node, prefix=""):
         children = quest_node.get_children()
         objective_context, start_obs_context = quest_node.get_start_contexts()
-        contexts = [f"{prefix}{objective_context}", f"{prefix}{start_obs_context.replace("\n\n", "\n").replace("\n", f"\n{prefix}")}"]
+        contexts = [f"{prefix}{objective_context}", f"{prefix}{start_obs_context.replace("\n", f"\n{prefix}")}"]
         for i, node in enumerate(children):
             node_contexts = node.get_context()
             node_contexts.insert(0, f"{i} -----")
-            node_contexts = [f"{prefix}" + c.replace("\n\n", "\n").replace("\n", f"\n{prefix}") for c in node_contexts]
+            node_contexts = [f"{prefix}" + c.replace("\n", f"\n{prefix}") for c in node_contexts]
             if isinstance(node, Quest_Node):
                 sub_task_context = self.print_context(node, prefix=prefix + "\t")
                 node_contexts.insert(2, sub_task_context)
@@ -102,7 +101,7 @@ class Persona:
 
     def train(self, quest_node, train_last_node: bool = False):
         # finish_value only used when training the last node
-        obs, _, _, info = quest_node.start_observation
+        last_observation = quest_node.start_observation
         objective_context, start_obs_context = quest_node.get_start_contexts()
         objective_contexts = [objective_context]
         rl_contexts = [start_obs_context] 
@@ -117,16 +116,16 @@ class Persona:
             node = supports[i]
             if isinstance(node, Quest_Node):
                 rl_contexts.extend(node.get_context())
-                obs, _, _, info = node.end_observation
+                last_observation = node.end_observation
             elif isinstance(node, Observation_Node):
                 rl_contexts.extend(node.get_context())
-                obs, _, _, info = node.observation
+                last_observation = node.observation
             else:
                 continue
 
             train_ref = node.train_ref
             score = train_ref.mdp_score
-            selected_nodes.append((obs, score, info, last_context_mark))
+            selected_nodes.append((last_observation, score))
             pivots.append((score - last_score, last_context_mark, list(train_ref.available_actions)))
             if i >= len(supports) - self.TRAIN_STEP:
                 if i < len(supports) - 1 or train_last_node:
@@ -189,7 +188,8 @@ class Persona:
             last_node.train_ref.mdp_score = mdp_score
             # # now compute the correct Sub Task (sometimes, sub task does not follow the original objective)
             # if isinstance(last_node, Quest_Node):
-            #     diff_str, action_obj = self.compute_action(last_node.start_observation, last_node.end_observation)
+            #     action_obj = last_node.end_observation - last_node.start_observation
+            #     diff_str = str(action_obj)
             #     if len(action_obj) > 0:
             #         action_str = f"Sub Task: {diff_str}"
             #         last_node.train_ref.selected_action = action_str
@@ -216,13 +216,12 @@ class Persona:
             return return_sub_action, return_node
 
         ################# ACTION SELECTION #################
-        _, _, _, infos = last_observation
-        selectible_action_set = set([f"Action: {ac}" for ac in infos["admissible_commands"]])
+        selectible_action_set = set([f"Action: {ac}" for ac in last_observation.get_available_actions()])
         self.action_set.update(selectible_action_set)
         if self.allow_relegation:
             current_objective = self.action_parser(quest_node.objective)
             for key, obj in self.extra_actions.items():
-                if obj < current_objective and obj.difference(last_observation) == len(obj):
+                if obj < current_objective and obj.applicable_from(last_observation):
                     # must check less than and diff to prevent infinite loop
                     selectible_action_set.add(key)
 
@@ -276,11 +275,11 @@ class Persona:
             return return_sub_action, return_node
         elif command.startswith("Action"):
             action = detail
-            obs, env_score, done, infos = self.env_step(action)
+            last_observation = self.env_step(action)
             return_sub_action = Sub_Action_Type.Act
             return_node = Observation_Node(
                 action=action, 
-                observation=(obs, env_score, done, infos), 
+                observation=last_observation, 
                 train_ref=train_ref
             )
             return return_sub_action, return_node

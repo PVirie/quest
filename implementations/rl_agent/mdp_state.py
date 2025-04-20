@@ -6,9 +6,24 @@ class MDP_Transition:
     """
     pass
 
-    def __len__(self):
+
+    def __str__(self):
         """
-        Returns the length of the transition.
+        Returns a string representation of the transition.
+        """
+        pass
+    
+
+    def __lt__(self, other):
+        """
+        Compares this transition with another one.
+        """
+        pass
+
+
+    def applicable_from(self, state):
+        """
+        Checks if the transition is applicable from a given state.
         """
         pass
 
@@ -19,5 +34,19 @@ class MDP_State:
     def __sub__(self, other):
         """
         Subtracts the state of another MDP_State from this one.
+        """
+        pass
+
+
+    def get_available_actions(self):
+        """
+        Returns the available actions in this state.
+        """
+        pass
+
+
+    def get_context(self):
+        """
+        Returns the context of this state.
         """
         pass
