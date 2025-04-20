@@ -31,6 +31,7 @@ os.makedirs(textworld_path, exist_ok=True)
 # tw-make tw-simple --rewards dense  --goal detailed --seed 18 --test --silent -f --output tw_games/tw-rewardsDense_goalBrief.z8
 tw_envs = {
     "custom_game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_path}/games/default/custom_game.z8"],
+    "custom_game_2": ["tw-make", "custom", "--rewards", "balanced", "--goal", "brief", "--world-size", "5", "--nb-objects", "10", "--quest-length", "10", "--seed", "2345", "--output", f"{textworld_path}/games/default/custom_game_2.z8"],
     "tw-rewardsDense_goalBrief": ["tw-make", "tw-simple", "--rewards", "dense", "--goal", "brief", "--seed", "20250301", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsDense_goalBrief.z8"]
 }
 for env_name, env_args in tw_envs.items():
@@ -321,7 +322,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
                     break
             elif action == Action.DISCOVER:
                 working_memory.discover(param_1, param_2)
-                if len(working_memory) > 200:
+                if len(working_memory) > 400:
                     break
             else:
                 raise ValueError("Invalid action")
@@ -373,7 +374,7 @@ if __name__ == "__main__":
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    game_path = f"{textworld_path}/games/default/custom_game.z8"
+    game_path = f"{textworld_path}/games/default/custom_game_2.z8"
 
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
@@ -390,7 +391,7 @@ if __name__ == "__main__":
         lost=True,                 # Whether the player has lost.
     )
 
-    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
+    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=200, batch_size=1)
     env = textworld.gym.make(env_id)
 
     MAX_VOCAB_SIZE = 1000
@@ -420,7 +421,7 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        persona.set_allow_relegation(False)
+        persona.set_allow_relegation(True)
         play(env, persona, nb_episodes=1000, verbose=True)
         persona.save(agent_parameter_path)
 

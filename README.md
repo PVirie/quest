@@ -119,6 +119,7 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] Non-Markovian Reinforcement learning
     -   [x] [TextWorld](https://github.com/microsoft/TextWorld) environment
     -   [x] [ALFWorld](https://github.com/alfworld/alfworld) environment
+    -   [ ] [Textworld express] (https://github.com/cognitiveailab/TextWorldExpress) environment, to speed up simulation.
 -   [x] Custom textworld reward structure
     -   [x] Redefine textworld reward structure
 

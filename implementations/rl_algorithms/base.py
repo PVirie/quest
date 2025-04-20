@@ -29,7 +29,7 @@ class Value_Action:
 class Hierarchy_Base:
     LOG_ALPHA=0.95
     GAMMA = 0.97
-    MAX_CONTEXT_SIZE = 128
+    MAX_CONTEXT_SIZE = 256
 
     def __init__(self, device):
         self.device = device
