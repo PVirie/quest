@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding
 
 
-class Command_Scorer(nn.Module):
+class Model(nn.Module):
     def __init__(self, input_size, hidden_size, device):
-        super(Command_Scorer, self).__init__()
+        super(Model, self).__init__()
 
         self.device = device
         self.hidden_size = hidden_size

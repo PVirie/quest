@@ -33,13 +33,12 @@ def access(Vs, Ss, x, scores, num_slots, dims, value_access):
     return v, s
 
 
-class Q_Table(nn.Module):
-    def __init__(self, input_size, hidden_size, num_output_qs, device):
-        super(Q_Table, self).__init__()
+class Model(nn.Module):
+    def __init__(self, input_size, hidden_size, device):
+        super(Model, self).__init__()
 
         self.device = device
         self.hidden_size = hidden_size
-        self.num_output_qs = num_output_qs
 
         torch.manual_seed(42)  # For reproducibility
         self.embedding    = nn.Embedding(input_size, hidden_size, device=device)
@@ -102,7 +101,11 @@ class Q_Table(nn.Module):
         # state_values = torch.max(qs, dim=2, keepdim=False)[0] # batch x n_pivots
         # state_values = torch.mean(qs, dim=2, keepdim=False) # batch x n_pivots; use means stabilize training
         # use mean of top k instead
-        top_k = min(5, n_actions)
-        state_values, _ = torch.topk(qs, top_k, dim=2, largest=True, sorted=False)
-        state_values = torch.mean(state_values, dim=2, keepdim=False)
+        # top_k = min(4, n_actions)
+        # state_values, _ = torch.topk(qs, top_k, dim=2, largest=True, sorted=False)
+        # state_values = torch.mean(state_values, dim=2, keepdim=False)
+        # use softmax
+        sfm = torch.nn.functional.softmax(qs, dim=2)
+        state_values = torch.sum(sfm * qs, dim=2, keepdim=False)
+
         return qs, state_values

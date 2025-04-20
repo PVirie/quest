@@ -5,14 +5,11 @@ import random
 import os
 import logging
 
-from implementations.core.torch.transformers import Command_Scorer
-
 import torch
 import torch.nn as nn
 from torch import optim
 
 torch.autograd.set_detect_anomaly(False)
-
 
 
 class Value_Action:

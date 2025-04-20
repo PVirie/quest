@@ -5,7 +5,7 @@ import random
 import os
 import logging
 
-from implementations.core.torch.transformers import Command_Scorer
+from implementations.core.torch.transformers import Model
 from .base import Value_Action, Hierarchy_Base
 
 import torch
@@ -20,7 +20,7 @@ class Hierarchy_AC(Hierarchy_Base):
 
     def __init__(self, input_size, device) -> None:
         super().__init__(device)
-        self.model = Command_Scorer(input_size=input_size, hidden_size=128, device=device)
+        self.model = Model(input_size=input_size, hidden_size=128, device=device)
         self.optimizer = optim.Adam(self.model.parameters(), 0.00005)
 
 

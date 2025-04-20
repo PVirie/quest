@@ -5,7 +5,7 @@ import random
 import os
 import logging
 
-from implementations.core.torch.qformers import Q_Table
+from implementations.core.torch.qformers import Model
 from .base import Value_Action, Hierarchy_Base
 
 import torch
@@ -19,8 +19,8 @@ class Hierarchy_Q(Hierarchy_Base):
 
     def __init__(self, input_size, device) -> None:
         super().__init__(device)
-        self.model = Q_Table(input_size=input_size, hidden_size=128, num_output_qs=16, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.0005)
+        self.model = Model(input_size=input_size, hidden_size=128, device=device)
+        self.optimizer = optim.Adam(self.model.parameters(), 0.0001)
 
 
     def save(self, dir_path):
@@ -115,13 +115,18 @@ class Hierarchy_Q(Hierarchy_Base):
 
         # now specialize truncated end
         if not train_last_node:
+            last_value = state_values[-1].item()
             rewards = rewards[:-1]
         else:
+            last_value = 0
             state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
 
         with torch.no_grad():
             #  compute returns = rewards + self.gammas * next_state_q, but for all from to pivot
-            all_returns = self._compute_snake_ladder_2(rewards, state_values)
+            # all_returns = self._compute_snake_ladder_2(rewards, state_values)
+            # train_returns = all_returns[train_from_indexes, train_to_indexes]
+
+            all_returns = self._compute_snake_ladder(rewards, last_value)
             train_returns = all_returns[train_from_indexes, train_to_indexes]
 
         # use vector instead of loops
@@ -130,8 +135,9 @@ class Hierarchy_Q(Hierarchy_Base):
         current_scores = torch.gather(train_action_scores, 1, train_action_indexes)
         current_scores = current_scores.flatten()
         q_loss = (.5 * (current_scores - train_returns) ** 2.).mean()
+        score_reg = (.5 * (action_scores) ** 2.).mean(dim=1).mean()
         entropy = (-probs * log_probs).sum(dim=1).mean()
-        loss = q_loss - 0.1 * entropy
+        loss = q_loss - 0.1 * entropy - 0.01 * score_reg
         is_nan = torch.isnan(loss)
         if is_nan:
             logging.warning("Loss is NaN, skipping training")
