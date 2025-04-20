@@ -85,6 +85,25 @@ class Quest_Node(RL_Node):
                 num_children += child.size()
         return num_children
     
+    def total_context_length(self):
+        num_children = len(self.children)
+        num_quest_node = 1 if num_children > 0 else 0
+        for child in self.children:
+            if isinstance(child, self.__class__):
+                cc, cn = child.total_context_length()
+                num_children += cc
+                num_quest_node += cn
+        return num_children, num_quest_node
+    
+    def max_context_length(self):
+        max_children = len(self.children)
+        for child in self.children:
+            if isinstance(child, self.__class__):
+                cc = child.max_context_length()
+                if cc > max_children:
+                    max_children = cc
+        return max_children
+    
 
 class Thought_Node(RL_Node):
     def __init__(self, thought=None):

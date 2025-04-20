@@ -285,8 +285,11 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         f.write(f"------------------------------------------------------------------------\n")
 
     # Collect some statistics: nb_steps, final reward.
-    avg_move = None
-    avg_score = None
+    stat_n_moves = []
+    stat_scores = []
+    stat_mean_context_length = []
+    stat_max_context_length = []
+
     for no_episode in range(1, nb_episodes + 1):
         obs, infos = env.reset()  # Start new episode.
         infos = flatten_batch(infos)
@@ -294,7 +297,6 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         obs = re.sub(r"\n+", "\n", obs)
         score = 0
         done = False
-        nb_moves = 0
 
         # objective = "(Main) Go to Kitchen and Find a carrot"
         # objective_transition = parse_transition(objective)
@@ -321,7 +323,6 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
                 working_memory.discover(param_1, param_2)
                 if len(working_memory) > 200:
                     break
-                nb_moves += 1
             else:
                 raise ValueError("Invalid action")
 
@@ -330,16 +331,26 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
             continue
         score, _, _, _ = eval_func(root_node, root_node.end_observation)
 
-        avg_move = (nb_moves*0.1 + avg_move*0.9) if avg_move is not None else nb_moves
-        avg_score = (score*0.1 + avg_score*0.9) if avg_score is not None else score
+        stat_n_moves.append(root_node.size())
+        stat_scores.append(score)
+        num_children, num_quest_node = root_node.total_context_length()
+        stat_mean_context_length.append(num_children / num_quest_node if num_quest_node > 0 else 0)
+        stat_max_context_length.append(root_node.max_context_length())
 
         if verbose and no_episode % verbose_step == 0:
-            msg = "\tavg. steps: {:5.1f}; avg. score: {:4.1f} / {}."
-            logging.info(msg.format(avg_move, avg_score, max_score))
-
+            # cl means context length
+            msg = "\tsteps: {:5.1f}; score: {:4.1f} / {}; cl: {:4.1f}; max cl: {:4.1f}"
+            report = msg.format(
+                np.mean(stat_n_moves[-verbose_step:]), 
+                np.mean(stat_scores[-verbose_step:]), max_score,
+                np.mean(stat_mean_context_length[-verbose_step:]),
+                np.mean(stat_max_context_length[-verbose_step:]))
+            logging.info(report)
             with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
                 data = persona.print_context(root_node)
+                f.write("-------------------------")
                 f.write(f"Episode {no_episode}\n")
+                f.write(report + "\n")
                 f.write(data)
                 f.write("\n\n")
 
