@@ -339,7 +339,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
 
         if verbose and no_episode % verbose_step == 0:
             # cl means context length
-            msg = "\tsteps: {:5.1f}; score: {:4.1f} / {}; cl: {:4.1f}; max cl: {:4.1f}"
+            msg = "steps: {:5.1f}; score: {:4.1f} / {:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
             report = msg.format(
                 np.mean(stat_n_moves[-verbose_step:]), 
                 np.mean(stat_scores[-verbose_step:]), max_score,
@@ -348,11 +348,11 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
             logging.info(report)
             with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
                 data = persona.print_context(root_node)
-                f.write("-------------------------")
                 f.write(f"Episode {no_episode}\n")
-                f.write(report + "\n")
+                f.write("[Report]\t" + report + "\n")
                 f.write(data)
-                f.write("\n\n")
+                f.write("\n")
+                f.write(f"------------------------------------------------------------------------\n")
 
 
 if __name__ == "__main__":
