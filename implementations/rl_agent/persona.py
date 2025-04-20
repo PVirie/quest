@@ -86,16 +86,23 @@ class Persona:
         children = quest_node.get_children()
         objective_context, start_obs_context = quest_node.get_start_contexts()
         contexts = [f"{prefix}{objective_context}", f"{prefix}{start_obs_context.replace("\n", f"\n{prefix}")}"]
+        last_score = 0
         for i, node in enumerate(children):
             node_contexts = node.get_context()
-            node_contexts.insert(0, f"{i} -----")
-            node_contexts = [f"{prefix}" + c.replace("\n", f"\n{prefix}") for c in node_contexts]
             if isinstance(node, Quest_Node):
                 sub_task_context = self.print_context(node, prefix=prefix + "\t")
-                node_contexts.insert(2, sub_task_context)
+                node_contexts.insert(1, sub_task_context)
+                score = node.train_ref.mdp_score
+            elif isinstance(node, Observation_Node):
+                score = node.train_ref.mdp_score
+            else:
+                score = last_score
+            node_contexts.insert(0, f"{i} ----- r: {(score - last_score):.2f}")
+            node_contexts = [f"{prefix}" + c.replace("\n", f"\n{prefix}") for c in node_contexts]
             contexts.extend(node_contexts)
+            last_score = score
         if len(prefix) == 0:
-            contexts.append(f"{prefix}Extra Actions: {";".join(self.extra_actions.keys())}")
+            contexts.append(f"Extra Actions: {";".join(self.extra_actions.keys())}")
         return f"\n".join(contexts)
 
 
@@ -136,11 +143,13 @@ class Persona:
             last_score = score
             i += 1
         
-        folds = self.compute_folds(quest_node.objective, selected_nodes)
-        for _, _, diff_str, obj, from_transition_index, to_transition_index in folds:
-            fold_action = f"Sub Task: {diff_str}"
-            self.extra_actions[fold_action] = obj
-            # train_data.append((fold_action, from_transition_index, to_transition_index))
+        if self.allow_relegation:
+            folds = self.compute_folds(quest_node.objective, selected_nodes)
+            for _, _, diff_str, obj, from_transition_index, to_transition_index in folds:
+                fold_action = f"Sub Task: {diff_str}"
+                self.extra_actions[fold_action] = obj
+                pivots[from_transition_index][2].append(fold_action)
+                train_data.append((fold_action, from_transition_index, to_transition_index))
 
         # add extra actions
         all_action_list = list(self.action_set.union(self.extra_actions.keys()))
@@ -151,16 +160,16 @@ class Persona:
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
             self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
-            for value, step_cost, diff_str, _, from_transition_index, to_transition_index in folds:
-                sub_objective_tensor = self.tokenizer([diff_str], stack=True)
-                sub_pivots = []
-                sub_train_data = []
-                start_context_mark = pivots[from_transition_index][1]
-                end_context_mark = pivots[to_transition_index][1]
-                for i in range(from_transition_index, to_transition_index + 1):
-                    sub_pivots.append((step_cost if i < to_transition_index else value, pivots[i][1] - start_context_mark, pivots[i][2]))
-                    sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
-                self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
+            # for value, step_cost, diff_str, _, from_transition_index, to_transition_index in folds:
+            #     sub_objective_tensor = self.tokenizer([diff_str], stack=True)
+            #     sub_pivots = []
+            #     sub_train_data = []
+            #     start_context_mark = pivots[from_transition_index][1]
+            #     end_context_mark = pivots[to_transition_index][1]
+            #     for i in range(from_transition_index, to_transition_index + 1):
+            #         sub_pivots.append((step_cost if i < to_transition_index else value, pivots[i][1] - start_context_mark, pivots[i][2]))
+            #         sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
+            #     self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
 
     def think(self, quest_node, supports):

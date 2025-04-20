@@ -108,37 +108,28 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         return self.count_diff
     
 
+    def __eq__(self, other):
+        return self - other == 0
+    
+
+    def __sub__(self, other):
+        diff = 0
+        if self.new_location != other.new_location:
+            if self.new_location is not None:
+                diff += 1
+            if other.new_location is not None:
+                diff += 1
+        diff += len(self.added_items.symmetric_difference(other.added_items))
+        return diff
+    
+
     def __str__(self):
         if self.is_main:
             return f"(Main) {self.objective}"
         else:
             return f"{self.objective}"
     
-
-    def __eq__(self, other):
-        if self.new_location != other.new_location:
-            return False
-        if len(self.added_items.symmetric_difference(other.added_items)) > 0:
-            return False
-        return True
     
-
-    def __sub__(self, other):
-        diff = 0
-        if self.new_location is not None and self.new_location != other.new_location:
-            diff += 1
-        diff += len(self.added_items - other.added_items)
-        return diff
-    
-
-    def difference(self, obs):
-        diff = 0
-        if self.new_location is not None and self.new_location != obs.location:
-            diff += 1
-        diff += len(self.added_items - obs.inventory)
-        return diff
-    
-
     def __lt__(self, other):
         # test of stictly less than
         # item change < location change < None
@@ -166,7 +157,11 @@ class Textworld_Transition(mdp_state.MDP_Transition):
     
 
     def applicable_from(self, state):
-        return self.difference(state) == len(self)
+        diff = 0
+        if self.new_location is not None and self.new_location != state.location:
+            diff += 1
+        diff += len(self.added_items - state.inventory)
+        return diff == self.count_diff
 
 
 class Textworld_State(mdp_state.MDP_State):
@@ -196,7 +191,7 @@ class Textworld_State(mdp_state.MDP_State):
 
 def env_eval(node, obs):
     size = node.size()
-    mdp_score = obs.score
+    mdp_score = obs.score  - size * 0.02
     done = obs.done
     infos = obs.info
 
@@ -204,7 +199,7 @@ def env_eval(node, obs):
         terminated = True
         truncated = False
         result = "Success"
-        mdp_score = mdp_score + 10
+        mdp_score = mdp_score + 100
     elif infos["lost"]:
         terminated = True
         truncated = False
@@ -228,22 +223,23 @@ def goal_pursuit_eval(node, obs):
     done = obs.done
     objective = node.objective
     target_transition = parse_transition(objective)
-    score_diff = target_transition.difference(obs)
+    progress_transition = obs - node.start_observation
+    score_diff = target_transition - progress_transition
     size = node.size()
     max_score = len(target_transition)
     mdp_score = max_score - score_diff  - size * 0.01
 
-    if score_diff == 0:
+    if target_transition == progress_transition:
         terminated = True
         truncated = False
         result = "Success"
-        mdp_score = mdp_score + 10
+        mdp_score = mdp_score + 100
     elif len(node.get_children()) > 20 * max_score and not target_transition.is_main:
         # too many children, stop the task
         terminated = True
         truncated = False
         result = "Failed"
-        mdp_score = mdp_score - 1
+        mdp_score = mdp_score - 10
     elif done:
         terminated = False
         truncated = True
@@ -275,7 +271,7 @@ def compute_folds(objective, state_scores):
     # now compute all pairs of pivots
     pairs = combinations(reversed(pivots), 2)
     # check fit gap size, and also whether all the changes are the same
-    selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 4 and i - j <= 10 and transition_matrix[i - 1][j] == transition_matrix[i - 1][i - 1]]
+    selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 5 and i - j <= 20 and transition_matrix[i - 1][j] == transition_matrix[i - 1][i - 1]]
     # return fixed end state value of 100 for first training
     return [(1, -0.01, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff == 1]
 
@@ -300,7 +296,7 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         done = False
         nb_moves = 0
 
-        # objective = "(Main) Go to Kitchen"
+        # objective = "(Main) Go to Kitchen and Find a carrot"
         # objective_transition = parse_transition(objective)
         # max_score = len(objective_transition)
         # eval_func = goal_pursuit_eval
@@ -366,7 +362,7 @@ if __name__ == "__main__":
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    game_path = f"{textworld_path}/games/default/tw-rewardsDense_goalBrief.z8"
+    game_path = f"{textworld_path}/games/default/custom_game.z8"
 
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
