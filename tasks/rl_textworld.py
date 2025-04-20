@@ -60,14 +60,14 @@ def extract_inventory(infos):
     # find anything after "You are carrying:"" and split using "and"
     if "inventory" not in infos or "nothing" in infos["inventory"]:
         return set()
-    inv_str = infos["inventory"].replace("You are carrying:", "").strip()
-    return set([item.strip().replace(".", "") for item in inv_str.split("and") if item.strip() != ""])
+    inv_str = infos["inventory"].replace("You are carrying:", "").replace("and", ",").strip()
+    return set([item.replace(".", "").strip() for item in inv_str.split(",") if item.replace(".", "").strip() != ""])
 
 
 def parse_transition(objective):
     if "(Main)" in objective:
         is_main = True
-        objective = objective.replace("(Main) ", "").strip()
+        objective = objective.replace("(Main) ", "")
     else:
         is_main = False
     
@@ -79,7 +79,7 @@ def parse_transition(objective):
         if part.startswith("Go to "):
             go_to = part.replace("Go to ", "")
         elif part.startswith("Find "):
-            find_items = [item for item in part.replace("Find ", "").split(" , ") if item.strip() != ""]
+            find_items = [item.strip() for item in part.replace("Find ", "").split(",") if item.strip() != ""]
 
     return Textworld_Transition(go_to, set(find_items), is_main=is_main)
 
@@ -240,9 +240,10 @@ def goal_pursuit_eval(node, obs):
         mdp_score = mdp_score + 10
     elif len(node.get_children()) > 20 * max_score and not target_transition.is_main:
         # too many children, stop the task
-        terminated = False
-        truncated = True
-        result = None
+        terminated = True
+        truncated = False
+        result = "Failed"
+        mdp_score = mdp_score - 1
     elif done:
         terminated = False
         truncated = True
