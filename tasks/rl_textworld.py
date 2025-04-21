@@ -31,8 +31,7 @@ os.makedirs(textworld_path, exist_ok=True)
 # tw-make tw-simple --rewards dense  --goal detailed --seed 18 --test --silent -f --output tw_games/tw-rewardsDense_goalBrief.z8
 tw_envs = {
     "custom_game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_path}/games/default/custom_game.z8"],
-    "custom_game_2": ["tw-make", "custom", "--rewards", "balanced", "--goal", "brief", "--world-size", "5", "--nb-objects", "10", "--quest-length", "10", "--seed", "2345", "--output", f"{textworld_path}/games/default/custom_game_2.z8"],
-    "tw-rewardsDense_goalBrief": ["tw-make", "tw-simple", "--rewards", "dense", "--goal", "brief", "--seed", "20250301", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-rewardsDense_goalBrief.z8"]
+    "tw-simple": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250401", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple.z8"]
 }
 for env_name, env_args in tw_envs.items():
     env_path = env_args[-1]
@@ -374,7 +373,7 @@ if __name__ == "__main__":
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    game_path = f"{textworld_path}/games/default/custom_game_2.z8"
+    game_path = f"{textworld_path}/games/default/tw-simple.z8"
 
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.

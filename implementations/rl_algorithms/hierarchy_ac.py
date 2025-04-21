@@ -21,7 +21,7 @@ class Hierarchy_AC(Hierarchy_Base):
     def __init__(self, input_size, device) -> None:
         super().__init__(device)
         self.model = Model(input_size=input_size, hidden_size=128, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.00005)
+        self.optimizer = optim.Adam(self.model.parameters(), 0.00001)
 
 
     def save(self, dir_path):
@@ -136,7 +136,7 @@ class Hierarchy_AC(Hierarchy_Base):
         policy_loss = (-log_action_probs * train_advantages).mean()
         value_loss = (.5 * (train_state_values - train_returns) ** 2.).mean()
         entropy = (-probs * log_probs).sum(dim=1).mean()
-        loss = policy_loss + 0.5 * value_loss - 0.25 * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
+        loss = policy_loss + 0.5 * value_loss - 0.02 * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
         is_nan = torch.isnan(loss)
         if is_nan:
             logging.warning("Loss is NaN, skipping training")
