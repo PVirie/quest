@@ -6,6 +6,7 @@ import os
 import logging
 
 from implementations.core.torch.qformers import Model
+from implementations.core.torch.base import softmax_with_temperature
 from .base import Value_Action, Hierarchy_Base
 
 import torch
@@ -53,16 +54,16 @@ class Hierarchy_Q(Hierarchy_Base):
             values = values.item()
 
             if sample_action:
-                # lower_bound = torch.min(action_scores)
-                # sample_bias = lower_bound + 0.2 * (torch.max(action_scores) - lower_bound)
-                # action_scores = torch.clip(action_scores, min=sample_bias) # further improve exploration
-                probs = torch.nn.functional.softmax(action_scores, dim=0)  # n_actions
-                indices = torch.multinomial(probs, num_samples=1).item() # 1
+                # sample
+                probs = softmax_with_temperature(action_scores, temperature=2.0, dim=0)  # n_actions
+                index = torch.multinomial(probs, num_samples=1).item() # 1
+                rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
             else:
                 # greedy
-                indices = torch.argmax(action_scores, dim=0).item()
+                index = torch.argmax(action_scores, dim=0).item()
+                rank = 1
 
-        return Value_Action(values, action_list[indices], self.iteration)
+        return Value_Action(values, action_list[index], rank, self.iteration)
 
 
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):

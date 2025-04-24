@@ -191,7 +191,7 @@ class Textworld_State(mdp_state.MDP_State):
 
 def env_eval(node, obs):
     size = node.size()
-    mdp_score = obs.score  - size * 0.02
+    mdp_score = obs.score - size * 0.02
     done = obs.done
     infos = obs.info
 
@@ -206,9 +206,10 @@ def env_eval(node, obs):
         result = "Failed"
         mdp_score = mdp_score - 1
     elif done:
-        terminated = False
-        truncated = True
-        result = None
+        terminated = True
+        truncated = False
+        result = "Failed"
+        mdp_score = mdp_score - 10
     else:
         terminated = False
         truncated = False
@@ -234,7 +235,7 @@ def goal_pursuit_eval(node, obs):
         truncated = False
         result = "Success"
         mdp_score = mdp_score + 100
-    elif len(node.get_children()) > 20 * max_score and not target_transition.is_main:
+    elif len(node.get_children()) > 20 and not target_transition.is_main:
         # too many children, stop the task
         terminated = True
         truncated = False
@@ -271,9 +272,9 @@ def compute_folds(objective, state_scores):
     # now compute all pairs of pivots
     pairs = combinations(reversed(pivots), 2)
     # check fit gap size, and also whether all the changes are the same
-    selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 5 and i - j <= 20 and transition_matrix[i - 1][j] == transition_matrix[i - 1][i - 1]]
+    selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 3 and i - j <= 20 and transition_matrix[i - 1][j] == transition_matrix[i - 1][i - 1]]
     # return fixed end state value of 100 for first training
-    return [(1, -0.01, st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff == 1]
+    return [(st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
 
 
 def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
@@ -339,8 +340,10 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
 
         if verbose and no_episode % verbose_step == 0:
             # cl means context length
-            msg = "steps: {:5.1f}; score: {:4.1f} / {:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
+            msg = "episode: {}/{} steps: {:5.1f}; score: {:4.1f}/{:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
             report = msg.format(
+                no_episode,
+                nb_episodes,
                 np.mean(stat_n_moves[-verbose_step:]), 
                 np.mean(stat_scores[-verbose_step:]), max_score,
                 np.mean(stat_mean_context_length[-verbose_step:]),
@@ -390,7 +393,7 @@ if __name__ == "__main__":
         lost=True,                 # Whether the player has lost.
     )
 
-    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=200, batch_size=1)
+    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
     env = textworld.gym.make(env_id)
 
     MAX_VOCAB_SIZE = 1000
@@ -421,7 +424,7 @@ if __name__ == "__main__":
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
         persona.set_allow_relegation(True)
-        play(env, persona, nb_episodes=1000, verbose=True)
+        play(env, persona, nb_episodes=2000, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

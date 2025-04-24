@@ -13,9 +13,10 @@ torch.autograd.set_detect_anomaly(False)
 
 
 class Value_Action:
-    def __init__(self, state_value, selected_action, iteration=0):
+    def __init__(self, state_value, selected_action, selected_rank:int = -1, iteration=0):
         self.state_value = state_value
         self.selected_action = selected_action
+        self.selected_action_rank = selected_rank
         self.mdp_score = None
         self.available_actions = None
 
@@ -27,7 +28,7 @@ class Value_Action:
 
 
 class Hierarchy_Base:
-    LOG_ALPHA=0.95
+    LOG_ALPHA = 0.95
     GAMMA = 0.97
     MAX_CONTEXT_SIZE = 256
 

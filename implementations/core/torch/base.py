@@ -38,6 +38,30 @@ def apply_transformer(decoder, input, memory=None, tgt_mask=None, tgt_is_causal=
     return output
 
 
+def softmax_with_temperature(logits, temperature=1.0, dim=-1):
+    """
+    Numerically stable softmax with temperature scaling.
+
+    Args:
+        logits (torch.Tensor): The input tensor of logits.
+        temperature (float, optional): The temperature parameter. Defaults to 1.0.
+        dim (int, optional): The dimension along which to compute softmax. Defaults to -1.
+
+    Returns:
+        torch.Tensor: The softmax output with temperature scaling.
+    """
+    logits = logits / temperature
+    max_values = torch.max(logits, dim=dim, keepdim=True)[0]
+    shifted_logits = logits - max_values
+    
+    exp_values = torch.exp(shifted_logits)
+    sum_exp_values = torch.sum(exp_values, dim=dim, keepdim=True)
+    
+    softmax_output = exp_values / sum_exp_values
+    
+    return softmax_output
+
+
 class Multilayer_Relu(nn.Module):
     def __init__(self, input_size, output_size, hidden_size, n_layers=1, device=None):
         super(Multilayer_Relu, self).__init__()

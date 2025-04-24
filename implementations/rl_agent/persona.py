@@ -93,11 +93,14 @@ class Persona:
                 sub_task_context = self.print_context(node, prefix=prefix + "\t")
                 node_contexts.insert(1, sub_task_context)
                 score = node.train_ref.mdp_score
+                rank = node.train_ref.selected_action_rank
             elif isinstance(node, Observation_Node):
                 score = node.train_ref.mdp_score
+                rank = node.train_ref.selected_action_rank
             else:
                 score = last_score
-            node_contexts.insert(0, f"{i} ----- r: {(score - last_score):.2f}")
+                rank = -1
+            node_contexts.insert(0, f"{i} ----- reward: {(score - last_score):.2f} rank: {rank:d}")
             node_contexts = [f"{prefix}" + c.replace("\n", f"\n{prefix}") for c in node_contexts]
             contexts.extend(node_contexts)
             last_score = score
@@ -145,7 +148,7 @@ class Persona:
         
         if self.allow_relegation:
             folds = self.compute_folds(quest_node.objective, selected_nodes)
-            for _, _, diff_str, obj, from_transition_index, to_transition_index in folds:
+            for diff_str, obj, from_transition_index, to_transition_index in folds:
                 fold_action = f"Sub Task: {diff_str}"
                 self.extra_actions[fold_action] = obj
                 pivots[from_transition_index][2].append(fold_action)
@@ -160,14 +163,14 @@ class Persona:
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
             self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
-            # for value, step_cost, diff_str, _, from_transition_index, to_transition_index in folds:
+            # for diff_str, _, from_transition_index, to_transition_index in folds:
             #     sub_objective_tensor = self.tokenizer([diff_str], stack=True)
             #     sub_pivots = []
             #     sub_train_data = []
-            #     start_context_mark = pivots[from_transition_index][1]
+            #     start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
             #     end_context_mark = pivots[to_transition_index][1]
             #     for i in range(from_transition_index, to_transition_index + 1):
-            #         sub_pivots.append((step_cost if i < to_transition_index else value, pivots[i][1] - start_context_mark, pivots[i][2]))
+            #         sub_pivots.append((0 if i < to_transition_index else 10, pivots[i][1] - start_context_mark, pivots[i][2]))
             #         sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
             #     self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
@@ -218,8 +221,8 @@ class Persona:
             if terminated or truncated or self.step % self.TRAIN_STEP == 0:
                 self.train(quest_node, train_last_node=train_last_node)
 
-            if self.step % self.PRINT_STEP == 0:
-                self.rl_core.print(self.step)
+            # if self.step % self.PRINT_STEP == 0:
+            #     self.rl_core.print(self.step)
 
         if terminated or truncated:
             return return_sub_action, return_node

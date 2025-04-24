@@ -79,10 +79,13 @@ class Quest_Node(RL_Node):
         return self.eval_func(self, obs)
     
     def size(self):
-        num_children = len(self.children)
+        # does not count Quest_Node type
+        num_children = 0
         for child in self.children:
             if isinstance(child, self.__class__):
                 num_children += child.size()
+            else:
+                num_children += 1
         return num_children
     
     def total_context_length(self):
