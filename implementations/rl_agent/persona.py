@@ -231,12 +231,15 @@ class Persona:
         ################# ACTION SELECTION #################
         selectible_action_set = set([f"Action: {ac}" for ac in last_observation.get_available_actions()])
         self.action_set.update(selectible_action_set)
+        valid_extra_actions = set()
+        current_objective = self.action_parser(quest_node.objective)
+        for key, obj in self.extra_actions.items():
+            if obj < current_objective and obj.applicable_from(last_observation):
+                # must check less than and diff to prevent infinite loop
+                valid_extra_actions.add(key)
+        available_actions = selectible_action_set.union(valid_extra_actions)
         if self.allow_relegation:
-            current_objective = self.action_parser(quest_node.objective)
-            for key, obj in self.extra_actions.items():
-                if obj < current_objective and obj.applicable_from(last_observation):
-                    # must check less than and diff to prevent infinite loop
-                    selectible_action_set.add(key)
+            selectible_action_set.update(valid_extra_actions)
 
         lm_response = ""
         if self.use_lm:
@@ -250,7 +253,7 @@ class Persona:
                 # if the response is not an action, sub task or final respond, ignore it
                 lm_response = ""
             else:
-                selectible_action_set.add(lm_response)
+                available_actions.add(lm_response)
 
         rl_response = ""
         # remove thoughts from the context for RL
@@ -259,7 +262,7 @@ class Persona:
         state_tensor = self.tokenizer(rl_contexts, stack=True)
         action_list_tensor = self.tokenizer(selectible_action_set, stack=True)
         train_ref = self.rl_core.act(objective_tensor, state_tensor, action_list_tensor, list(selectible_action_set), sample_action=self.training_mode)
-        train_ref.available_actions = selectible_action_set
+        train_ref.available_actions = available_actions
         rl_response = train_ref.selected_action
 
         if not self.training_mode and train_ref is not None:

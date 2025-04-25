@@ -49,18 +49,17 @@ class Hierarchy_Q(Hierarchy_Base):
             action_list_tensor = torch.reshape(action_list_tensor, [1, 1, -1, action_list_tensor.size(1)])
             pivot_positions = torch.tensor([[n_context - 1]], dtype=torch.int64, device=self.device) # shape: (1, 1)
 
+            self.model.eval()
             action_scores, _ = self.model(objective_tensor, state_tensor, action_list_tensor, pivot_positions)
             action_scores = action_scores[0, 0, :]
 
             if sample_action:
                 # sample
-                self.model.train()
                 probs = softmax_with_temperature(action_scores, temperature=2.0, dim=0)  # n_actions
                 index = torch.multinomial(probs, num_samples=1).item() # 1
                 rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
             else:
                 # greedy
-                self.model.eval()
                 index = torch.argmax(action_scores, dim=0).item()
                 rank = 1
 

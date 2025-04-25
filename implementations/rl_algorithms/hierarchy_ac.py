@@ -22,7 +22,7 @@ class Hierarchy_AC(Hierarchy_Base):
     def __init__(self, input_size, device) -> None:
         super().__init__(device)
         self.model = Model(input_size=input_size, hidden_size=128, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.00001)
+        self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
 
 
     def save(self, dir_path):
@@ -50,18 +50,17 @@ class Hierarchy_AC(Hierarchy_Base):
             action_list_tensor = torch.reshape(action_list_tensor, [1, 1, -1, action_list_tensor.size(1)])
             pivot_positions = torch.tensor([[n_context - 1]], dtype=torch.int64, device=self.device) # shape: (1, 1)
 
+            self.model.eval()
             action_scores, _ = self.model(objective_tensor, state_tensor, action_list_tensor, pivot_positions)
             action_scores = action_scores[0, 0, :]
 
             if sample_action:
                 # sample
-                self.model.train()
-                probs = softmax_with_temperature(action_scores, temperature=2.0, dim=0)  # n_actions
+                probs = softmax_with_temperature(action_scores, temperature=1.0, dim=0)  # n_actions
                 index = torch.multinomial(probs, num_samples=1).item() # 1
                 rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
             else:
                 # greedy
-                self.model.eval()
                 index = torch.argmax(action_scores, dim=0).item()
                 rank = 1
 
@@ -139,7 +138,7 @@ class Hierarchy_AC(Hierarchy_Base):
         policy_loss = (-log_action_probs * train_advantages).mean()
         value_loss = (.5 * (train_state_values - train_returns) ** 2.).mean()
         entropy = (-probs * log_probs).sum(dim=1).mean()
-        loss = policy_loss + 0.5 * value_loss - 0.02 * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
+        loss = policy_loss + 0.5 * value_loss - 0.1 * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
         is_nan = torch.isnan(loss)
         if is_nan:
             logging.warning("Loss is NaN, skipping training")

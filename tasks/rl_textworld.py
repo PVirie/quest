@@ -188,8 +188,8 @@ class Textworld_State(mdp_state.MDP_State):
 
 
 def env_eval(node, obs):
-    size = node.size()
-    mdp_score = obs.score - size * 0.02
+    cl_len = node.context_length()
+    mdp_score = obs.score - cl_len * 0.05
     done = obs.done
     infos = obs.info
 
@@ -223,9 +223,9 @@ def goal_pursuit_eval(node, obs):
     target_transition = parse_transition(objective)
     progress_transition = obs - node.start_observation
     score_diff = target_transition.delta(progress_transition)
-    size = node.size()
+    cl_len = node.context_length()
     max_score = len(target_transition)
-    mdp_score = max_score - score_diff  - size * 0.01
+    mdp_score = max_score - score_diff  - cl_len * 0.02
 
     if target_transition == progress_transition:
         terminated = True
@@ -413,8 +413,8 @@ if __name__ == "__main__":
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
         persona.set_allow_relegation(False)
-        play(env, persona, nb_episodes=500, verbose=True)
-        for i in range(50):
+        play(env, persona, nb_episodes=2000, verbose=True)
+        for i in range(100):
             persona.set_allow_relegation(False)
             play(env, persona, nb_episodes=100, verbose=True)
             persona.set_allow_relegation(True)
