@@ -15,17 +15,16 @@ An implementation of agentic systems with quest graphs.
     -   Windows and Mac, please install [Docker Desktop](https://www.docker.com/products/docker-desktop)
 
 2.  Accelerator support: Follow the installation guide for your machine configuration. I would recommend using Linux for the best experience.
-    2.1 CUDA support
 
+    2.1 CUDA support
     -   Nvidia driver version 555.xx or higher (for CUDA 12.5.1+)
     -   Linux, install [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
     -   Windows, follow [this guide](https://docs.docker.com/desktop/gpu/) to enable gpu support in docker desktop.
 
     2.2 ROCm support
-
     -   Install [ROCm-kernel (amdgpu-dkms)](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html)
 
-3.  Create `secrets.env` file to install neccessary tokens (Huggingface, OpenAI, etc.) (See the running section for more details.)
+4.  Create `secrets.env` file to install neccessary tokens (Huggingface, OpenAI, etc.) (See the running section for more details.)
     ```
     export QUEST_LM_DEPLOYMENT="cloud-api-litellm"
     export QUEST_LM_MODEL="openai/gpt-4o"
@@ -59,7 +58,7 @@ An implementation of agentic systems with quest graphs.
 | **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/qa_multihop.py`  |
 | **TextWorld**    | Run the TextWorld experiment.                           | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_textworld.py` |
 | **ALFWorld**     | Run the ALFWorld experiment.                            | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_alfworld.py`  |
-| **Any**          | Reset the selected experiment.                          | Any                                     | Any with `--reset`      |
+| **Reset**          | Reset the selected experiment.                          | Any                                     | Any with `--reset`      |
 
 ### Environment Variables
 
