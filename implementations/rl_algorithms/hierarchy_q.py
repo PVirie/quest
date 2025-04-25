@@ -49,21 +49,22 @@ class Hierarchy_Q(Hierarchy_Base):
             action_list_tensor = torch.reshape(action_list_tensor, [1, 1, -1, action_list_tensor.size(1)])
             pivot_positions = torch.tensor([[n_context - 1]], dtype=torch.int64, device=self.device) # shape: (1, 1)
 
-            action_scores, values = self.model(objective_tensor, state_tensor, action_list_tensor, pivot_positions)
+            action_scores, _ = self.model(objective_tensor, state_tensor, action_list_tensor, pivot_positions)
             action_scores = action_scores[0, 0, :]
-            values = values.item()
 
             if sample_action:
                 # sample
+                self.model.train()
                 probs = softmax_with_temperature(action_scores, temperature=2.0, dim=0)  # n_actions
                 index = torch.multinomial(probs, num_samples=1).item() # 1
                 rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
             else:
                 # greedy
+                self.model.eval()
                 index = torch.argmax(action_scores, dim=0).item()
                 rank = 1
 
-        return Value_Action(values, action_list[index], rank, self.iteration)
+        return Value_Action(action_list[index], rank, self.iteration)
 
 
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
@@ -101,8 +102,9 @@ class Hierarchy_Q(Hierarchy_Base):
         # action_list_tensor has shape (all_action_length, action_size) must be expanded to (num_pivot, all_action_length, action_size)
         # available_actions_indices has shape (num_pivot, max_action_length) must be expanded to (num_pivot, max_action_length, action_size)
         available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(num_pivot, -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size)) # shape: (num_pivot, max_action_length, action_size)
-        
         available_actions_by_context = torch.reshape(available_actions_by_context, [1, num_pivot, max_available_actions, action_size])
+
+        self.model.train()
         action_scores, values = self.model(objective_tensor, state_tensor, available_actions_by_context, torch.reshape(context_marks, (1, -1)))
         action_scores = action_scores[0, :, :] # shape: (num_pivot, max_available_actions)
         state_values = values[0, :] # shape: (num_pivot)

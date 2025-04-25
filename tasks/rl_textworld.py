@@ -109,15 +109,13 @@ class Textworld_Transition(mdp_state.MDP_Transition):
     
 
     def __eq__(self, other):
-        return self - other == 0
+        return self.delta(other) == 0
     
 
-    def __sub__(self, other):
+    def delta(self, other):
         diff = 0
-        if self.new_location != other.new_location:
-            if self.new_location is not None:
-                diff += 1
-            if other.new_location is not None:
+        if self.new_location is not None:
+            if self.new_location != other.new_location:
                 diff += 1
         diff += len(self.added_items.symmetric_difference(other.added_items))
         return diff
@@ -206,10 +204,9 @@ def env_eval(node, obs):
         result = "Failed"
         mdp_score = mdp_score - 1
     elif done:
-        terminated = True
-        truncated = False
-        result = "Failed"
-        mdp_score = mdp_score - 10
+        terminated = False
+        truncated = True
+        result = None
     else:
         terminated = False
         truncated = False
@@ -225,7 +222,7 @@ def goal_pursuit_eval(node, obs):
     objective = node.objective
     target_transition = parse_transition(objective)
     progress_transition = obs - node.start_observation
-    score_diff = target_transition - progress_transition
+    score_diff = target_transition.delta(progress_transition)
     size = node.size()
     max_score = len(target_transition)
     mdp_score = max_score - score_diff  - size * 0.01
@@ -235,12 +232,6 @@ def goal_pursuit_eval(node, obs):
         truncated = False
         result = "Success"
         mdp_score = mdp_score + 100
-    elif len(node.get_children()) > 20 and not target_transition.is_main:
-        # too many children, stop the task
-        terminated = True
-        truncated = False
-        result = "Failed"
-        mdp_score = mdp_score - 10
     elif done:
         terminated = False
         truncated = True
@@ -272,7 +263,7 @@ def compute_folds(objective, state_scores):
     # now compute all pairs of pivots
     pairs = combinations(reversed(pivots), 2)
     # check fit gap size, and also whether all the changes are the same
-    selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 3 and i - j <= 20 and transition_matrix[i - 1][j] == transition_matrix[i - 1][i - 1]]
+    selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 3 and i - j <= 10 and transition_matrix[i - 1][j] == transition_matrix[i - 1][i - 1]]
     # return fixed end state value of 100 for first training
     return [(st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
 
@@ -332,9 +323,9 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
             continue
         score, _, _, _ = eval_func(root_node, root_node.end_observation)
 
-        stat_n_moves.append(root_node.size())
-        stat_scores.append(score)
         num_children, num_quest_node = root_node.total_context_length()
+        stat_n_moves.append(num_children)
+        stat_scores.append(score)
         stat_mean_context_length.append(num_children / num_quest_node if num_quest_node > 0 else 0)
         stat_max_context_length.append(root_node.max_context_length())
 
@@ -418,13 +409,16 @@ if __name__ == "__main__":
 
     persona = Persona(rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition)
 
-    # play(env, persona, nb_episodes=100, verbose=True)
-    
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        persona.set_allow_relegation(True)
-        play(env, persona, nb_episodes=2000, verbose=True)
+        persona.set_allow_relegation(False)
+        play(env, persona, nb_episodes=500, verbose=True)
+        for i in range(50):
+            persona.set_allow_relegation(False)
+            play(env, persona, nb_episodes=100, verbose=True)
+            persona.set_allow_relegation(True)
+            play(env, persona, nb_episodes=100, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

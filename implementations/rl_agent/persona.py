@@ -145,14 +145,13 @@ class Persona:
             last_context_mark = len(rl_contexts) - 1
             last_score = score
             i += 1
-        
-        if self.allow_relegation:
-            folds = self.compute_folds(quest_node.objective, selected_nodes)
-            for diff_str, obj, from_transition_index, to_transition_index in folds:
-                fold_action = f"Sub Task: {diff_str}"
-                self.extra_actions[fold_action] = obj
-                pivots[from_transition_index][2].append(fold_action)
-                train_data.append((fold_action, from_transition_index, to_transition_index))
+
+        folds = self.compute_folds(quest_node.objective, selected_nodes)
+        for diff_str, obj, from_transition_index, to_transition_index in folds:
+            fold_action = f"Sub Task: {diff_str}"
+            self.extra_actions[fold_action] = obj
+            pivots[from_transition_index][2].append(fold_action)
+            train_data.append((fold_action, from_transition_index, to_transition_index))
 
         # add extra actions
         all_action_list = list(self.action_set.union(self.extra_actions.keys()))
@@ -170,7 +169,7 @@ class Persona:
             #     start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
             #     end_context_mark = pivots[to_transition_index][1]
             #     for i in range(from_transition_index, to_transition_index + 1):
-            #         sub_pivots.append((0 if i < to_transition_index else 10, pivots[i][1] - start_context_mark, pivots[i][2]))
+            #         sub_pivots.append((0 if i < to_transition_index else 100, pivots[i][1] - start_context_mark, pivots[i][2]))
             #         sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
             #     self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
@@ -205,6 +204,8 @@ class Persona:
             #     if len(action_obj) > 0:
             #         action_str = f"Sub Task: {diff_str}"
             #         last_node.train_ref.selected_action = action_str
+            #         last_node.train_ref.selected_action_rank = -1
+            #         last_node.train_ref.available_actions.add(action_str)
             #         self.extra_actions[action_str] = action_obj
 
         train_last_node = False

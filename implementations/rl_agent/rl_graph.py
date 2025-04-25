@@ -55,7 +55,7 @@ class Quest_Node(RL_Node):
         contexts = []
         contexts.append(f"Sub Task: {self.objective}")
         if self.result is not None:
-            contexts.append(f"Result: {self.result}")
+            contexts.append(f"Result: {"Succeeded" if self.result else "Failed"}")
         elif self.truncated:
             contexts.append(f"Result: Truncated")
         contexts.append(f"Observation: {self.end_observation.get_context()}")
