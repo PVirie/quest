@@ -19,51 +19,9 @@ torch.autograd.set_detect_anomaly(False)
 class Hierarchy_Q(Hierarchy_Base):
 
     def __init__(self, input_size, device) -> None:
-        super().__init__(device)
-        self.model = Model(input_size=input_size, hidden_size=128, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.0001)
-
-
-    def save(self, dir_path):
-        torch.save(self.model.state_dict(), os.path.join(dir_path, "model.pth"))
-        torch.save(self.optimizer.state_dict(), os.path.join(dir_path, "optimizer.pth"))
-        super().save(dir_path)
-
-
-    def load(self, dir_path):
-        result = super().load(dir_path)
-        if not result:
-            return result
-        self.model.load_state_dict(torch.load(os.path.join(dir_path, "model.pth"), map_location=self.device))
-        self.optimizer.load_state_dict(torch.load(os.path.join(dir_path, "optimizer.pth"), map_location=self.device))
-        return True
-
-
-    def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
-        # action_list_tensor has shape (all_action_length, action_size)
-        n_context = state_tensor.size(0)
-        
-        with torch.no_grad():
-            objective_tensor = torch.reshape(objective_tensor, [1, -1])
-            state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
-            action_list_tensor = torch.reshape(action_list_tensor, [1, 1, -1, action_list_tensor.size(1)])
-            pivot_positions = torch.tensor([[n_context - 1]], dtype=torch.int64, device=self.device) # shape: (1, 1)
-
-            self.model.eval()
-            action_scores, _ = self.model(objective_tensor, state_tensor, action_list_tensor, pivot_positions)
-            action_scores = action_scores[0, 0, :]
-
-            if sample_action:
-                # sample
-                probs = softmax_with_temperature(action_scores, temperature=2.0, dim=0)  # n_actions
-                index = torch.multinomial(probs, num_samples=1).item() # 1
-                rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
-            else:
-                # greedy
-                index = torch.argmax(action_scores, dim=0).item()
-                rank = 1
-
-        return Value_Action(action_list[index], rank, self.iteration)
+        model = Model(input_size=input_size, hidden_size=128, device=device)
+        optimizer = optim.Adam(self.model.parameters(), 0.0001)
+        super().__init__(model=model, optimizer=optimizer, device=device)
 
 
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):

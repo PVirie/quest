@@ -9,6 +9,8 @@ import torch
 import torch.nn as nn
 from torch import optim
 
+from implementations.core.torch.base import softmax_with_temperature
+
 torch.autograd.set_detect_anomaly(False)
 
 
@@ -31,8 +33,10 @@ class Hierarchy_Base:
     GAMMA = 0.97
     MAX_CONTEXT_SIZE = 256
 
-    def __init__(self, device):
+    def __init__(self, model, optimizer, device):
         self.device = device
+        self.model = model
+        self.optimizer = optimizer
 
         self.ave_loss = 0
         self.iteration = 0
@@ -48,6 +52,8 @@ class Hierarchy_Base:
 
 
     def save(self, dir_path):
+        torch.save(self.model.state_dict(), os.path.join(dir_path, "model.pth"))
+        torch.save(self.optimizer.state_dict(), os.path.join(dir_path, "optimizer.pth"))
         torch.save({
             'iteration': self.iteration,
             'ave_loss': self.ave_loss,
@@ -57,6 +63,8 @@ class Hierarchy_Base:
     def load(self, dir_path):
         if not os.path.exists(os.path.join(dir_path, "state.pth")):
             return False
+        self.model.load_state_dict(torch.load(os.path.join(dir_path, "model.pth"), map_location=self.device))
+        self.optimizer.load_state_dict(torch.load(os.path.join(dir_path, "optimizer.pth"), map_location=self.device))
         state = torch.load(os.path.join(dir_path, "state.pth"))
         self.iteration = state['iteration']
         self.ave_loss = state['ave_loss']
@@ -115,9 +123,32 @@ class Hierarchy_Base:
     
 
     def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
-        raise NotImplementedError("act() is not implemented in base class")
+        # action_list_tensor has shape (all_action_length, action_size)
+        n_context = state_tensor.size(0)
+        
+        with torch.no_grad():
+            objective_tensor = torch.reshape(objective_tensor, [1, -1])
+            state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
+            action_list_tensor = torch.reshape(action_list_tensor, [1, 1, -1, action_list_tensor.size(1)])
+            pivot_positions = torch.tensor([[n_context - 1]], dtype=torch.int64, device=self.device) # shape: (1, 1)
 
+            self.model.eval()
+            action_scores, _ = self.model(objective_tensor, state_tensor, action_list_tensor, pivot_positions)
+            action_scores = action_scores[0, 0, :]
 
+            if sample_action:
+                # sample
+                probs = softmax_with_temperature(action_scores, temperature=1.0, dim=0)  # n_actions
+                index = torch.multinomial(probs, num_samples=1).item() # 1
+                rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
+            else:
+                # greedy
+                index = torch.argmax(action_scores, dim=0).item()
+                rank = 1
+
+        return Value_Action(action_list[index], rank, self.iteration)
+    
+    
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
         raise NotImplementedError("train() is not implemented in base class")
 
