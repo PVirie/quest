@@ -20,7 +20,7 @@ class Hierarchy_Q(Hierarchy_Base):
 
     def __init__(self, input_size, device) -> None:
         model = Model(input_size=input_size, hidden_size=128, device=device)
-        optimizer = optim.Adam(self.model.parameters(), 0.0001)
+        optimizer = optim.Adam(model.parameters(), 0.0001)
         super().__init__(model=model, optimizer=optimizer, device=device)
 
 
