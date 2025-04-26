@@ -417,18 +417,23 @@ if __name__ == "__main__":
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
     rl_core = Model(input_size=MAX_VOCAB_SIZE, device=device)
 
-    persona = Persona(rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval=goal_pursuit_eval, action_parser=parse_transition)
+    persona = Persona(
+        rl_core, 
+        tokenizer, 
+        compute_folds, 
+        env_step, 
+        goal_pursuit_eval=goal_pursuit_eval, 
+        action_parser=parse_transition, 
+        relegation_probability=0.4,
+    )
 
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
         persona.set_allow_relegation(False)
         play(env, persona, nb_episodes=2000, verbose=True)
-        for i in range(100):
-            persona.set_allow_relegation(False)
-            play(env, persona, nb_episodes=100, verbose=True)
-            persona.set_allow_relegation(True)
-            play(env, persona, nb_episodes=100, verbose=True)
+        persona.set_allow_relegation(True)
+        play(env, persona, nb_episodes=10000, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
