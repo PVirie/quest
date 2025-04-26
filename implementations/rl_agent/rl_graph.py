@@ -78,6 +78,16 @@ class Quest_Node(RL_Node):
     def eval(self, obs):
         return self.eval_func(self, obs)
     
+    def last_child_succeeded(self):
+        if len(self.children) == 0:
+            return True
+        last_child = self.children[-1]
+        if isinstance(last_child, self.__class__):
+            return last_child.result is not None and last_child.result
+        else:
+            # other type of node, assume success
+            return True
+
     def context_length(self):
         # does not count Quest_Node type
         num_children = len(self.children)

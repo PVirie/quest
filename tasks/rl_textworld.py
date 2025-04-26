@@ -193,7 +193,12 @@ def env_eval(node, obs):
     done = obs.done
     infos = obs.info
 
-    if infos["won"]:
+    if done and not node.last_child_succeeded():
+        # if the last child is not success, do not account the score
+        terminated = False
+        truncated = True
+        result = None
+    elif infos["won"]:
         terminated = True
         truncated = False
         result = "Success"
@@ -227,7 +232,12 @@ def goal_pursuit_eval(node, obs):
     max_score = len(target_transition)
     mdp_score = max_score - score_diff  - cl_len * 0.02
 
-    if target_transition == progress_transition:
+    if done and not node.last_child_succeeded():
+        # if the last child is not success, do not account the score
+        terminated = False
+        truncated = True
+        result = None
+    elif target_transition == progress_transition:
         terminated = True
         truncated = False
         result = "Success"
