@@ -28,7 +28,7 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, allow_relegation=True, train_prompt=None):
+    def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, allow_relegation=True, relegation_probability=0.25, train_prompt=None):
         self.rl_core = rl_core
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
@@ -36,6 +36,7 @@ class Persona:
         self.goal_pursuit_eval = goal_pursuit_eval
         self.action_parser = action_parser
         self.allow_relegation = allow_relegation
+        self.relegation_probability = relegation_probability
         self.action_set = set()
         self.extra_actions = {}
 
@@ -238,7 +239,7 @@ class Persona:
                 # must check less than and diff to prevent infinite loop
                 valid_extra_actions.add(key)
         available_actions = selectible_action_set.union(valid_extra_actions)
-        if self.allow_relegation:
+        if self.allow_relegation and random.random() < self.relegation_probability:
             selectible_action_set.update(valid_extra_actions)
 
         lm_response = ""
