@@ -189,7 +189,7 @@ class Textworld_State(mdp_state.MDP_State):
 
 def env_eval(node, obs):
     cl_len = node.context_length()
-    mdp_score = obs.score - cl_len * 0.05
+    mdp_score = obs.score - cl_len * cl_len * 0.001
     done = obs.done
     infos = obs.info
 
@@ -230,7 +230,7 @@ def goal_pursuit_eval(node, obs):
     score_diff = target_transition.delta(progress_transition)
     cl_len = node.context_length()
     max_score = len(target_transition)
-    mdp_score = max_score - score_diff  - cl_len * 0.02
+    mdp_score = max_score - score_diff  - cl_len * cl_len * 0.001
 
     if done and not node.last_child_succeeded():
         # if the last child is not success, do not account the score
