@@ -431,10 +431,9 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=2000, allow_relegation=False, verbose=True)
-        # play(env, persona, nb_episodes=10000, allow_relegation=True, verbose=True)
+        play(env, persona, nb_episodes=10000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
-    play(env, persona, nb_episodes=100, allow_relegation=False, verbose=True, verbose_step=20)
+    play(env, persona, nb_episodes=100, allow_relegation=True, verbose=True, verbose_step=20)
     env.close()
