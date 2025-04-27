@@ -28,15 +28,14 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, allow_relegation=True, relegation_probability=0.25, train_prompt=None):
+    def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, training_relegation_probability=0.25, train_prompt=None):
         self.rl_core = rl_core
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
         self.env_step = env_step
         self.goal_pursuit_eval = goal_pursuit_eval
         self.action_parser = action_parser
-        self.allow_relegation = allow_relegation
-        self.relegation_probability = relegation_probability
+        self.training_relegation_probability = training_relegation_probability
         self.action_set = set()
         self.extra_actions = {}
 
@@ -57,36 +56,53 @@ class Persona:
         self.training_mode = flag
 
 
-    def set_allow_relegation(self, flag):
-        self.allow_relegation = flag
+    def compute_should_allow_relegation(self, flag):
+        # if training_mode tosses a coin
+        # otherwise follow the flag
+        condition = (self.training_mode and random.random() < self.training_relegation_probability) or (not self.training_mode)
+        return flag and condition
 
 
     def save(self, path):
         # save the rl_core and the extra actions
-        rl_core_path = os.path.join(path, "rl_core")
-        os.makedirs(rl_core_path, exist_ok=True)
-        self.rl_core.save(rl_core_path)
         with open(os.path.join(path, "extra_actions.txt"), "w", encoding="utf-8") as f:
             for action in self.extra_actions.keys():
                 f.write(action[10:] + "\n")
 
+        tokenizer_path = os.path.join(path, "tokenizer")
+        os.makedirs(tokenizer_path, exist_ok=True)
+        self.tokenizer.save(tokenizer_path)
+
+        rl_core_path = os.path.join(path, "rl_core")
+        os.makedirs(rl_core_path, exist_ok=True)
+        self.rl_core.save(rl_core_path)
+
 
     def load(self, path):
-        if not os.path.exists(path):
+        extra_actions_path = os.path.join(path, "extra_actions.txt")
+        if not os.path.exists(extra_actions_path):
             return False
+        with open(extra_actions_path, "r", encoding="utf-8") as f:
+            action_keys = set([line.strip() for line in f.readlines()])
+            self.extra_actions = {f"Sub Task: {action}": self.action_parser(action) for action in action_keys}
         # load the rl_core and the extra actions
+        success = self.tokenizer.load(os.path.join(path, "tokenizer"))
+        if not success:
+            return False
         success = self.rl_core.load(os.path.join(path, "rl_core"))
-        if success:
-            with open(os.path.join(path, "extra_actions.txt"), "r", encoding="utf-8") as f:
-                action_keys = set([line.strip() for line in f.readlines()])
-                self.extra_actions = {f"Sub Task: {action}": self.action_parser(action) for action in action_keys}
+        if not success:
+            return False
         return success
 
 
     def print_context(self, quest_node, prefix=""):
         children = quest_node.get_children()
         objective_context, start_obs_context = quest_node.get_start_contexts()
-        contexts = [f"{prefix}{objective_context}", f"{prefix}{start_obs_context.replace("\n", f"\n{prefix}")}"]
+        contexts = [
+            f"{prefix}Relegation: {'enabled' if quest_node.allow_relegation else 'disabled'}",
+            f"{prefix}{objective_context}", 
+            f"{prefix}{start_obs_context.replace("\n", f"\n{prefix}")}"
+        ]
         last_score = 0
         for i, node in enumerate(children):
             node_contexts = node.get_context()
@@ -239,7 +255,7 @@ class Persona:
                 # must check less than and diff to prevent infinite loop
                 valid_extra_actions.add(key)
         available_actions = selectible_action_set.union(valid_extra_actions)
-        if self.allow_relegation and random.random() < self.relegation_probability:
+        if quest_node.allow_relegation:
             selectible_action_set.update(valid_extra_actions)
 
         lm_response = ""
@@ -282,12 +298,13 @@ class Persona:
 
         if command.startswith("Sub Task"):
             sub_objective = detail
-            return_sub_action = Sub_Action_Type.Relegate 
+            return_sub_action = Sub_Action_Type.Relegate
             return_node = Quest_Node(
-                objective=sub_objective,
-                eval_func=self.goal_pursuit_eval,
-                start_observation=last_observation,
-                train_ref=train_ref
+                objective = sub_objective,
+                eval_func = self.goal_pursuit_eval,
+                start_observation = last_observation,
+                train_ref = train_ref,
+                allow_relegation = self.compute_should_allow_relegation(quest_node.allow_relegation)
             )
             return return_sub_action, return_node
         elif command.startswith("Action"):
@@ -295,9 +312,9 @@ class Persona:
             last_observation = self.env_step(action)
             return_sub_action = Sub_Action_Type.Act
             return_node = Observation_Node(
-                action=action, 
-                observation=last_observation, 
-                train_ref=train_ref
+                action = action, 
+                observation = last_observation, 
+                train_ref = train_ref
             )
             return return_sub_action, return_node
 

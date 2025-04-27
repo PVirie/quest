@@ -38,7 +38,7 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
     
 
 class Quest_Node(RL_Node):
-    def __init__(self, objective=None, eval_func=None, start_observation=None, result=None, end_observation=None, truncated=False, train_ref=None):
+    def __init__(self, objective=None, eval_func=None, start_observation=None, result=None, end_observation=None, truncated=False, train_ref=None, allow_relegation=True):
         super().__init__()
         self.objective = objective
         self.eval_func = eval_func
@@ -47,6 +47,7 @@ class Quest_Node(RL_Node):
         self.end_observation = end_observation
         self.truncated = truncated
         self.train_ref = train_ref
+        self.allow_relegation = allow_relegation
 
     def get_start_contexts(self):
         return f"Objective: {self.objective}", f"Observation: {self.start_observation.get_context()}"

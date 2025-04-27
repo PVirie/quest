@@ -189,7 +189,7 @@ class Textworld_State(mdp_state.MDP_State):
 
 def env_eval(node, obs):
     cl_len = node.context_length()
-    mdp_score = obs.score - cl_len * cl_len * 0.001
+    mdp_score = obs.score - cl_len * 0.02
     done = obs.done
     infos = obs.info
 
@@ -230,7 +230,7 @@ def goal_pursuit_eval(node, obs):
     score_diff = target_transition.delta(progress_transition)
     cl_len = node.context_length()
     max_score = len(target_transition)
-    mdp_score = max_score - score_diff  - cl_len * cl_len * 0.001
+    mdp_score = max_score - score_diff  - cl_len * 0.02
 
     if done and not node.last_child_succeeded():
         # if the last child is not success, do not account the score
@@ -278,7 +278,7 @@ def compute_folds(objective, state_scores):
     return [(st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
 
 
-def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
+def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, verbose_step=10):
     
     with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
         # mark date
@@ -311,7 +311,8 @@ def play(env, persona, nb_episodes=10, verbose=False, verbose_step=10):
         root_node = rl_graph.Quest_Node(
             objective = objective,
             eval_func = eval_func,
-            start_observation = Textworld_State(obs, score, done, infos)
+            start_observation = Textworld_State(obs, score, done, infos),
+            allow_relegation=persona.compute_should_allow_relegation(allow_relegation),
         )
         working_memory = Quest_Graph(root_node)
 
@@ -418,24 +419,22 @@ if __name__ == "__main__":
     rl_core = Model(input_size=MAX_VOCAB_SIZE, device=device)
 
     persona = Persona(
-        rl_core, 
-        tokenizer, 
-        compute_folds, 
-        env_step, 
-        goal_pursuit_eval=goal_pursuit_eval, 
-        action_parser=parse_transition, 
-        relegation_probability=0.4,
+        rl_core,
+        tokenizer,
+        compute_folds,
+        env_step,
+        goal_pursuit_eval=goal_pursuit_eval,
+        action_parser=parse_transition,
+        training_relegation_probability=0.4
     )
 
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        persona.set_allow_relegation(False)
-        play(env, persona, nb_episodes=2000, verbose=True)
-        persona.set_allow_relegation(True)
-        play(env, persona, nb_episodes=10000, verbose=True)
+        play(env, persona, nb_episodes=2000, allow_relegation=False, verbose=True)
+        # play(env, persona, nb_episodes=10000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
-    play(env, persona, nb_episodes=100, verbose=True, verbose_step=20)
+    play(env, persona, nb_episodes=100, allow_relegation=False, verbose=True, verbose_step=20)
     env.close()
