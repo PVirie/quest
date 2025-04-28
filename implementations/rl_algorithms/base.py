@@ -29,14 +29,14 @@ class Value_Action:
 
 
 class Hierarchy_Base:
-    LOG_ALPHA = 0.95
-    GAMMA = 0.97
     MAX_CONTEXT_SIZE = 256
 
-    def __init__(self, model, optimizer, device):
+    def __init__(self, model, optimizer, device, gamma=0.97, log_alpha=0.95):
         self.device = device
         self.model = model
         self.optimizer = optimizer
+        self.GAMMA = gamma
+        self.LOG_ALPHA = log_alpha
 
         self.ave_loss = 0
         self.iteration = 0

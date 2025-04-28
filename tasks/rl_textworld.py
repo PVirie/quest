@@ -202,7 +202,10 @@ def env_eval(node, obs):
         terminated = True
         truncated = False
         result = "Success"
-        mdp_score = mdp_score + 100
+        if cl_len < 2:
+            mdp_score = mdp_score - 1
+        else:
+            mdp_score = mdp_score + 100
     elif infos["lost"]:
         terminated = True
         truncated = False
@@ -241,7 +244,10 @@ def goal_pursuit_eval(node, obs):
         terminated = True
         truncated = False
         result = "Success"
-        mdp_score = mdp_score + 100
+        if cl_len < 2:
+            mdp_score = mdp_score - 1
+        else:
+            mdp_score = mdp_score + 100
     elif done:
         terminated = False
         truncated = True
@@ -334,11 +340,11 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
             continue
         score, _, _, _ = eval_func(root_node, root_node.end_observation)
 
-        num_children, num_quest_node = root_node.total_context_length()
+        num_children, num_quest_node, max_context, min_context = root_node.compute_statistics()
         stat_n_moves.append(num_children)
         stat_scores.append(score)
         stat_mean_context_length.append(num_children / num_quest_node if num_quest_node > 0 else 0)
-        stat_max_context_length.append(root_node.max_context_length())
+        stat_max_context_length.append(max_context)
 
         if verbose and no_episode % verbose_step == 0:
             # cl means context length

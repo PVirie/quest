@@ -94,24 +94,23 @@ class Quest_Node(RL_Node):
         num_children = len(self.children)
         return num_children
     
-    def total_context_length(self):
+    def compute_statistics(self):
         num_children = len(self.children)
         num_quest_node = 1 if num_children > 0 else 0
+        max_children = len(self.children)
+        min_children = len(self.children)
         for child in self.children:
             if isinstance(child, self.__class__):
-                cc, cn = child.total_context_length()
+                cc, cn, cm, cn = child.compute_statistics()
                 num_children += cc
                 num_quest_node += cn
-        return num_children, num_quest_node
-    
-    def max_context_length(self):
-        max_children = len(self.children)
-        for child in self.children:
-            if isinstance(child, self.__class__):
-                cc = child.max_context_length()
-                if cc > max_children:
-                    max_children = cc
-        return max_children
+                if cm > max_children:
+                    max_children = cm
+                if cn < min_children:
+                    min_children = cn
+        if num_quest_node == 0:
+            min_children = 0
+        return num_children, num_quest_node, max_children, min_children
     
 
 class Thought_Node(RL_Node):
