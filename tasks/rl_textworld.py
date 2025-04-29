@@ -188,15 +188,13 @@ class Textworld_State(mdp_state.MDP_State):
         return self.obs
 
 
-def env_eval(node):
-    last_child = node[-1]
-    obs = last_child.observation
+def env_eval(node, obs):
     n_action_node, _, n_quest_node = node.count_context_type()
     mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02
     done = obs.done
     infos = obs.info
 
-    if done and not last_child.is_success():
+    if done and not node.last_child_succeeded():
         # if the last child is not success, do not account the score
         terminated = False
         truncated = True
@@ -228,9 +226,7 @@ def env_eval(node):
     return mdp_score, terminated, truncated, result
 
 
-def goal_pursuit_eval(node):
-    last_child = node[-1]
-    obs = last_child.observation
+def goal_pursuit_eval(node, obs):
     done = obs.done
     objective = node.objective
     target_transition = parse_transition(objective)
@@ -240,7 +236,7 @@ def goal_pursuit_eval(node):
     max_score = len(target_transition)
     mdp_score = max_score - score_diff  - (n_action_node + n_quest_node) * 0.02
 
-    if done and not last_child.is_success():
+    if done and not node.last_child_succeeded():
         # if the last child is not success, do not account the score
         terminated = False
         truncated = True

@@ -184,12 +184,12 @@ class Persona:
                 end_context_mark = pivots[to_transition_index][1]
                 sub_quest_node = Quest_Node(
                     objective=diff_str,
-                    start_observation=quest_node[from_transition_index-1].observation if from_transition_index > 0 else quest_node.start_observation
+                    start_observation=supports[from_transition_index-1].observation if from_transition_index > 0 else quest_node.start_observation
                 )
                 sub_quest_node.parent = quest_node.parent
                 for i in range(from_transition_index, to_transition_index + 1):
-                    sub_quest_node.children = quest_node[from_transition_index:i]
-                    sub_mdp_score, _, _, _ = self.goal_pursuit_eval(sub_quest_node)
+                    sub_quest_node.children = supports[from_transition_index:i]
+                    sub_mdp_score, _, _, _ = self.goal_pursuit_eval(sub_quest_node, supports[i].observation)
                     sub_pivots.append((sub_mdp_score, pivots[i][1] - start_context_mark, pivots[i][2]))
                     sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
                 self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
@@ -214,7 +214,7 @@ class Persona:
                 continue
 
         if should_eval:
-            mdp_score, terminated, truncated, result = quest_node.eval()
+            mdp_score, terminated, truncated, result = quest_node.eval(last_observation)
             if len(supports) > 0:
                 # Because training has to update weight anyway, which violate the functional programming paradigm
                 # I'll just update the last child's mdp_score

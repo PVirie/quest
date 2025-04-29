@@ -35,13 +35,10 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
             return self.children[start:stop:step]
         else:
             # if key is an integer, return the child at that index
-            return self.children[key]
+            return self.children[key] if len(self.children) > 0 else None
 
     def get_context(self):
         raise NotImplementedError("get_context() not implemented")
-    
-    def is_success(self):
-        return True
     
 
 class Trainable:
@@ -50,16 +47,16 @@ class Trainable:
         self.observation = observation
 
 
-class Quest_Node(RL_Node):
+class Quest_Node(RL_Node, Trainable):
     def __init__(self, objective=None, eval_func=None, start_observation=None, result=None, observation=None, truncated=False, train_ref=None, allow_relegation=True):
-        super().__init__()
         self.objective = objective
         self.eval_func = eval_func
         self.start_observation = start_observation
         self.allow_relegation = allow_relegation
         self.result = result
         self.truncated = truncated
-        super().__init__(train_ref=train_ref, observation=observation)
+        Trainable.__init__(self, train_ref=train_ref, observation=observation)
+        RL_Node.__init__(self)
 
     def get_start_contexts(self):
         return f"Objective: {self.objective}", f"Observation: {self.start_observation.get_context()}"
@@ -88,11 +85,18 @@ class Quest_Node(RL_Node):
     def is_completed(self):
         return self.result is not None or self.truncated
     
-    def is_success(self):
-        return self.result is not None and self.result
+    def last_child_succeeded(self):
+        if len(self.children) == 0:
+            return True
+        last_child = self.children[-1]
+        if isinstance(last_child, self.__class__):
+            return last_child.result is not None and last_child.result
+        else:
+            # other type of node, assume success
+            return True
 
-    def eval(self):
-        return self.eval_func(self)
+    def eval(self, observation):
+        return self.eval_func(self, observation)
 
     def count_context_type(self):
         num_observation_node = 0
@@ -145,9 +149,9 @@ class Thought_Node(RL_Node):
 
 class Observation_Node(RL_Node, Trainable):
     def __init__(self, action=None, observation=None, train_ref=None):
-        super().__init__()
         self.action = action
-        super().__init__(train_ref=train_ref, observation=observation)
+        Trainable.__init__(self, train_ref=train_ref, observation=observation)
+        RL_Node.__init__(self)
 
     def get_context(self):
         contexts = []
