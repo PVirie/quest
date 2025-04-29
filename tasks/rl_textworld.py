@@ -31,6 +31,7 @@ os.makedirs(textworld_path, exist_ok=True)
 # tw-make tw-simple --rewards dense  --goal detailed --seed 18 --test --silent -f --output tw_games/tw-rewardsDense_goalBrief.z8
 tw_envs = {
     "custom_game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_path}/games/default/custom_game.z8"],
+    "custom_game_2": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "10", "--seed", "5678", "--output", f"{textworld_path}/games/default/custom_game_2.z8"],
     "tw-simple": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250401", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple.z8"]
 }
 for env_name, env_args in tw_envs.items():
@@ -124,7 +125,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         if self.new_location is not None:
             if self.new_location != other.new_location:
                 diff += 1
-        diff += len(self.added_items.symmetric_difference(other.added_items))
+        diff += len(self.added_items  - other.added_items)
         return diff
     
     
@@ -190,8 +191,8 @@ class Textworld_State(mdp_state.MDP_State):
 def env_eval(node):
     last_child = node[-1]
     obs = last_child.observation
-    cl_len = node.context_length()
-    mdp_score = obs.score - cl_len * 0.02
+    n_action_node, _, n_quest_node = node.count_context_type()
+    mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02
     done = obs.done
     infos = obs.info
 
@@ -204,8 +205,8 @@ def env_eval(node):
         terminated = True
         truncated = False
         result = "Success"
-        if cl_len < 2:
-            mdp_score = mdp_score - 1
+        if n_quest_node <= 2:
+            mdp_score = mdp_score + 1
         else:
             mdp_score = mdp_score + 100
     elif infos["lost"]:
@@ -235,9 +236,9 @@ def goal_pursuit_eval(node):
     target_transition = parse_transition(objective)
     progress_transition = obs - node.start_observation
     score_diff = target_transition.delta(progress_transition)
-    cl_len = node.context_length()
+    n_action_node, _, n_quest_node = node.count_context_type()
     max_score = len(target_transition)
-    mdp_score = max_score - score_diff  - cl_len * 0.02
+    mdp_score = max_score - score_diff  - (n_action_node + n_quest_node) * 0.02
 
     if done and not last_child.is_success():
         # if the last child is not success, do not account the score
@@ -248,7 +249,7 @@ def goal_pursuit_eval(node):
         terminated = True
         truncated = False
         result = "Success"
-        if cl_len < 2:
+        if n_action_node + n_quest_node <= 1:
             mdp_score = mdp_score - 1
         else:
             mdp_score = mdp_score + 100
@@ -388,7 +389,7 @@ if __name__ == "__main__":
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    game_path = f"{textworld_path}/games/default/tw-simple.z8"
+    game_path = tw_envs["tw-simple"][-1]
 
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.

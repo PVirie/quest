@@ -165,7 +165,7 @@ class Persona:
             fold_action = f"Sub Task: {diff_str}"
             self.extra_actions[fold_action] = obj
             pivots[from_transition_index][2].append(fold_action)
-            train_data.append((fold_action, from_transition_index, to_transition_index))
+            # train_data.append((fold_action, from_transition_index, to_transition_index))
 
         # add extra actions
         all_action_list = list(self.action_set.union(self.extra_actions.keys()))

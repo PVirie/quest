@@ -94,9 +94,18 @@ class Quest_Node(RL_Node):
     def eval(self):
         return self.eval_func(self)
 
-    def context_length(self):
-        num_children = len(self.children)
-        return num_children
+    def count_context_type(self):
+        num_observation_node = 0
+        num_thought_node = 0
+        num_quest_node = 0
+        for child in self.children:
+            if isinstance(child, Observation_Node):
+                num_observation_node += 1
+            elif isinstance(child, Thought_Node):
+                num_thought_node += 1
+            elif isinstance(child, Quest_Node):
+                num_quest_node += 1
+        return num_observation_node, num_thought_node, num_quest_node
     
     def compute_statistics(self):
         num_children = len(self.children)
