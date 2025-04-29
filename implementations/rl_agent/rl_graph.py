@@ -28,13 +28,20 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
     def get_children(self):
         return self.children
     
-    def get_last_child(self):
-        if len(self.children) == 0:
-            return None
-        return self.children[-1]
-    
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            # if key is a slice, return the children in that range
+            start, stop, step = key.start, key.stop, key.step
+            return self.children[start:stop:step]
+        else:
+            # if key is an integer, return the child at that index
+            return self.children[key]
+
     def get_context(self):
         raise NotImplementedError("get_context() not implemented")
+    
+    def is_success(self):
+        return True
     
 
 class Trainable:
@@ -81,29 +88,21 @@ class Quest_Node(RL_Node):
     def is_completed(self):
         return self.result is not None or self.truncated
     
-    def eval(self, obs):
-        return self.eval_func(self, obs)
-    
-    def last_child_succeeded(self):
-        if len(self.children) == 0:
-            return True
-        last_child = self.children[-1]
-        if isinstance(last_child, self.__class__):
-            return last_child.result is not None and last_child.result
-        else:
-            # other type of node, assume success
-            return True
+    def is_success(self):
+        return self.result is not None and self.result
+
+    def eval(self):
+        return self.eval_func(self)
 
     def context_length(self):
-        # does not count Quest_Node type
         num_children = len(self.children)
         return num_children
     
     def compute_statistics(self):
         num_children = len(self.children)
         num_quest_node = 1 if num_children > 0 else 0
-        max_children = len(self.children)
-        min_children = len(self.children)
+        max_children = num_children
+        min_children = num_children
         for child in self.children:
             if isinstance(child, self.__class__):
                 cc, cn, cm, cn = child.compute_statistics()

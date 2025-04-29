@@ -104,6 +104,13 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         self.count_diff = count_diff
 
 
+    def __str__(self):
+        if self.is_main:
+            return f"(Main) {self.objective}"
+        else:
+            return f"{self.objective}"
+    
+
     def __len__(self):
         return self.count_diff
     
@@ -119,13 +126,6 @@ class Textworld_Transition(mdp_state.MDP_Transition):
                 diff += 1
         diff += len(self.added_items.symmetric_difference(other.added_items))
         return diff
-    
-
-    def __str__(self):
-        if self.is_main:
-            return f"(Main) {self.objective}"
-        else:
-            return f"{self.objective}"
     
     
     def __lt__(self, other):
@@ -187,13 +187,15 @@ class Textworld_State(mdp_state.MDP_State):
         return self.obs
 
 
-def env_eval(node, obs):
+def env_eval(node):
+    last_child = node[-1]
+    obs = last_child.observation
     cl_len = node.context_length()
     mdp_score = obs.score - cl_len * 0.02
     done = obs.done
     infos = obs.info
 
-    if done and not node.last_child_succeeded():
+    if done and not last_child.is_success():
         # if the last child is not success, do not account the score
         terminated = False
         truncated = True
@@ -225,7 +227,9 @@ def env_eval(node, obs):
     return mdp_score, terminated, truncated, result
 
 
-def goal_pursuit_eval(node, last_index, start_index = -1):
+def goal_pursuit_eval(node):
+    last_child = node[-1]
+    obs = last_child.observation
     done = obs.done
     objective = node.objective
     target_transition = parse_transition(objective)
@@ -235,7 +239,7 @@ def goal_pursuit_eval(node, last_index, start_index = -1):
     max_score = len(target_transition)
     mdp_score = max_score - score_diff  - cl_len * 0.02
 
-    if done and not node.last_child_succeeded():
+    if done and not last_child.is_success():
         # if the last child is not success, do not account the score
         terminated = False
         truncated = True
