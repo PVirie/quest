@@ -225,7 +225,7 @@ def env_eval(node, obs):
     return mdp_score, terminated, truncated, result
 
 
-def goal_pursuit_eval(node, obs):
+def goal_pursuit_eval(node, last_index, start_index = -1):
     done = obs.done
     objective = node.objective
     target_transition = parse_transition(objective)
@@ -335,10 +335,10 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
             else:
                 raise ValueError("Invalid action")
 
-        if root_node.end_observation is None:
+        if root_node.observation is None:
             # error skip
             continue
-        score, _, _, _ = eval_func(root_node, root_node.end_observation)
+        score, _, _, _ = eval_func(root_node, root_node.observation)
 
         num_children, num_quest_node, max_context, min_context = root_node.compute_statistics()
         stat_n_moves.append(num_children)

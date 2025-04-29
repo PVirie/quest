@@ -1,6 +1,6 @@
 from enum import Enum
 from utilities.language_models import Language_Model, Chat, Chat_Message
-from .rl_graph import Quest_Node, Observation_Node, Thought_Node
+from .rl_graph import Trainable, Quest_Node, Observation_Node, Thought_Node
 import random
 import os
 
@@ -141,10 +141,7 @@ class Persona:
         i = 0
         while i < len(supports):
             node = supports[i]
-            if isinstance(node, Quest_Node):
-                rl_contexts.extend(node.get_context())
-                last_observation = node.end_observation
-            elif isinstance(node, Observation_Node):
+            if isinstance(node, Trainable):
                 rl_contexts.extend(node.get_context())
                 last_observation = node.observation
             else:
@@ -198,12 +195,9 @@ class Persona:
         objective_contexts = [objective_context]
         contexts = [start_obs_context]
         for node in supports:
-            if isinstance(node, Quest_Node):
+            if isinstance(node, Trainable):
                 contexts.extend(node.get_context())
-                last_observation = node.end_observation
-            elif isinstance(node, Observation_Node):
-                contexts.extend(node.get_context())
-                last_observation  = node.observation
+                last_observation = node.observation
             elif isinstance(node, Thought_Node):
                 contexts.extend(node.get_context())
                 continue
@@ -216,7 +210,7 @@ class Persona:
             last_node.train_ref.mdp_score = mdp_score
             # # now compute the correct Sub Task (sometimes, sub task does not follow the original objective)
             # if isinstance(last_node, Quest_Node):
-            #     action_obj = last_node.end_observation - last_node.start_observation
+            #     action_obj = last_node.observation - last_node.start_observation
             #     diff_str = str(action_obj)
             #     if len(action_obj) > 0:
             #         action_str = f"Sub Task: {diff_str}"
@@ -229,10 +223,10 @@ class Persona:
         if terminated:
             train_last_node = True
             return_sub_action = Sub_Action_Type.Fulfill
-            return_node = Quest_Node(result=result, end_observation=last_observation)
+            return_node = Quest_Node(result=result, observation=last_observation)
         elif truncated:
             return_sub_action = Sub_Action_Type.Done
-            return_node = Quest_Node(end_observation=last_observation, truncated=True)
+            return_node = Quest_Node(observation=last_observation, truncated=True)
 
         if self.training_mode:
             self.step += 1

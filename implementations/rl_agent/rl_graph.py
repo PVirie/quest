@@ -37,17 +37,22 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
         raise NotImplementedError("get_context() not implemented")
     
 
+class Trainable:
+    def __init__(self, train_ref=None, observation=None):
+        self.train_ref = train_ref
+        self.observation = observation
+
+
 class Quest_Node(RL_Node):
-    def __init__(self, objective=None, eval_func=None, start_observation=None, result=None, end_observation=None, truncated=False, train_ref=None, allow_relegation=True):
+    def __init__(self, objective=None, eval_func=None, start_observation=None, result=None, observation=None, truncated=False, train_ref=None, allow_relegation=True):
         super().__init__()
         self.objective = objective
         self.eval_func = eval_func
         self.start_observation = start_observation
-        self.result = result
-        self.end_observation = end_observation
-        self.truncated = truncated
-        self.train_ref = train_ref
         self.allow_relegation = allow_relegation
+        self.result = result
+        self.truncated = truncated
+        super().__init__(train_ref=train_ref, observation=observation)
 
     def get_start_contexts(self):
         return f"Objective: {self.objective}", f"Observation: {self.start_observation.get_context()}"
@@ -59,7 +64,7 @@ class Quest_Node(RL_Node):
             contexts.append(f"Result: {"Succeeded" if self.result else "Failed"}")
         elif self.truncated:
             contexts.append(f"Result: Truncated")
-        contexts.append(f"Observation: {self.end_observation.get_context()}")
+        contexts.append(f"Observation: {self.observation.get_context()}")
         return contexts
 
     def set(self, another):
@@ -68,8 +73,8 @@ class Quest_Node(RL_Node):
             return
         if another.result is not None:
             self.result = another.result
-        if another.end_observation is not None:
-            self.end_observation = another.end_observation
+        if another.observation is not None:
+            self.observation = another.observation
         if another.truncated is not None:
             self.truncated = another.truncated
             
@@ -130,12 +135,11 @@ class Thought_Node(RL_Node):
             self.thought = another.thought
 
 
-class Observation_Node(RL_Node):
+class Observation_Node(RL_Node, Trainable):
     def __init__(self, action=None, observation=None, train_ref=None):
         super().__init__()
         self.action = action
-        self.observation = observation
-        self.train_ref = train_ref
+        super().__init__(train_ref=train_ref, observation=observation)
 
     def get_context(self):
         contexts = []

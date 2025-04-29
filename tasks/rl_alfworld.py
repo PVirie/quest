@@ -90,14 +90,14 @@ def play(env, agent, nb_episodes=10, verbose=True, train=False):
         if verbose:
             print(".", end="")
 
-        if root_node.end_observation is not None:
-            score = root_node.end_observation[1]
+        if root_node.observation is not None:
+            score = root_node.observation[1]
         else:
             score = 0
             for node in reversed(root_node.get_children()):
                 if isinstance(node, rl_graph.Quest_Node):
-                    if node.end_observation is not None:
-                        score = node.end_observation[1]
+                    if node.observation is not None:
+                        score = node.observation[1]
                         break
                 elif isinstance(node, rl_graph.Observation_Node):
                     score = node.observation[1]
