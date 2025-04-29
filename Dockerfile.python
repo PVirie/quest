@@ -1,0 +1,13 @@
+FROM ubuntu:24.04
+
+RUN apt update
+RUN apt install -y python3 python3-pip python3-venv python3-dev
+RUN apt install -y build-essential libffi-dev curl git zip
+
+WORKDIR /app
+
+# install
+COPY ./requirements.txt /app/requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
+
+CMD ["python3", "-m", "debugpy", "--listen", "0.0.0.0:43690", "tasks/benchmark.py"]
