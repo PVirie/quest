@@ -182,13 +182,13 @@ class Persona:
                 sub_train_data = []
                 start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
                 end_context_mark = pivots[to_transition_index][1]
+                sub_quest_node = Quest_Node(
+                    objective=diff_str,
+                    start_observation=quest_node[from_transition_index-1].observation if from_transition_index > 0 else quest_node.start_observation
+                )
+                sub_quest_node.parent = quest_node.parent
                 for i in range(from_transition_index, to_transition_index + 1):
-                    sub_quest_node = Quest_Node(
-                        objective=diff_str,
-                        start_observation=quest_node[i-1].observation if i > 0 else quest_node.start_observation
-                    )
                     sub_quest_node.children = quest_node[from_transition_index:i]
-                    sub_quest_node.parent = quest_node.parent
                     sub_mdp_score, _, _, _ = self.goal_pursuit_eval(sub_quest_node)
                     sub_pivots.append((sub_mdp_score, pivots[i][1] - start_context_mark, pivots[i][2]))
                     sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
