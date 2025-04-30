@@ -177,21 +177,24 @@ class Persona:
             self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
             for diff_str, _, from_transition_index, to_transition_index in folds:
-                sub_objective_tensor = self.tokenizer([diff_str], stack=True)
-                sub_pivots = []
-                sub_train_data = []
-                start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
-                end_context_mark = pivots[to_transition_index][1]
                 sub_quest_node = Quest_Node(
                     objective=diff_str,
                     start_observation=supports[from_transition_index-1].observation if from_transition_index > 0 else quest_node.start_observation
                 )
                 sub_quest_node.parent = quest_node.parent
+                sub_objective_context, sub_start_obs_context = sub_quest_node.get_start_contexts()
+                sub_objective_tensor = self.tokenizer([sub_objective_context], stack=True)
+                last_sub_score = 0
+                sub_pivots = []
+                sub_train_data = []
+                start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
+                end_context_mark = pivots[to_transition_index][1]
                 for i in range(from_transition_index, to_transition_index + 1):
-                    sub_quest_node.children = supports[from_transition_index:i]
+                    sub_quest_node.children.append(supports[i])
                     sub_mdp_score, _, _, _ = self.goal_pursuit_eval(sub_quest_node, supports[i].observation)
-                    sub_pivots.append((sub_mdp_score, pivots[i][1] - start_context_mark, pivots[i][2]))
+                    sub_pivots.append((sub_mdp_score - last_sub_score, pivots[i][1] - start_context_mark, pivots[i][2]))
                     sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
+                    last_sub_score = sub_mdp_score
                 self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
 
@@ -213,6 +216,7 @@ class Persona:
                 should_eval = False
                 continue
 
+        ################# Evaluate current situation #################
         if should_eval:
             mdp_score, terminated, truncated, result = quest_node.eval(last_observation)
             if len(supports) > 0:
