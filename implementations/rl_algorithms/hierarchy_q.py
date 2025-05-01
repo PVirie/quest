@@ -18,10 +18,11 @@ torch.autograd.set_detect_anomaly(False)
 
 class Hierarchy_Q(Hierarchy_Base):
 
-    def __init__(self, input_size, device) -> None:
+    def __init__(self, input_size, device, entropy_weight=0.1, train_temperature=1.0) -> None:
         model = Model(input_size=input_size, hidden_size=128, device=device)
         optimizer = optim.Adam(model.parameters(), 0.0001)
-        super().__init__(model=model, optimizer=optimizer, device=device)
+        self.entropy_weight = entropy_weight
+        super().__init__(model=model, optimizer=optimizer, device=device, train_temperature=train_temperature)
 
 
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
@@ -97,7 +98,7 @@ class Hierarchy_Q(Hierarchy_Base):
         q_loss = (.5 * (current_scores - train_returns) ** 2.).sum()
         score_reg = (.5 * (action_scores) ** 2.).mean(dim=1).sum()
         entropy = (-probs * log_probs).sum(dim=1).sum()
-        loss = q_loss - 0.1 * entropy - 0.01 * score_reg
+        loss = q_loss - self.entropy_weight * entropy - 0.01 * score_reg
         is_nan = torch.isnan(loss)
         if is_nan:
             logging.warning("Loss is NaN, skipping training")

@@ -213,7 +213,7 @@ def env_eval(node, obs):
         terminated = True
         truncated = False
         result = "Failed"
-        mdp_score = mdp_score - 1
+        mdp_score = mdp_score - 2
     elif done:
         terminated = False
         truncated = True
@@ -389,7 +389,7 @@ if __name__ == "__main__":
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    game_path = tw_envs["cooking"][-1]
+    game_path = tw_envs["tw-simple"][-1]
 
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
@@ -427,7 +427,7 @@ if __name__ == "__main__":
 
     # from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, device=device)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, device=device, entropy_weight=0.1, train_temperature=1.0)
 
     persona = Persona(
         rl_core,
@@ -442,7 +442,7 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=2000, allow_relegation=False, verbose=True)
+        # play(env, persona, nb_episodes=5000, allow_relegation=False, verbose=True)
         play(env, persona, nb_episodes=5000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 

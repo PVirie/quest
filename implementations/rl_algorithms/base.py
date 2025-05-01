@@ -31,12 +31,13 @@ class Value_Action:
 class Hierarchy_Base:
     MAX_CONTEXT_SIZE = 256
 
-    def __init__(self, model, optimizer, device, gamma=0.97, log_alpha=0.95):
+    def __init__(self, model, optimizer, device, gamma=0.97, log_alpha=0.95, train_temperature=1.0):
         self.device = device
         self.model = model
         self.optimizer = optimizer
         self.GAMMA = gamma
         self.LOG_ALPHA = log_alpha
+        self.train_temperature = train_temperature
 
         self.ave_loss = 0
         self.iteration = 0
@@ -138,7 +139,7 @@ class Hierarchy_Base:
 
             if sample_action:
                 # sample
-                probs = softmax_with_temperature(action_scores, temperature=1.0, dim=0)  # n_actions
+                probs = softmax_with_temperature(action_scores, temperature=self.train_temperature, dim=0)  # n_actions
                 index = torch.multinomial(probs, num_samples=1).item() # 1
                 rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
             else:

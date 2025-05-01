@@ -17,10 +17,11 @@ torch.autograd.set_detect_anomaly(False)
 
 class Hierarchy_AC(Hierarchy_Base):
 
-    def __init__(self, input_size, device) -> None:
+    def __init__(self, input_size, device, entropy_weight=0.1, train_temperature=1.0) -> None:
         model = Model(input_size=input_size, hidden_size=128, device=device)
         optimizer = optim.Adam(model.parameters(), 0.0001)
-        super().__init__(model=model, optimizer=optimizer, device=device, gamma=0.97)
+        self.entropy_weight = entropy_weight
+        super().__init__(model=model, optimizer=optimizer, device=device, gamma=0.97, train_temperature=train_temperature)
 
 
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
@@ -94,7 +95,7 @@ class Hierarchy_AC(Hierarchy_Base):
         policy_loss = (-log_action_probs * train_advantages).sum()
         value_loss = (.5 * (train_state_values - train_returns) ** 2.).sum()
         entropy = (-probs * log_probs).sum(dim=1).sum()
-        loss = policy_loss + 0.5 * value_loss - 0.1 * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
+        loss = policy_loss + 0.5 * value_loss - self.entropy_weight * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
         is_nan = torch.isnan(loss)
         if is_nan:
             is_policy_loss_nan = torch.isnan(policy_loss).item()
