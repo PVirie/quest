@@ -61,6 +61,10 @@ class Persona:
         self.allow_relegation = flag
 
 
+    def compute_allow_relegation(self):
+        return self.allow_relegation and (random.random() < self.training_relegation_probability or not self.training_mode)
+
+
     def save(self, path):
         # save the rl_core and the extra actions
         with open(os.path.join(path, "extra_actions.txt"), "w", encoding="utf-8") as f:
@@ -217,9 +221,6 @@ class Persona:
                 should_eval = False
                 continue
         
-        if len(supports) == 0:
-            quest_node.allow_relegation = self.allow_relegation and (random.random() < self.training_relegation_probability or not self.training_mode)
-
         ################# Evaluate current situation #################
         if should_eval:
             mdp_score, terminated, truncated, result = quest_node.eval(last_observation)
@@ -307,7 +308,8 @@ class Persona:
                 objective = sub_objective,
                 eval_func = self.goal_pursuit_eval,
                 start_observation = last_observation,
-                train_ref = train_ref
+                train_ref = train_ref,
+                allow_relegation = self.compute_allow_relegation()
             )
             return return_sub_action, return_node
         elif command.startswith("Action"):
