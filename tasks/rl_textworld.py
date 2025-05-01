@@ -30,9 +30,11 @@ os.makedirs(textworld_path, exist_ok=True)
 # tw-make custom --world-size 5 --nb-objects 10 --quest-length 5 --seed 1234 --output tw_games/custom_game.z8
 # tw-make tw-simple --rewards dense  --goal detailed --seed 18 --test --silent -f --output tw_games/tw-rewardsDense_goalBrief.z8
 tw_envs = {
+    "tw-simple": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250401", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple.z8"],
     "custom_game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_path}/games/default/custom_game.z8"],
-    "custom_game_2": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "10", "--seed", "5678", "--output", f"{textworld_path}/games/default/custom_game_2.z8"],
-    "tw-simple": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250401", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple.z8"]
+    "treasure_hunter": ["tw-make", "tw-treasure_hunter", "--level", "15", "--seed", "5678", "--output", f"{textworld_path}/games/default/treasure_hunter.z8"],
+    "coin_collector": ["tw-make", "tw-coin_collector", "--level", "100", "--seed", "5678", "--output", f"{textworld_path}/games/default/coin_collector.z8"],
+    "cooking": ["tw-make", "tw-cooking", "--recipe", "4", "--take", "4", "--go", "6", "--open", "--cut", "--cook", "--recipe-seed", "20250401", "--output", f"{textworld_path}/games/default/cooking.z8"],
 }
 for env_name, env_args in tw_envs.items():
     env_path = env_args[-1]
@@ -387,7 +389,7 @@ if __name__ == "__main__":
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    game_path = tw_envs["tw-simple"][-1]
+    game_path = tw_envs["cooking"][-1]
 
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
