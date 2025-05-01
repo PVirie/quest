@@ -91,9 +91,9 @@ class Hierarchy_AC(Hierarchy_Base):
         log_probs = torch.log(probs)
         log_action_probs = torch.clamp(torch.gather(log_probs, 1, train_action_indexes), min=-8)
         log_action_probs = log_action_probs.flatten()
-        policy_loss = (-log_action_probs * train_advantages).mean()
-        value_loss = (.5 * (train_state_values - train_returns) ** 2.).mean()
-        entropy = (-probs * log_probs).sum(dim=1).mean()
+        policy_loss = (-log_action_probs * train_advantages).sum()
+        value_loss = (.5 * (train_state_values - train_returns) ** 2.).sum()
+        entropy = (-probs * log_probs).sum(dim=1).sum()
         loss = policy_loss + 0.5 * value_loss - 0.1 * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
         is_nan = torch.isnan(loss)
         if is_nan:

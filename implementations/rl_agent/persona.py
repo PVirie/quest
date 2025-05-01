@@ -1,5 +1,5 @@
 from enum import Enum
-from utilities.language_models import Language_Model, Chat, Chat_Message
+from utilities.language_models import Language_Model
 from .rl_graph import Trainable, Quest_Node, Observation_Node, Thought_Node
 import random
 import os
@@ -40,6 +40,7 @@ class Persona:
         self.extra_actions = {}
 
         self.training_mode = False
+        self.allow_relegation = True
 
         self.use_lm = False
         self.long_lm = None
@@ -56,11 +57,8 @@ class Persona:
         self.training_mode = flag
 
 
-    def compute_should_allow_relegation(self, flag):
-        # if training_mode tosses a coin
-        # otherwise follow the flag
-        condition = (self.training_mode and random.random() < self.training_relegation_probability) or (not self.training_mode)
-        return flag and condition
+    def set_allow_relegation(self, flag):
+        self.allow_relegation = flag
 
 
     def save(self, path):
@@ -176,6 +174,9 @@ class Persona:
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
             self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
+            if not self.allow_relegation:
+                return
+
             for diff_str, _, from_transition_index, to_transition_index in folds:
                 sub_quest_node = Quest_Node(
                     objective=diff_str,
@@ -215,6 +216,9 @@ class Persona:
                 contexts.extend(node.get_context())
                 should_eval = False
                 continue
+        
+        if len(supports) == 0:
+            quest_node.allow_relegation = self.allow_relegation and (random.random() < self.training_relegation_probability or not self.training_mode)
 
         ################# Evaluate current situation #################
         if should_eval:
@@ -224,16 +228,6 @@ class Persona:
                 # I'll just update the last child's mdp_score
                 last_node = supports[-1]
                 last_node.train_ref.mdp_score = mdp_score
-                # # now compute the correct Sub Task (sometimes, sub task does not follow the original objective)
-                # if isinstance(last_node, Quest_Node):
-                #     action_obj = last_node.observation - last_node.start_observation
-                #     diff_str = str(action_obj)
-                #     if len(action_obj) > 0:
-                #         action_str = f"Sub Task: {diff_str}"
-                #         last_node.train_ref.selected_action = action_str
-                #         last_node.train_ref.selected_action_rank = -1
-                #         last_node.train_ref.available_actions.add(action_str)
-                #         self.extra_actions[action_str] = action_obj
 
             train_last_node = False
             if terminated:
@@ -313,8 +307,7 @@ class Persona:
                 objective = sub_objective,
                 eval_func = self.goal_pursuit_eval,
                 start_observation = last_observation,
-                train_ref = train_ref,
-                allow_relegation = self.compute_should_allow_relegation(quest_node.allow_relegation)
+                train_ref = train_ref
             )
             return return_sub_action, return_node
         elif command.startswith("Action"):

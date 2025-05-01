@@ -204,7 +204,7 @@ def env_eval(node, obs):
         truncated = False
         result = "Success"
         if n_quest_node <= 2:
-            mdp_score = mdp_score + 1
+            mdp_score = mdp_score + 10
         else:
             mdp_score = mdp_score + 100
     elif infos["lost"]:
@@ -293,6 +293,8 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
         f.write(f"Date: {utilities.get_current_time_string()}\n")
         f.write(f"------------------------------------------------------------------------\n")
 
+    persona.set_allow_relegation(allow_relegation)
+
     # Collect some statistics: nb_steps, final reward.
     stat_n_moves = []
     stat_scores = []
@@ -319,7 +321,6 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
             objective = objective,
             eval_func = eval_func,
             start_observation = Textworld_State(obs, score, done, infos),
-            allow_relegation=persona.compute_should_allow_relegation(allow_relegation),
         )
         working_memory = Quest_Graph(root_node)
 
@@ -432,15 +433,15 @@ if __name__ == "__main__":
         env_step,
         goal_pursuit_eval=goal_pursuit_eval,
         action_parser=parse_transition,
-        training_relegation_probability=0.4
+        training_relegation_probability=0.5
     )
 
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=10000, allow_relegation=True, verbose=True)
+        play(env, persona, nb_episodes=2000, allow_relegation=False, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
-    play(env, persona, nb_episodes=100, allow_relegation=True, verbose=True, verbose_step=20)
+    play(env, persona, nb_episodes=100, allow_relegation=False, verbose=True, verbose_step=20)
     env.close()

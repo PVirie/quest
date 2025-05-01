@@ -94,9 +94,9 @@ class Hierarchy_Q(Hierarchy_Base):
         log_probs = torch.log(probs)
         current_scores = torch.gather(train_action_scores, 1, train_action_indexes)
         current_scores = current_scores.flatten()
-        q_loss = (.5 * (current_scores - train_returns) ** 2.).mean()
-        score_reg = (.5 * (action_scores) ** 2.).mean(dim=1).mean()
-        entropy = (-probs * log_probs).sum(dim=1).mean()
+        q_loss = (.5 * (current_scores - train_returns) ** 2.).sum()
+        score_reg = (.5 * (action_scores) ** 2.).mean(dim=1).sum()
+        entropy = (-probs * log_probs).sum(dim=1).sum()
         loss = q_loss - 0.1 * entropy - 0.01 * score_reg
         is_nan = torch.isnan(loss)
         if is_nan:
