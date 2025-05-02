@@ -196,7 +196,7 @@ class Persona:
                 end_context_mark = pivots[to_transition_index][1]
                 for i in range(from_transition_index, to_transition_index + 1):
                     sub_quest_node.children.append(supports[i])
-                    sub_mdp_score, _, _, _ = self.goal_pursuit_eval(sub_quest_node, supports[i].observation)
+                    sub_mdp_score, _, _, _, _ = self.goal_pursuit_eval(sub_quest_node, supports[i].observation)
                     sub_pivots.append((sub_mdp_score - last_sub_score, pivots[i][1] - start_context_mark, pivots[i][2]))
                     sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
                     last_sub_score = sub_mdp_score
@@ -223,12 +223,20 @@ class Persona:
         
         ################# Evaluate current situation #################
         if should_eval:
-            mdp_score, terminated, truncated, result = quest_node.eval(last_observation)
+            mdp_score, terminated, truncated, result, new_objective = quest_node.eval(last_observation)
             if len(supports) > 0:
                 # Because training has to update weight anyway, which violate the functional programming paradigm
                 # I'll just update the last child's mdp_score
                 last_node = supports[-1]
                 last_node.train_ref.mdp_score = mdp_score
+                if new_objective is not None:
+                    # increase end goal discover speed
+                    new_action = f"Sub Task: {new_objective}"
+                    last_node.objective = new_objective
+                    last_node.train_ref.selected_action = new_action
+                    last_node.train_ref.selected_action_rank = -1
+                    last_node.train_ref.available_actions.add(new_action)
+                    self.extra_actions[new_action] = self.action_parser(new_objective)
 
             train_last_node = False
             if terminated:

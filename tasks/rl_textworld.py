@@ -73,9 +73,14 @@ def extract_inventory(infos):
 def parse_transition(objective):
     if "(Main)" in objective:
         is_main = True
+        is_rush_goal = False
         objective = objective.replace("(Main) ", "")
+    elif "Rush goal" in objective:
+        is_main = False
+        is_rush_goal = True
     else:
         is_main = False
+        is_rush_goal = False
     
     # find Go to {location}( and Find {item1} , {item2} ...)*( and Use {item1} , {item2} ...)*
     go_to = None
@@ -87,14 +92,15 @@ def parse_transition(objective):
         elif part.startswith("Find "):
             find_items = [item.strip() for item in part.replace("Find ", "").split(",") if item.strip() != ""]
 
-    return Textworld_Transition(go_to, set(find_items), is_main=is_main)
+    return Textworld_Transition(go_to, set(find_items), is_main=is_main, is_rush_goal=is_rush_goal)
 
 
 class Textworld_Transition(mdp_state.MDP_Transition):
-    def __init__(self, new_location=None, added_items=set(), is_main=False):
+    def __init__(self, new_location=None, added_items=set(), is_main=False, is_rush_goal=False):
         self.new_location = new_location
         self.added_items = set(added_items)
         self.is_main = is_main
+        self.is_rush_goal = is_rush_goal
 
         count_diff = 0
         differences = []
@@ -122,6 +128,8 @@ class Textworld_Transition(mdp_state.MDP_Transition):
     
 
     def __eq__(self, other):
+        if self.is_rush_goal:
+            return False
         return self.delta(other) == 0
     
 
@@ -139,6 +147,9 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         # item change < location change < None
         if other.is_main:
             return True
+        elif self.is_rush_goal or other.is_rush_goal:
+            # rush goal allow no sub task, nor be a sub task of anyone but the root
+            return False
         elif self.new_location is None and other.new_location is not None:
             return True
         elif self.new_location is not None:
@@ -161,6 +172,8 @@ class Textworld_Transition(mdp_state.MDP_Transition):
     
 
     def applicable_from(self, state):
+        if self.is_rush_goal:
+            return True
         diff = 0
         if self.new_location is not None and self.new_location != state.location:
             diff += 1
@@ -198,29 +211,40 @@ def env_eval(node, obs):
     mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02
     done = obs.done
     infos = obs.info
-
+    override_objective = None
     if done and not node.last_child_succeeded():
-        # if the last child is not success, do not account the score
-        terminated = False
-        truncated = True
-        result = None
-    elif infos["won"]:
-        terminated = True
-        truncated = False
-        result = "Success"
-        if n_quest_node <= 2:
-            mdp_score = mdp_score + 10
+        if infos["won"]:
+            # override last_child objective
+            override_objective = "Rush goal"
+            terminated = True
+            truncated = False
+            result = "Success"
+            if n_quest_node <= 2:
+                mdp_score = mdp_score + 10
+            else:
+                mdp_score = mdp_score + 100
         else:
-            mdp_score = mdp_score + 100
-    elif infos["lost"]:
-        terminated = True
-        truncated = False
-        result = "Failed"
-        mdp_score = mdp_score - 1
+            terminated = False
+            truncated = True
+            result = None
     elif done:
-        terminated = False
-        truncated = True
-        result = None
+        if infos["won"]:
+            terminated = True
+            truncated = False
+            result = "Success"
+            if n_quest_node <= 2:
+                mdp_score = mdp_score + 10
+            else:
+                mdp_score = mdp_score + 100
+        elif infos["lost"]:
+            terminated = True
+            truncated = False
+            result = "Failed"
+            mdp_score = mdp_score - 1
+        else:
+            terminated = False
+            truncated = True
+            result = None
     else:
         terminated = False
         truncated = False
@@ -228,11 +252,12 @@ def env_eval(node, obs):
     # mdp_score, terminated, truncated, result
     # mdp_score is the main env score
     # fulfill is for sub task, success 
-    return mdp_score, terminated, truncated, result
+    return mdp_score, terminated, truncated, result, override_objective
 
 
 def goal_pursuit_eval(node, obs):
     done = obs.done
+    infos = obs.info
     objective = node.objective
     target_transition = parse_transition(objective)
     progress_transition = obs - node.start_observation
@@ -240,13 +265,8 @@ def goal_pursuit_eval(node, obs):
     n_action_node, _, n_quest_node = node.count_context_type()
     max_score = len(target_transition)
     mdp_score = max_score - score_diff  - (n_action_node + n_quest_node) * 0.02
-
-    if done and not node.last_child_succeeded():
-        # if the last child is not success, do not account the score
-        terminated = False
-        truncated = True
-        result = None
-    elif target_transition == progress_transition:
+    override_objective = None
+    if target_transition == progress_transition:
         terminated = True
         truncated = False
         result = "Success"
@@ -257,16 +277,28 @@ def goal_pursuit_eval(node, obs):
         else:
             mdp_score = mdp_score + 100
     elif done:
-        terminated = False
-        truncated = True
-        result = None
+        if node.objective == "Rush goal":
+            if infos["won"]:
+                terminated = True
+                truncated = False
+                result = "Success"
+                mdp_score = mdp_score + 100
+            else:
+                terminated = True
+                truncated = False
+                result = "Failed"
+                mdp_score = mdp_score - 1
+        else:
+            terminated = False
+            truncated = True
+            result = None
     else:
         terminated = False
         truncated = False
         result = None
 
     # mdp_score, terminated, truncated, result
-    return mdp_score, terminated, truncated, result
+    return mdp_score, terminated, truncated, result, override_objective
 
 
 def compute_folds(objective, state_scores):
@@ -348,7 +380,7 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
         if root_node.observation is None:
             # error skip
             continue
-        score, _, _, _ = eval_func(root_node, root_node.observation)
+        score, _, _, _, _ = eval_func(root_node, root_node.observation)
 
         num_children, num_quest_node, max_context, min_context = root_node.compute_statistics()
         stat_n_moves.append(num_children)
@@ -394,7 +426,7 @@ if __name__ == "__main__":
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    game_path = tw_envs["tw-simple"][-1]
+    game_path = tw_envs["custom-game-2"][-1]
 
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
@@ -447,7 +479,6 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=5000, allow_relegation=False, verbose=True)
         play(env, persona, nb_episodes=5000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 

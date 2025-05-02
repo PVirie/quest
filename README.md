@@ -100,8 +100,9 @@ Apart from the above environment variables, you must also include _third-party A
     -   [x] Check learnining on done within the sub-task
 -   [x] Infinite loop prevention
     -   [x] Contracting sub-task filter
+-   [x] Sub task parallel training
 -   [x] Target goal A but finith with goal B
-    -   [x] Recompute the actual goal after sub-task end
+    -   [x] Reassign the actual goal after sub-task end
 
 ### Backends
 

@@ -16,9 +16,9 @@ torch.autograd.set_detect_anomaly(False)
 
 class Value_Action:
     def __init__(self, selected_action, selected_rank:int = -1, iteration=0):
+        self.mdp_score = None
         self.selected_action = selected_action
         self.selected_action_rank = selected_rank
-        self.mdp_score = None
         self.available_actions = None
 
         self.has_released = False
