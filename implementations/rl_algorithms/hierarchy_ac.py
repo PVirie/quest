@@ -17,9 +17,9 @@ torch.autograd.set_detect_anomaly(False)
 
 class Hierarchy_AC(Hierarchy_Base):
 
-    def __init__(self, input_size, device, entropy_weight=0.1, train_temperature=1.0) -> None:
-        model = Model(input_size=input_size, hidden_size=128, device=device)
-        optimizer = optim.Adam(model.parameters(), 0.0001)
+    def __init__(self, input_size, hidden_size, device, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0) -> None:
+        model = Model(input_size=input_size, hidden_size=hidden_size, device=device)
+        optimizer = optim.Adam(model.parameters(), learning_rate)
         self.entropy_weight = entropy_weight
         super().__init__(model=model, optimizer=optimizer, device=device, gamma=0.97, train_temperature=train_temperature)
 
@@ -101,8 +101,11 @@ class Hierarchy_AC(Hierarchy_Base):
             is_policy_loss_nan = torch.isnan(policy_loss).item()
             is_value_loss_nan = torch.isnan(value_loss).item()
             is_entropy_nan = torch.isnan(entropy).item()
-            logging.warning(f"Skipping training: policy nan {is_policy_loss_nan}, value nan {is_value_loss_nan}, entropy nan {is_entropy_nan}")
-            return
+            if not is_policy_loss_nan and not is_value_loss_nan:
+                loss = policy_loss + 0.5 * value_loss
+            else:
+                logging.warning(f"Skipping nan: policy nan {is_policy_loss_nan}, value nan {is_value_loss_nan}, entropy nan {is_entropy_nan}")
+                return
 
         loss.backward()
         nn.utils.clip_grad_norm_(self.model.parameters(), 40)

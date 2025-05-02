@@ -105,7 +105,8 @@ class Model(nn.Module):
         # state_values, _ = torch.topk(qs, top_k, dim=2, largest=True, sorted=False)
         # state_values = torch.mean(state_values, dim=2, keepdim=False)
         # use softmax
-        sfm = torch.nn.functional.softmax(qs, dim=2)
+        with torch.no_grad():
+            sfm = torch.nn.functional.softmax(qs, dim=2)
         state_values = torch.sum(sfm * qs, dim=2, keepdim=False)
 
         return qs, state_values

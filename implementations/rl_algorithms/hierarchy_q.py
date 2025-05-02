@@ -6,8 +6,7 @@ import os
 import logging
 
 from implementations.core.torch.qformers import Model
-from implementations.core.torch.base import softmax_with_temperature
-from .base import Value_Action, Hierarchy_Base
+from .base import Hierarchy_Base
 
 import torch
 import torch.nn as nn
@@ -18,9 +17,9 @@ torch.autograd.set_detect_anomaly(False)
 
 class Hierarchy_Q(Hierarchy_Base):
 
-    def __init__(self, input_size, device, entropy_weight=0.1, train_temperature=1.0) -> None:
-        model = Model(input_size=input_size, hidden_size=128, device=device)
-        optimizer = optim.Adam(model.parameters(), 0.0001)
+    def __init__(self, input_size, hidden_size, device, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0) -> None:
+        model = Model(input_size=input_size, hidden_size=hidden_size, device=device)
+        optimizer = optim.Adam(model.parameters(), learning_rate)
         self.entropy_weight = entropy_weight
         super().__init__(model=model, optimizer=optimizer, device=device, train_temperature=train_temperature)
 
@@ -92,13 +91,12 @@ class Hierarchy_Q(Hierarchy_Base):
 
         # use vector instead of loops
         probs = torch.nn.functional.softmax(train_action_scores, dim=1)
-        log_probs = torch.log(probs)
+        log_probs = torch.log(probs + 1e-8)
         current_scores = torch.gather(train_action_scores, 1, train_action_indexes)
         current_scores = current_scores.flatten()
         q_loss = (.5 * (current_scores - train_returns) ** 2.).sum()
-        score_reg = (.5 * (action_scores) ** 2.).mean(dim=1).sum()
         entropy = (-probs * log_probs).sum(dim=1).sum()
-        loss = q_loss - self.entropy_weight * entropy - 0.01 * score_reg
+        loss = q_loss - self.entropy_weight * entropy
         is_nan = torch.isnan(loss)
         if is_nan:
             logging.warning("Loss is NaN, skipping training")

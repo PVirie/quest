@@ -30,11 +30,14 @@ os.makedirs(textworld_path, exist_ok=True)
 # tw-make custom --world-size 5 --nb-objects 10 --quest-length 5 --seed 1234 --output tw_games/custom_game.z8
 # tw-make tw-simple --rewards dense  --goal detailed --seed 18 --test --silent -f --output tw_games/tw-rewardsDense_goalBrief.z8
 tw_envs = {
-    "tw-simple": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250401", "--test", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple.z8"],
-    "custom_game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "1234", "--output", f"{textworld_path}/games/default/custom_game.z8"],
-    "treasure_hunter": ["tw-make", "tw-treasure_hunter", "--level", "15", "--seed", "5678", "--output", f"{textworld_path}/games/default/treasure_hunter.z8"],
-    "coin_collector": ["tw-make", "tw-coin_collector", "--level", "100", "--seed", "5678", "--output", f"{textworld_path}/games/default/coin_collector.z8"],
+    "tw-simple": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250401", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple.z8"],
+    "tw-simple-2": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250402", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-2.z8"],
+    "custom-game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "20250401", "--output", f"{textworld_path}/games/default/custom-game.z8"],
+    "custom-game-2": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "10", "--seed", "20250402", "--output", f"{textworld_path}/games/default/custom-game-2.z8"],
+    "treasure_hunter": ["tw-make", "tw-treasure_hunter", "--level", "15", "--seed", "20250401", "--output", f"{textworld_path}/games/default/treasure_hunter.z8"],
+    "coin_collector": ["tw-make", "tw-coin_collector", "--level", "100", "--seed", "20250401", "--output", f"{textworld_path}/games/default/coin_collector.z8"],
     "cooking": ["tw-make", "tw-cooking", "--recipe", "4", "--take", "4", "--go", "6", "--open", "--cut", "--cook", "--recipe-seed", "20250401", "--output", f"{textworld_path}/games/default/cooking.z8"],
+    "cooking-2": ["tw-make", "tw-cooking", "--recipe", "3", "--take", "3", "--go", "6", "--cook", "--recipe-seed", "20250402", "--output", f"{textworld_path}/games/default/cooking-2.z8"],
 }
 for env_name, env_args in tw_envs.items():
     env_path = env_args[-1]
@@ -213,7 +216,7 @@ def env_eval(node, obs):
         terminated = True
         truncated = False
         result = "Failed"
-        mdp_score = mdp_score - 2
+        mdp_score = mdp_score - 1
     elif done:
         terminated = False
         truncated = True
@@ -249,6 +252,8 @@ def goal_pursuit_eval(node, obs):
         result = "Success"
         if n_action_node + n_quest_node <= 1:
             mdp_score = mdp_score - 1
+        elif n_quest_node <= 0:
+            mdp_score = mdp_score + 10
         else:
             mdp_score = mdp_score + 100
     elif done:
@@ -427,7 +432,7 @@ if __name__ == "__main__":
 
     # from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, device=device, entropy_weight=0.1, train_temperature=1.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0)
 
     persona = Persona(
         rl_core,
@@ -442,7 +447,7 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        # play(env, persona, nb_episodes=5000, allow_relegation=False, verbose=True)
+        play(env, persona, nb_episodes=5000, allow_relegation=False, verbose=True)
         play(env, persona, nb_episodes=5000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 
