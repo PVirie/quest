@@ -5,7 +5,7 @@ import random
 import os
 import logging
 
-from implementations.core.torch.transformers import Model
+from implementations.core.torch.actformers import Model
 from .base import Hierarchy_Base
 
 import torch

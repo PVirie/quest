@@ -73,6 +73,8 @@ class Hierarchy_Q(Hierarchy_Base):
         train_to_indexes = torch.tensor([p for _, _, p in train_data], dtype=torch.int64, device=self.device)
         train_action_scores = torch.gather(action_scores, 0, train_from_indexes.unsqueeze(-1).expand(-1, max_available_actions))
 
+        train_state_values = torch.gather(state_values, 0, train_from_indexes)
+
         # now specialize truncated end
         if not train_last_node:
             last_value = state_values[-1].item()
@@ -82,16 +84,16 @@ class Hierarchy_Q(Hierarchy_Base):
             state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
 
         with torch.no_grad():
-            #  compute returns = rewards + self.gammas * next_state_q, but for all from to pivot
-            # all_returns = self._compute_snake_ladder_2(rewards, state_values)
-            # train_returns = all_returns[train_from_indexes, train_to_indexes]
+            #  compute returns = rewards + gamma * next_state_q, but for all from to pivot
+            # all_returns_2 = self._compute_snake_ladder_2(rewards, state_values)
+            # train_returns_2 = all_returns_2[train_from_indexes, train_to_indexes]
 
             all_returns = self._compute_snake_ladder(rewards, last_value)
             train_returns = all_returns[train_from_indexes, train_to_indexes]
 
         # use vector instead of loops
         probs = torch.nn.functional.softmax(train_action_scores, dim=1)
-        log_probs = torch.log(probs + 1e-8)
+        log_probs = torch.log(probs)
         current_scores = torch.gather(train_action_scores, 1, train_action_indexes)
         current_scores = current_scores.flatten()
         q_loss = (.5 * (current_scores - train_returns) ** 2.).sum()
@@ -99,8 +101,13 @@ class Hierarchy_Q(Hierarchy_Base):
         loss = q_loss - self.entropy_weight * entropy
         is_nan = torch.isnan(loss)
         if is_nan:
-            logging.warning("Loss is NaN, skipping training")
-            return
+            is_q_loss_nan = torch.isnan(q_loss).item()
+            is_entropy_nan = torch.isnan(entropy).item()
+            if not is_q_loss_nan:
+                loss = q_loss
+            else:
+                logging.warning(f"Skipping nan: q loss nan {is_q_loss_nan}, entropy nan {is_entropy_nan}")
+                return
 
         loss.backward()
         nn.utils.clip_grad_norm_(self.model.parameters(), 40)
