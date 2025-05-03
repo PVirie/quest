@@ -31,7 +31,7 @@ class Model(nn.Module):
 
         self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 2, device=device)
 
-        self.pe = positional_encoding(256, hidden_size).to(device) # 256 is the maximum length of the context
+        self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
 
 
     def forward(self, objectives, observations, actions, pivot_positions):

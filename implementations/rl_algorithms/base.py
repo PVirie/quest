@@ -29,7 +29,7 @@ class Value_Action:
 
 
 class Hierarchy_Base:
-    MAX_CONTEXT_SIZE = 256
+    MAX_CONTEXT_SIZE = 512
 
     def __init__(self, model, optimizer, device, gamma=0.97, log_alpha=0.95, train_temperature=1.0):
         self.device = device

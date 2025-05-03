@@ -88,13 +88,13 @@ class Persona:
             action_keys = set([line.strip() for line in f.readlines()])
             self.extra_actions = {f"Sub Task: {action}": self.action_parser(action) for action in action_keys}
         # load the rl_core and the extra actions
-        success = self.tokenizer.load(os.path.join(path, "tokenizer"))
-        if not success:
+        succeeded = self.tokenizer.load(os.path.join(path, "tokenizer"))
+        if not succeeded:
             return False
-        success = self.rl_core.load(os.path.join(path, "rl_core"))
-        if not success:
+        succeeded = self.rl_core.load(os.path.join(path, "rl_core"))
+        if not succeeded:
             return False
-        return success
+        return succeeded
 
 
     def print_context(self, quest_node, prefix=""):
@@ -223,7 +223,7 @@ class Persona:
         
         ################# Evaluate current situation #################
         if should_eval:
-            mdp_score, terminated, truncated, result, new_objective = quest_node.eval(last_observation)
+            mdp_score, terminated, truncated, succeeded, new_objective = quest_node.eval(last_observation)
             if len(supports) > 0:
                 # Because training has to update weight anyway, which violate the functional programming paradigm
                 # I'll just update the last child's mdp_score
@@ -242,7 +242,7 @@ class Persona:
             if terminated:
                 train_last_node = True
                 return_sub_action = Sub_Action_Type.Fulfill
-                return_node = Quest_Node(result=result, observation=last_observation)
+                return_node = Quest_Node(succeeded=succeeded, observation=last_observation)
             elif truncated:
                 return_sub_action = Sub_Action_Type.Done
                 return_node = Quest_Node(observation=last_observation, truncated=True)

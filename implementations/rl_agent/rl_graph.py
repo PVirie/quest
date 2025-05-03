@@ -48,12 +48,12 @@ class Trainable:
 
 
 class Quest_Node(RL_Node, Trainable):
-    def __init__(self, objective=None, eval_func=None, start_observation=None, result=None, observation=None, truncated=False, train_ref=None, allow_relegation=True):
+    def __init__(self, objective=None, eval_func=None, start_observation=None, succeeded=None, observation=None, truncated=False, train_ref=None, allow_relegation=True):
         self.objective = objective
         self.eval_func = eval_func
         self.start_observation = start_observation
         self.allow_relegation = allow_relegation
-        self.result = result
+        self.succeeded = succeeded
         self.truncated = truncated
         Trainable.__init__(self, train_ref=train_ref, observation=observation)
         RL_Node.__init__(self)
@@ -64,8 +64,8 @@ class Quest_Node(RL_Node, Trainable):
     def get_context(self):
         contexts = []
         contexts.append(f"Sub Task: {self.objective}")
-        if self.result is not None:
-            contexts.append(f"Result: {"Succeeded" if self.result else "Failed"}")
+        if self.succeeded is not None:
+            contexts.append(f"Result: {"Succeeded" if self.succeeded else "Failed"}")
         elif self.truncated:
             contexts.append(f"Result: Truncated")
         contexts.append(f"Observation: {self.observation.get_context()}")
@@ -75,24 +75,24 @@ class Quest_Node(RL_Node, Trainable):
         # check same class
         if not isinstance(another, self.__class__):
             return
-        if another.result is not None:
-            self.result = another.result
+        if another.succeeded is not None:
+            self.succeeded = another.succeeded
         if another.observation is not None:
             self.observation = another.observation
         if another.truncated is not None:
             self.truncated = another.truncated
             
     def is_completed(self):
-        return self.result is not None or self.truncated
+        return self.succeeded is not None or self.truncated
     
     def last_child_succeeded(self):
         if len(self.children) == 0:
             return True
         last_child = self.children[-1]
         if isinstance(last_child, self.__class__):
-            return last_child.result is not None and last_child.result
+            return last_child.succeeded is not None and last_child.succeeded
         else:
-            # other type of node, assume success
+            # other type of node, assume succeed
             return True
 
     def eval(self, observation):

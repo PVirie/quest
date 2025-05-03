@@ -56,7 +56,7 @@ class Model(nn.Module):
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.q_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
 
-        self.pe = positional_encoding(256, hidden_size).to(device) # 256 is the maximum length of the context
+        self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
 
 
     def forward(self, objectives, observations, actions, pivot_positions):
