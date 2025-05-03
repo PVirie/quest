@@ -144,7 +144,8 @@ class Textworld_Transition(mdp_state.MDP_Transition):
     
     def __lt__(self, other):
         # test of stictly less than
-        # item change < location change < None
+        # item change < location change < main
+        # rush goal < main
         if other.is_main:
             return True
         elif self.is_rush_goal or other.is_rush_goal:
@@ -218,7 +219,7 @@ def env_eval(node, obs):
             override_objective = "Rush goal"
             terminated = True
             truncated = False
-            result = "Success"
+            succeeded = True
             if n_quest_node <= 2:
                 mdp_score = mdp_score + 10
             else:
@@ -226,12 +227,12 @@ def env_eval(node, obs):
         else:
             terminated = False
             truncated = True
-            result = None
+            succeeded = None
     elif done:
         if infos["won"]:
             terminated = True
             truncated = False
-            result = "Success"
+            succeeded = True
             if n_quest_node <= 2:
                 mdp_score = mdp_score + 10
             else:
@@ -239,20 +240,18 @@ def env_eval(node, obs):
         elif infos["lost"]:
             terminated = True
             truncated = False
-            result = "Failed"
+            succeeded = False
             mdp_score = mdp_score - 1
         else:
             terminated = False
             truncated = True
-            result = None
+            succeeded = None
     else:
         terminated = False
         truncated = False
-        result = None
-    # mdp_score, terminated, truncated, result
-    # mdp_score is the main env score
-    # fulfill is for sub task, success 
-    return mdp_score, terminated, truncated, result, override_objective
+        succeeded = None
+    
+    return mdp_score, terminated, truncated, succeeded, override_objective
 
 
 def goal_pursuit_eval(node, obs):
@@ -269,7 +268,7 @@ def goal_pursuit_eval(node, obs):
     if target_transition == progress_transition:
         terminated = True
         truncated = False
-        result = "Success"
+        succeeded = True
         if n_action_node + n_quest_node <= 1:
             mdp_score = mdp_score - 1
         elif n_quest_node <= 0:
@@ -281,24 +280,23 @@ def goal_pursuit_eval(node, obs):
             if infos["won"]:
                 terminated = True
                 truncated = False
-                result = "Success"
+                succeeded = True
                 mdp_score = mdp_score + 100
             else:
                 terminated = True
                 truncated = False
-                result = "Failed"
+                succeeded = False
                 mdp_score = mdp_score - 1
         else:
             terminated = False
             truncated = True
-            result = None
+            succeeded = None
     else:
         terminated = False
         truncated = False
-        result = None
-
-    # mdp_score, terminated, truncated, result
-    return mdp_score, terminated, truncated, result, override_objective
+        succeeded = None
+    
+    return mdp_score, terminated, truncated, succeeded, override_objective
 
 
 def compute_folds(objective, state_scores):
