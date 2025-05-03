@@ -97,12 +97,12 @@ Apart from the above environment variables, you must also include _third-party A
     -   [x] Gradient clipping
 -   [x] Hierarchical RL
     -   [x] Score conversion when up-hierarchy
-    -   [x] Check learnining on done within the sub-task
+    -   [x] Check learnining on done within the sub-problem
 -   [x] Infinite loop prevention
-    -   [x] Contracting sub-task filter
--   [x] Sub task parallel training
--   [x] Target goal A but finith with goal B
-    -   [x] Reassign the actual goal after sub-task end
+    -   [x] Contracting sub-problem filter
+-   [x] Sub-problem parallel training
+-   [x] The process ends under the sub-problem
+    -   [x] Reassign the surrogate rush goal after sub-problem end
 
 ### Backends
 
@@ -121,8 +121,9 @@ Apart from the above environment variables, you must also include _third-party A
     -   [x] [TextWorld](https://github.com/microsoft/TextWorld) environment
     -   [x] [ALFWorld](https://github.com/alfworld/alfworld) environment
     -   [ ] [Textworld express] (https://github.com/cognitiveailab/TextWorldExpress) environment, to speed up simulation.
--   [x] Custom textworld reward structure
-    -   [x] Redefine textworld reward structure
+-   [x] Sub-problem reward structure
+    -   [x] Define textworld reward structure
+    -   [ ] Define ALFWorld reward structure
 
 ## Note
 
