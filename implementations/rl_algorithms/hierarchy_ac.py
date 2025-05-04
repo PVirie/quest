@@ -104,8 +104,9 @@ class Hierarchy_AC(Hierarchy_Base):
             is_policy_loss_nan = torch.isnan(policy_loss).item()
             is_value_loss_nan = torch.isnan(value_loss).item()
             is_entropy_nan = torch.isnan(entropy).item()
-            if not is_policy_loss_nan and not is_value_loss_nan:
-                loss = policy_loss + 0.5 * value_loss
+            if is_entropy_nan or is_policy_loss_nan:
+                # then only update the value
+                loss = 0.5 * value_loss 
             else:
                 logging.warning(f"Skipping nan: policy nan {is_policy_loss_nan}, value nan {is_value_loss_nan}, entropy nan {is_entropy_nan}")
                 return

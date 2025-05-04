@@ -84,8 +84,8 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] ReAct
 -   [x] ReAct with dynamic hierarchy
 -   [x] Transformer RL
-    -   [x] Actor-critic (a policy gradient method)
-    -   [x] Q-learning
+    -   [x] Actor-critic (a policy gradient method; **works well**, because it can auto-tune exploration and exploitation.)
+    -   [x] Q-learning (a value-based method; works but not as good as actor-critic, hard to tune exploration.)
 -   [ ] Positional encoding
     -   [x] Add PE to state, action, and context
     -   [ ] RoPE

@@ -446,11 +446,11 @@ if __name__ == "__main__":
         infos = flatten_batch(infos)
         return Textworld_State(obs, score, done, infos)
 
-    from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
+    # from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model
+    # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
 
-    # from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0)
+    from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.0001, entropy_weight=0.1, train_temperature=2.0)
 
     persona = Persona(
         rl_core,
@@ -465,9 +465,9 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=2000, allow_relegation=False, verbose=True)
+        play(env, persona, nb_episodes=2000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
-    play(env, persona, nb_episodes=100, allow_relegation=False, verbose=True, verbose_step=20)
+    play(env, persona, nb_episodes=100, allow_relegation=True, verbose=True, verbose_step=20)
     env.close()
