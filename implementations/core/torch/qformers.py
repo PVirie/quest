@@ -53,8 +53,7 @@ class Model(nn.Module):
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.q_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+        self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 1, device=device)
 
         self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
 
@@ -91,11 +90,9 @@ class Model(nn.Module):
         action_embedding = apply_transformer(self.action_decoder, torch.reshape(action_embedding, (-1, action_size, self.hidden_size)))
         action_embedding = torch.reshape(action_embedding[:, 0, :], (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
 
-        collapsed_pivot_state_internal = torch.reshape(pivot_state_internal, (-1, 1, self.hidden_size))
-        collapsed_actions = torch.reshape(action_embedding, (-1, n_actions, self.hidden_size))
-
-        qs = apply_transformer(self.q_decoder, collapsed_actions, memory=collapsed_pivot_state_internal)
-        qs = torch.reshape(qs, (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
+        # now cross product between the state_internal and the action_embedding
+        pre_actions = torch.reshape(self.actor(pivot_state_internal), (batch, n_pivots, self.hidden_size, 1)) # batch x n_pivots x hidden x 1
+        qs = torch.matmul(action_embedding, pre_actions) # batch x n_pivots x n_actions x 1
         qs = qs[:, :, :, 0] # batch x n_pivots x n_actions
 
         # state_values = torch.max(qs, dim=2, keepdim=False)[0] # batch x n_pivots

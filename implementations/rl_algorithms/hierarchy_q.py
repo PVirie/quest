@@ -17,11 +17,13 @@ torch.autograd.set_detect_anomaly(False)
 
 class Hierarchy_Q(Hierarchy_Base):
 
-    def __init__(self, input_size, hidden_size, device, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0) -> None:
+    def __init__(self, input_size, hidden_size, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0) -> None:
         model = Model(input_size=input_size, hidden_size=hidden_size, device=device)
         optimizer = optim.Adam(model.parameters(), learning_rate)
+        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5000, gamma=0.5) 
+        scheduler = None
         self.entropy_weight = entropy_weight
-        super().__init__(model=model, optimizer=optimizer, device=device, train_temperature=train_temperature)
+        super().__init__(model=model, optimizer=optimizer, scheduler=scheduler, device=device, discount_factor=discount_factor, train_temperature=train_temperature)
 
 
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
@@ -61,7 +63,9 @@ class Hierarchy_Q(Hierarchy_Base):
         available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(num_pivot, -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size)) # shape: (num_pivot, max_action_length, action_size)
         available_actions_by_context = torch.reshape(available_actions_by_context, [1, num_pivot, max_available_actions, action_size])
 
-        self.model.train()
+        # self.model.train()
+        # for rl using the model in eval mode to deactivate the normalization
+        self.model.eval()
         action_scores, values = self.model(objective_tensor, state_tensor, available_actions_by_context, torch.reshape(context_marks, (1, -1)))
         action_scores = action_scores[0, :, :] # shape: (num_pivot, max_available_actions)
         state_values = values[0, :] # shape: (num_pivot)
@@ -113,6 +117,8 @@ class Hierarchy_Q(Hierarchy_Base):
         nn.utils.clip_grad_norm_(self.model.parameters(), 40)
         self.optimizer.step()
         self.optimizer.zero_grad()
+        if self.scheduler is not None:
+            self.scheduler.step()
         self.iteration += 1
 
         self.ave_loss = self.LOG_ALPHA * self.ave_loss + (1 - self.LOG_ALPHA) * loss.item()

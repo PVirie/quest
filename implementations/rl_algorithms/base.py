@@ -31,11 +31,13 @@ class Value_Action:
 class Hierarchy_Base:
     MAX_CONTEXT_SIZE = 512
 
-    def __init__(self, model, optimizer, device, gamma=0.97, log_alpha=0.95, train_temperature=1.0):
+    def __init__(self, model, optimizer, scheduler, device, discount_factor=0.99, log_alpha=0.95, train_temperature=1.0):
         self.device = device
         self.model = model
         self.optimizer = optimizer
-        self.GAMMA = gamma
+        self.scheduler = scheduler
+
+        self.GAMMA = discount_factor
         self.LOG_ALPHA = log_alpha
         self.train_temperature = train_temperature
 
@@ -55,6 +57,8 @@ class Hierarchy_Base:
     def save(self, dir_path):
         torch.save(self.model.state_dict(), os.path.join(dir_path, "model.pth"))
         torch.save(self.optimizer.state_dict(), os.path.join(dir_path, "optimizer.pth"))
+        if self.scheduler is not None:
+            torch.save(self.scheduler.state_dict(), os.path.join(dir_path, "scheduler.pth"))
         torch.save({
             'iteration': self.iteration,
             'ave_loss': self.ave_loss,
@@ -66,6 +70,8 @@ class Hierarchy_Base:
             return False
         self.model.load_state_dict(torch.load(os.path.join(dir_path, "model.pth"), map_location=self.device))
         self.optimizer.load_state_dict(torch.load(os.path.join(dir_path, "optimizer.pth"), map_location=self.device))
+        if os.path.exists(os.path.join(dir_path, "scheduler.pth")):
+            self.scheduler.load_state_dict(torch.load(os.path.join(dir_path, "scheduler.pth"), map_location=self.device))
         state = torch.load(os.path.join(dir_path, "state.pth"))
         self.iteration = state['iteration']
         self.ave_loss = state['ave_loss']

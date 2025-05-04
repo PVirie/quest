@@ -213,23 +213,12 @@ def env_eval(node, obs):
     done = obs.done
     infos = obs.info
     override_objective = None
-    if done and not node.last_child_succeeded():
-        if infos["won"]:
-            # override last_child objective
-            override_objective = "Rush goal"
-            terminated = True
-            truncated = False
-            succeeded = True
-            if n_quest_node <= 2:
-                mdp_score = mdp_score + 10
-            else:
-                mdp_score = mdp_score + 100
-        else:
+    if done:
+        if not node.last_child_succeeded():
             terminated = False
             truncated = True
             succeeded = None
-    elif done:
-        if infos["won"]:
+        elif infos["won"]:
             terminated = True
             truncated = False
             succeeded = True
@@ -269,33 +258,19 @@ def goal_pursuit_eval(node, obs):
         terminated = True
         truncated = False
         succeeded = True
-        if n_action_node + n_quest_node <= 1:
-            mdp_score = mdp_score - 1
-        elif n_quest_node <= 0:
+        if n_quest_node == 0:
             mdp_score = mdp_score + 10
         else:
             mdp_score = mdp_score + 100
     elif done:
-        if node.objective == "Rush goal":
-            if infos["won"]:
-                terminated = True
-                truncated = False
-                succeeded = True
-                mdp_score = mdp_score + 100
-            else:
-                terminated = True
-                truncated = False
-                succeeded = False
-                mdp_score = mdp_score - 1
-        else:
-            terminated = False
-            truncated = True
-            succeeded = None
+        terminated = False
+        truncated = True
+        succeeded = None
     else:
         terminated = False
         truncated = False
         succeeded = None
-    
+
     return mdp_score, terminated, truncated, succeeded, override_objective
 
 
@@ -424,7 +399,7 @@ if __name__ == "__main__":
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    game_path = tw_envs["custom-game-2"][-1]
+    game_path = tw_envs["tw-simple"][-1]
 
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
@@ -462,7 +437,7 @@ if __name__ == "__main__":
 
     # from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0)
 
     persona = Persona(
         rl_core,
@@ -477,9 +452,9 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=5000, allow_relegation=True, verbose=True)
+        play(env, persona, nb_episodes=500, allow_relegation=False, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
-    play(env, persona, nb_episodes=100, allow_relegation=True, verbose=True, verbose_step=20)
+    play(env, persona, nb_episodes=100, allow_relegation=False, verbose=True, verbose_step=20)
     env.close()
