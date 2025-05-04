@@ -17,11 +17,14 @@ torch.autograd.set_detect_anomaly(False)
 
 class Hierarchy_Q(Hierarchy_Base):
 
-    def __init__(self, input_size, hidden_size, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0) -> None:
+    def __init__(self, input_size, hidden_size, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=0.1):
+        # Because q learning does not directly update the action probabaility distribution (as it only updates the q value),
+        # the reward from MDP therefore directly responsible for the action probability distribution.
+        # The temperature is then has to be tuned.
         model = Model(input_size=input_size, hidden_size=hidden_size, device=device)
         optimizer = optim.Adam(model.parameters(), learning_rate)
-        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5000, gamma=0.5) 
-        scheduler = None
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.5)
+        # scheduler = None
         self.entropy_weight = entropy_weight
         super().__init__(model=model, optimizer=optimizer, scheduler=scheduler, device=device, discount_factor=discount_factor, train_temperature=train_temperature)
 
@@ -63,9 +66,7 @@ class Hierarchy_Q(Hierarchy_Base):
         available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(num_pivot, -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size)) # shape: (num_pivot, max_action_length, action_size)
         available_actions_by_context = torch.reshape(available_actions_by_context, [1, num_pivot, max_available_actions, action_size])
 
-        # self.model.train()
-        # for rl using the model in eval mode to deactivate the normalization
-        self.model.eval()
+        self.model.train()
         action_scores, values = self.model(objective_tensor, state_tensor, available_actions_by_context, torch.reshape(context_marks, (1, -1)))
         action_scores = action_scores[0, :, :] # shape: (num_pivot, max_available_actions)
         state_values = values[0, :] # shape: (num_pivot)
@@ -88,19 +89,19 @@ class Hierarchy_Q(Hierarchy_Base):
             state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
 
         with torch.no_grad():
-            #  compute returns = rewards + gamma * next_state_q, but for all from to pivot
-            # all_returns_2 = self._compute_snake_ladder_2(rewards, state_values)
-            # train_returns_2 = all_returns_2[train_from_indexes, train_to_indexes]
+            # compute returns = rewards + gamma * next_state_q, but for all from to pivot
+            all_returns_2 = self._compute_snake_ladder_2(rewards, state_values)
+            train_td_returns = all_returns_2[train_from_indexes, train_to_indexes]
 
-            all_returns = self._compute_snake_ladder(rewards, last_value)
-            train_returns = all_returns[train_from_indexes, train_to_indexes]
+            # all_returns = self._compute_snake_ladder(rewards, last_value)
+            # train_mc_returns = all_returns[train_from_indexes, train_to_indexes]
 
         # use vector instead of loops
         probs = torch.nn.functional.softmax(train_action_scores, dim=1)
         log_probs = torch.log(probs)
         current_scores = torch.gather(train_action_scores, 1, train_action_indexes)
         current_scores = current_scores.flatten()
-        q_loss = (.5 * (current_scores - train_returns) ** 2.).sum()
+        q_loss = (.5 * (current_scores - train_td_returns) ** 2.).sum()
         entropy = (-probs * log_probs).sum(dim=1).sum()
         loss = q_loss - self.entropy_weight * entropy
         is_nan = torch.isnan(loss)

@@ -113,21 +113,21 @@ class Quest_Node(RL_Node, Trainable):
     
     def compute_statistics(self):
         num_children = len(self.children)
-        num_quest_node = 1 if num_children > 0 else 0
+        num_quest_nodes = 1
         max_children = num_children
         min_children = num_children
         for child in self.children:
             if isinstance(child, self.__class__):
-                cc, cn, cm, cn = child.compute_statistics()
-                num_children += cc
-                num_quest_node += cn
+                cc, cq, cm, cn = child.compute_statistics()
+                num_children += (cc - 1)
+                num_quest_nodes += cq
                 if cm > max_children:
                     max_children = cm
                 if cn < min_children:
                     min_children = cn
-        if num_quest_node == 0:
+        if num_quest_nodes == 0:
             min_children = 0
-        return num_children, num_quest_node, max_children, min_children
+        return num_children, num_quest_nodes, max_children, min_children
     
 
 class Thought_Node(RL_Node):

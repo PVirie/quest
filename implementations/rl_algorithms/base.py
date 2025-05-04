@@ -129,7 +129,7 @@ class Hierarchy_Base:
         return W
     
 
-    def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
+    def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True):
         # action_list_tensor has shape (all_action_length, action_size)
         n_context = state_tensor.size(0)
         

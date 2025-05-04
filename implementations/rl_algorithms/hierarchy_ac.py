@@ -6,7 +6,7 @@ import os
 import logging
 
 from implementations.core.torch.transformers import Model
-from .base import Hierarchy_Base
+from .base import Hierarchy_Base, softmax_with_temperature
 
 import torch
 import torch.nn as nn
@@ -63,9 +63,7 @@ class Hierarchy_AC(Hierarchy_Base):
         available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(num_pivot, -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size)) # shape: (num_pivot, max_action_length, action_size)
         available_actions_by_context = torch.reshape(available_actions_by_context, [1, num_pivot, max_available_actions, action_size])
         
-        # self.model.train()
-        # for rl using the model in eval mode to deactivate the normalization
-        self.model.eval()
+        self.model.train()
         action_scores, values = self.model(objective_tensor, state_tensor, available_actions_by_context, torch.reshape(context_marks, (1, -1)))
         action_scores = action_scores[0, :, :] # shape: (num_pivot, max_available_actions)
         state_values = values[0, :] # shape: (num_pivot)
@@ -88,16 +86,17 @@ class Hierarchy_AC(Hierarchy_Base):
 
         with torch.no_grad():
             all_returns = self._compute_snake_ladder(rewards, last_value)
-            train_returns = all_returns[train_from_indexes, train_to_indexes]
-            train_advantages = train_returns - train_state_values
+            train_mc_returns = all_returns[train_from_indexes, train_to_indexes]
+            train_advantages = train_mc_returns - train_state_values
 
         # use vector instead of loops
-        probs = torch.nn.functional.softmax(train_action_scores, dim=1)
+        probs = softmax_with_temperature(train_action_scores, temperature=self.train_temperature, dim=1)
+        # probs = torch.nn.functional.softmax(train_action_scores, dim=1)
         log_probs = torch.log(probs)
         log_action_probs = torch.clamp(torch.gather(log_probs, 1, train_action_indexes), min=-8)
         log_action_probs = log_action_probs.flatten()
         policy_loss = (-log_action_probs * train_advantages).sum()
-        value_loss = (.5 * (train_state_values - train_returns) ** 2.).sum()
+        value_loss = (.5 * (train_state_values - train_mc_returns) ** 2.).sum()
         entropy = (-probs * log_probs).sum(dim=1).sum()
         loss = policy_loss + 0.5 * value_loss - self.entropy_weight * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
         is_nan = torch.isnan(loss)
