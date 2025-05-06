@@ -291,7 +291,7 @@ class Persona:
         objective_tensor = self.tokenizer(objective_contexts, stack=True)
         state_tensor = self.tokenizer(rl_contexts, stack=True)
         action_list_tensor = self.tokenizer(selectible_action_set, stack=True)
-        train_ref = self.rl_core.act(objective_tensor, state_tensor, action_list_tensor, list(selectible_action_set), sample_action=self.training_mode)
+        train_ref = self.rl_core.act(objective_tensor, state_tensor, action_list_tensor, list(selectible_action_set), sample_action=True)
         train_ref.available_actions = available_actions
         rl_response = train_ref.selected_action
 

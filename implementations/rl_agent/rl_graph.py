@@ -85,12 +85,15 @@ class Quest_Node(RL_Node, Trainable):
     def is_completed(self):
         return self.succeeded is not None or self.truncated
     
+    def is_succeeded(self):
+        return self.succeeded is not None and self.succeeded
+    
     def last_child_succeeded(self):
         if len(self.children) == 0:
             return True
         last_child = self.children[-1]
         if isinstance(last_child, self.__class__):
-            return last_child.succeeded is not None and last_child.succeeded
+            return last_child.is_succeeded()
         else:
             # other type of node, assume succeed
             return True
@@ -102,6 +105,7 @@ class Quest_Node(RL_Node, Trainable):
         num_observation_node = 0
         num_thought_node = 0
         num_quest_node = 0
+        num_succeeded_quest_node = 0
         for child in self.children:
             if isinstance(child, Observation_Node):
                 num_observation_node += 1
@@ -109,7 +113,10 @@ class Quest_Node(RL_Node, Trainable):
                 num_thought_node += 1
             elif isinstance(child, Quest_Node):
                 num_quest_node += 1
-        return num_observation_node, num_thought_node, num_quest_node
+                if child.is_succeeded():
+                    num_succeeded_quest_node += 1
+        
+        return num_observation_node, num_thought_node, num_quest_node, num_succeeded_quest_node
     
     def compute_statistics(self):
         num_children = len(self.children)

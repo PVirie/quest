@@ -29,7 +29,7 @@ class Model(nn.Module):
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.q_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
 
-        self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 2, device=device)
+        self.critic = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 2, device=device)
 
         self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
 
@@ -60,7 +60,6 @@ class Model(nn.Module):
         state_internal = apply_transformer(self.state_decoder, obs_embedding, memory=objective_embedding, tgt_mask=causal_mask(n_contexts, self.device), tgt_is_causal=True) # batch x n_contexts x hidden
         
         pivot_state_internal = torch.gather(state_internal, 1, pivot_positions.unsqueeze(-1).expand(-1, -1, self.hidden_size)) # batch x n_pivots x hidden
-        values = self.critic(pivot_state_internal) # batch x n_pivots x 1
 
         action_embedding = self.embedding(actions) # batch x n_pivots x n_actions x action_size x hidden
         action_embedding = action_embedding + self.pe[:action_size, :] # add positional encoding
@@ -70,8 +69,23 @@ class Model(nn.Module):
         collapsed_pivot_state_internal = torch.reshape(pivot_state_internal, (-1, 1, self.hidden_size))
         collapsed_actions = torch.reshape(action_embedding, (-1, n_actions, self.hidden_size))
 
-        qs = apply_transformer(self.q_decoder, collapsed_actions, memory=collapsed_pivot_state_internal)
-        qs = torch.reshape(qs, (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
+        scores = apply_transformer(self.q_decoder, collapsed_actions, memory=collapsed_pivot_state_internal)
+        scores = torch.reshape(scores, (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
+        scores = scores[:, :, :, 0] # batch x n_pivots x n_actions
+
+        pre_qs = torch.reshape(self.critic(pivot_state_internal), (batch, n_pivots, self.hidden_size, 1)) # batch x n_pivots x hidden x 1
+        qs = torch.matmul(action_embedding, pre_qs) # batch x n_pivots x n_actions x 1
         qs = qs[:, :, :, 0] # batch x n_pivots x n_actions
 
-        return qs, values.squeeze(-1)
+        # state_values = torch.max(qs, dim=2, keepdim=False)[0] # batch x n_pivots
+        # state_values = torch.mean(qs, dim=2, keepdim=False) # batch x n_pivots; use means stabilize training
+        # use mean of top k instead
+        # top_k = min(4, n_actions)
+        # state_values, _ = torch.topk(qs, top_k, dim=2, largest=True, sorted=False)
+        # state_values = torch.mean(state_values, dim=2, keepdim=False)
+        # use softmax
+        with torch.no_grad():
+            sfm = torch.nn.functional.softmax(qs, dim=2)
+        state_values = torch.sum(sfm * qs, dim=2, keepdim=False)
+
+        return scores, state_values

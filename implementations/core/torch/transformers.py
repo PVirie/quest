@@ -26,7 +26,7 @@ class Model(nn.Module):
         self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
 
         self.critic = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 2, device=device)
-        self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 1, device=device)
+        self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 2, device=device)
 
         self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
 
