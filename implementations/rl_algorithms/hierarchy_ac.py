@@ -77,17 +77,19 @@ class Hierarchy_AC(Hierarchy_Base):
 
         train_state_values = torch.gather(state_values, 0, train_from_indexes)
 
-        # now specialize truncated end
-        if not train_last_node:
-            last_value = state_values[-1].item()
-            rewards = rewards[:-1]
-        else:
-            last_value = 0
-
         with torch.no_grad():
-            all_returns = self._compute_snake_ladder(rewards, last_value)
-            train_mc_returns = all_returns[train_from_indexes, train_to_indexes]
-            train_advantages = train_mc_returns - train_state_values
+            # now specialize truncated end
+            if not train_last_node:
+                last_value = state_values[-1].item()
+                rewards = rewards[:-1]
+            else:
+                last_value = 0
+                state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
+
+            # compute returns = rewards + gamma * next_state_q, but for all from to pivot
+            train_td_returns = self._compute_snake_ladder_2(rewards, state_values)[train_from_indexes, train_to_indexes]
+            train_mc_returns = self._compute_snake_ladder(rewards, last_value)[train_from_indexes, train_to_indexes]
+            train_advantages = train_td_returns - train_state_values
 
         # use vector instead of loops
         probs = softmax_with_temperature(train_action_scores, temperature=self.train_temperature, dim=1)
@@ -96,7 +98,7 @@ class Hierarchy_AC(Hierarchy_Base):
         log_action_probs = torch.clamp(torch.gather(log_probs, 1, train_action_indexes), min=-8)
         log_action_probs = log_action_probs.flatten()
         policy_loss = (-log_action_probs * train_advantages).sum()
-        value_loss = (.5 * (train_state_values - train_mc_returns) ** 2.).sum()
+        value_loss = (.5 * (train_state_values - train_td_returns) ** 2.).sum()
         entropy = (-probs * log_probs).sum(dim=1).sum()
         loss = policy_loss + 0.5 * value_loss - self.entropy_weight * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
         is_nan = torch.isnan(loss)

@@ -80,21 +80,18 @@ class Hierarchy_Q(Hierarchy_Base):
 
         train_state_values = torch.gather(state_values, 0, train_from_indexes)
 
-        # now specialize truncated end
-        if not train_last_node:
-            last_value = state_values[-1].item()
-            rewards = rewards[:-1]
-        else:
-            last_value = 0
-            state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
-
         with torch.no_grad():
-            # compute returns = rewards + gamma * next_state_q, but for all from to pivot
-            all_returns_2 = self._compute_snake_ladder_2(rewards, state_values)
-            train_td_returns = all_returns_2[train_from_indexes, train_to_indexes]
+            # now specialize truncated end
+            if not train_last_node:
+                last_value = state_values[-1].item()
+                rewards = rewards[:-1]
+            else:
+                last_value = 0
+                state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
 
-            # all_returns = self._compute_snake_ladder(rewards, last_value)
-            # train_mc_returns = all_returns[train_from_indexes, train_to_indexes]
+            # compute returns = rewards + gamma * next_state_q, but for all from to pivot
+            train_td_returns = self._compute_snake_ladder_2(rewards, state_values)[train_from_indexes, train_to_indexes]
+            train_mc_returns = self._compute_snake_ladder(rewards, last_value)[train_from_indexes, train_to_indexes]
 
         # use vector instead of loops
         probs = torch.nn.functional.softmax(train_action_scores, dim=1)
