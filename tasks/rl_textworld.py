@@ -222,7 +222,7 @@ def env_eval(node, obs):
             terminated = True
             truncated = False
             succeeded = True
-            if n_quest_node >= 3:
+            if n_succeeded_node >= 2:
                 mdp_score = mdp_score + 200
             else:
                 mdp_score = mdp_score + 100
@@ -230,7 +230,7 @@ def env_eval(node, obs):
             terminated = True
             truncated = False
             succeeded = False
-            mdp_score = mdp_score - 10
+            mdp_score = mdp_score - 1
         else:
             terminated = False
             truncated = True
@@ -263,17 +263,17 @@ def goal_pursuit_eval(node, obs):
             terminated = True
             truncated = False
             succeeded = True
-            mdp_score = mdp_score - 10
+            mdp_score = mdp_score - 1
         elif infos["lost"]:
             terminated = True
             truncated = False
             succeeded = False
-            mdp_score = mdp_score - 10
+            mdp_score = mdp_score - 1
         else:
             terminated = False
             truncated = True
             succeeded = False
-    elif n_action_node + n_quest_node >= 10:
+    elif n_action_node + n_quest_node >= 20:
         terminated = False
         truncated = True
         succeeded = False
@@ -452,7 +452,7 @@ if __name__ == "__main__":
     # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
 
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=256, device=device, discount_factor=0.97, learning_rate=0.00002, entropy_weight=0.1, train_temperature=2.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.0001, entropy_weight=0.1, train_temperature=2.0)
 
     persona = Persona(
         rl_core,
@@ -461,13 +461,14 @@ if __name__ == "__main__":
         env_step,
         goal_pursuit_eval=goal_pursuit_eval,
         action_parser=parse_transition,
-        training_relegation_probability=1.0
+        training_relegation_probability=0.4
     )
 
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=10000, allow_relegation=True, verbose=True)
+        play(env, persona, nb_episodes=2000, allow_relegation=False, verbose=True)
+        play(env, persona, nb_episodes=2000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
