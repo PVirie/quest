@@ -78,3 +78,16 @@ class Multilayer_Relu(nn.Module):
             x = F.relu(layer(x))
         x = self.layers[-1](x)
         return x
+
+
+class Res_Net(Multilayer_Relu):
+    def __init__(self, input_size, output_size, hidden_size, n_layers=1, device=None):
+        super(Res_Net, self).__init__(input_size, output_size, hidden_size, n_layers, device)
+
+    def forward(self, x):
+        for layer in self.layers[:-1]:
+            pre_x = x
+            x = F.relu(layer(x))
+            x = x + pre_x
+        x = self.layers[-1](x)
+        return x

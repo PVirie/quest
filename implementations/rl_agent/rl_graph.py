@@ -83,7 +83,7 @@ class Quest_Node(RL_Node, Trainable):
             self.truncated = another.truncated
             
     def is_completed(self):
-        return self.succeeded is not None or self.truncated
+        return self.succeeded is not None
     
     def is_succeeded(self):
         return self.succeeded is not None and self.succeeded
@@ -97,7 +97,7 @@ class Quest_Node(RL_Node, Trainable):
         else:
             # other type of node, assume succeed
             return True
-
+    
     def eval(self, observation):
         return self.eval_func(self, observation)
 

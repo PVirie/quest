@@ -157,12 +157,12 @@ class Textworld_Transition(mdp_state.MDP_Transition):
             # rush goal allow no sub task, nor be a sub task of anyone except main
             return False
 
-        s_i = len(self.added_items - other.added_items)
-        o_i = len(other.added_items - self.added_items)
-
-        if s_i == 0 and o_i == 0 and self.new_location == other.new_location:
+        if len(self.added_items.symmetric_difference(other.added_items)) == 0 and self.new_location == other.new_location:
             # everything is the same
             return False
+
+        s_i = len(self.added_items - other.added_items)
+        o_i = len(other.added_items - self.added_items)
 
         if s_i > 0:
             return False
@@ -213,7 +213,7 @@ class Textworld_State(mdp_state.MDP_State):
 
 def env_eval(node, obs):
     n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-    mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02
+    mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 1.0
     done = obs.done
     infos = obs.info
     override_objective = None
@@ -230,11 +230,11 @@ def env_eval(node, obs):
             terminated = True
             truncated = False
             succeeded = False
-            mdp_score = mdp_score - 1
+            mdp_score = mdp_score - 10
         else:
             terminated = False
             truncated = True
-            succeeded = None
+            succeeded = False
     else:
         terminated = False
         truncated = False
@@ -251,7 +251,7 @@ def goal_pursuit_eval(node, obs):
     progress_transition = obs - node.start_observation
     score = target_transition.score(progress_transition)
     n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-    mdp_score = score  - (n_action_node + n_quest_node) * 0.02
+    mdp_score = score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 1.0
     override_objective = None
     if target_transition == progress_transition:
         terminated = True
@@ -263,21 +263,20 @@ def goal_pursuit_eval(node, obs):
             terminated = True
             truncated = False
             succeeded = True
-            mdp_score = mdp_score + 10
+            mdp_score = mdp_score - 10
         elif infos["lost"]:
             terminated = True
             truncated = False
             succeeded = False
-            mdp_score = mdp_score - 1
+            mdp_score = mdp_score - 10
         else:
             terminated = False
             truncated = True
-            succeeded = None
-    elif n_action_node + n_quest_node > 20:
-        terminated = True
-        truncated = False
+            succeeded = False
+    elif n_action_node + n_quest_node >= 10:
+        terminated = False
+        truncated = True
         succeeded = False
-        mdp_score = mdp_score - 1
     else:
         terminated = False
         truncated = False
@@ -413,7 +412,7 @@ if __name__ == "__main__":
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    game_path = tw_envs["custom-game-2"][-1]
+    game_path = tw_envs["tw-simple-2"][-1]
 
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
@@ -453,7 +452,7 @@ if __name__ == "__main__":
     # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
 
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.0001, entropy_weight=0.1, train_temperature=2.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=256, device=device, discount_factor=0.97, learning_rate=0.00002, entropy_weight=0.1, train_temperature=2.0)
 
     persona = Persona(
         rl_core,
@@ -468,7 +467,7 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=2000, allow_relegation=True, verbose=True)
+        play(env, persona, nb_episodes=10000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

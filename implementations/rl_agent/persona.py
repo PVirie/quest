@@ -178,29 +178,29 @@ class Persona:
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
             self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
-            if not self.allow_relegation:
-                return
+            # if not self.allow_relegation:
+            #     return
 
-            for diff_str, _, from_transition_index, to_transition_index in folds:
-                sub_quest_node = Quest_Node(
-                    objective=diff_str,
-                    start_observation=supports[from_transition_index-1].observation if from_transition_index > 0 else quest_node.start_observation
-                )
-                sub_quest_node.parent = quest_node.parent
-                sub_objective_context, sub_start_obs_context = sub_quest_node.get_start_contexts()
-                sub_objective_tensor = self.tokenizer([sub_objective_context], stack=True)
-                last_sub_score = 0
-                sub_pivots = []
-                sub_train_data = []
-                start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
-                end_context_mark = pivots[to_transition_index][1]
-                for i in range(from_transition_index, to_transition_index + 1):
-                    sub_quest_node.children.append(supports[i])
-                    sub_mdp_score, _, _, _, _ = self.goal_pursuit_eval(sub_quest_node, supports[i].observation)
-                    sub_pivots.append((sub_mdp_score - last_sub_score, pivots[i][1] - start_context_mark, pivots[i][2]))
-                    sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
-                    last_sub_score = sub_mdp_score
-                self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
+            # for diff_str, _, from_transition_index, to_transition_index in folds:
+            #     sub_quest_node = Quest_Node(
+            #         objective=diff_str,
+            #         start_observation=supports[from_transition_index-1].observation if from_transition_index > 0 else quest_node.start_observation
+            #     )
+            #     sub_quest_node.parent = quest_node.parent
+            #     sub_objective_context, sub_start_obs_context = sub_quest_node.get_start_contexts()
+            #     sub_objective_tensor = self.tokenizer([sub_objective_context], stack=True)
+            #     last_sub_score = 0
+            #     sub_pivots = []
+            #     sub_train_data = []
+            #     start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
+            #     end_context_mark = pivots[to_transition_index][1]
+            #     for i in range(from_transition_index, to_transition_index + 1):
+            #         sub_quest_node.children.append(supports[i])
+            #         sub_mdp_score, _, _, _, _ = self.goal_pursuit_eval(sub_quest_node, supports[i].observation)
+            #         sub_pivots.append((sub_mdp_score - last_sub_score, pivots[i][1] - start_context_mark, pivots[i][2]))
+            #         sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
+            #         last_sub_score = sub_mdp_score
+            #     self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
 
     def think(self, quest_node):
@@ -245,7 +245,7 @@ class Persona:
                 return_node = Quest_Node(succeeded=succeeded, observation=last_observation)
             elif truncated:
                 return_sub_action = Sub_Action_Type.Done
-                return_node = Quest_Node(observation=last_observation, truncated=True)
+                return_node = Quest_Node(truncated=True, succeeded=succeeded, observation=last_observation)
 
             if self.training_mode:
                 self.step += 1
