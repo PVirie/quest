@@ -25,7 +25,7 @@ class Model(nn.Module):
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
 
-        self.critic = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 2, device=device)
+        self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 2, device=device)
         self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 2, device=device)
 
         self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
@@ -66,22 +66,9 @@ class Model(nn.Module):
         pre_actions = torch.reshape(self.actor(pivot_state_internal), (batch, n_pivots, self.hidden_size, 1)) # batch x n_pivots x hidden x 1
         scores = torch.matmul(action_embedding, pre_actions) # batch x n_pivots x n_actions x 1
 
-        pre_qs = torch.reshape(self.critic(pivot_state_internal), (batch, n_pivots, self.hidden_size, 1)) # batch x n_pivots x hidden x 1
-        qs = torch.matmul(action_embedding, pre_qs) # batch x n_pivots x n_actions x 1
-        qs = qs[:, :, :, 0] # batch x n_pivots x n_actions
-
-        # state_values = torch.max(qs, dim=2, keepdim=False)[0] # batch x n_pivots
-        state_values = torch.mean(qs, dim=2, keepdim=False) # batch x n_pivots; use means stabilize training
-        # use mean of top k instead
-        # top_k = min(4, n_actions)
-        # state_values, _ = torch.topk(qs, top_k, dim=2, largest=True, sorted=False)
-        # state_values = torch.mean(state_values, dim=2, keepdim=False)
-        # use softmax
-        # with torch.no_grad():
-        #     sfm = torch.nn.functional.softmax(qs, dim=2)
-        # state_values = torch.sum(sfm * qs, dim=2, keepdim=False)
+        state_values = self.critic(pivot_state_internal) # batch x n_pivots x 1
 
         # return scores has shape batch x n_pivots x n_actions; is the scores of individual actions along the context length
         # state_values has shape batch x n_pivots; is the values of the best action from the current state
-        return scores.squeeze(-1), state_values
+        return scores.squeeze(-1), state_values.squeeze(-1)
     

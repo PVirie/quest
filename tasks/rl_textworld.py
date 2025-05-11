@@ -273,10 +273,6 @@ def goal_pursuit_eval(node, obs):
             terminated = False
             truncated = True
             succeeded = False
-    elif n_action_node + n_quest_node >= 20:
-        terminated = False
-        truncated = True
-        succeeded = False
     else:
         terminated = False
         truncated = False
@@ -334,22 +330,34 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
         score = 0
         done = False
 
-        # objective = "(Main) Go to Kitchen and Find a carrot"
-        # objective_transition = parse_transition(objective)
-        # max_score = len(objective_transition)
-        # eval_func = goal_pursuit_eval
-
-        objective = "(Main) " + infos["objective"]
-        max_score = infos["max_score"]
-        eval_func = env_eval
+        if random.random() < 0.9:
+            goals = [
+                "Go to Kitchen",
+                "Find a carrot",
+                "Go to Bedroom",
+                "Find a soap bar",
+                "Find a note",
+                "Find a bell pepper",
+                "Go to Bathroom",
+                "Find a toothbrush"
+            ]
+            objective = "(Main) " + random.choice(goals)
+            objective_transition = parse_transition(objective)
+            max_score = len(objective_transition)
+            eval_func = goal_pursuit_eval
+        else:
+            objective = "(Main) " + infos["objective"]
+            max_score = infos["max_score"]
+            eval_func = env_eval
+        
         root_node = rl_graph.Quest_Node(
             objective = objective,
             eval_func = eval_func,
             start_observation = Textworld_State(obs, score, done, infos),
             allow_relegation=persona.compute_allow_relegation()
         )
-        working_memory = Quest_Graph(root_node)
 
+        working_memory = Quest_Graph(root_node)
         while True:
             action, param_1, param_2 = agent_functions.basic_tree(persona, working_memory.query())
             if action == Action.ANSWER:
@@ -452,7 +460,7 @@ if __name__ == "__main__":
     # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
 
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.0001, entropy_weight=0.1, train_temperature=2.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.00002, entropy_weight=0.1, train_temperature=2.0)
 
     persona = Persona(
         rl_core,
@@ -461,16 +469,15 @@ if __name__ == "__main__":
         env_step,
         goal_pursuit_eval=goal_pursuit_eval,
         action_parser=parse_transition,
-        training_relegation_probability=0.4
+        training_relegation_probability=1.0
     )
 
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
         play(env, persona, nb_episodes=2000, allow_relegation=False, verbose=True)
-        play(env, persona, nb_episodes=2000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
-    play(env, persona, nb_episodes=100, allow_relegation=True, verbose=True, verbose_step=20)
+    play(env, persona, nb_episodes=100, allow_relegation=False, verbose=True, verbose_step=20)
     env.close()
