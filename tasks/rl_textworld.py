@@ -86,6 +86,38 @@ class Textworld_Main_Goal(mdp_state.MDP_Transition):
 
     def applicable_from(self, state):
         return False
+    
+
+    def eval(self, node, obs):
+        n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
+        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 1.0
+        done = obs.done
+        infos = obs.info
+        override_objective = None
+        if done:
+            if infos["won"]:
+                terminated = True
+                truncated = False
+                succeeded = True
+                if n_succeeded_node >= 2:
+                    mdp_score = mdp_score + 200
+                else:
+                    mdp_score = mdp_score + 100
+            elif infos["lost"]:
+                terminated = True
+                truncated = False
+                succeeded = False
+                mdp_score = mdp_score - 1
+            else:
+                terminated = False
+                truncated = True
+                succeeded = False
+        else:
+            terminated = False
+            truncated = False
+            succeeded = None
+        
+        return mdp_score, terminated, truncated, succeeded, override_objective
 
 
 class Textworld_Transition(mdp_state.MDP_Transition):
@@ -198,6 +230,46 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         return diff == self.count_diff
 
 
+    def eval(self, node, obs):
+        done = obs.done
+        infos = obs.info
+        progress_transition = obs - node.start_observation
+        score = self.score(progress_transition)
+        n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
+        mdp_score = score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 1.0
+        override_objective = None
+        if self == progress_transition:
+            terminated = True
+            truncated = False
+            succeeded = True
+            mdp_score = mdp_score + 100
+        elif done:
+            if infos["won"]:
+                terminated = True
+                truncated = False
+                succeeded = True
+                mdp_score = mdp_score - 1
+            elif infos["lost"]:
+                terminated = True
+                truncated = False
+                succeeded = False
+                mdp_score = mdp_score - 1
+            else:
+                terminated = False
+                truncated = True
+                succeeded = False
+        elif not self.is_main and n_action_node + n_quest_node > 20:
+            terminated = False
+            truncated = True
+            succeeded = False
+        else:
+            terminated = False
+            truncated = False
+            succeeded = None
+
+        return mdp_score, terminated, truncated, succeeded, override_objective
+
+
 class Textworld_State(mdp_state.MDP_State):
     def __init__(self, obs, score, done, info):
         self.location = extract_location(info)
@@ -221,79 +293,6 @@ class Textworld_State(mdp_state.MDP_State):
 
     def get_context(self):
         return self.obs
-
-
-def env_eval(node, obs):
-    n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-    mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 1.0
-    done = obs.done
-    infos = obs.info
-    override_objective = None
-    if done:
-        if infos["won"]:
-            terminated = True
-            truncated = False
-            succeeded = True
-            if n_succeeded_node >= 2:
-                mdp_score = mdp_score + 200
-            else:
-                mdp_score = mdp_score + 100
-        elif infos["lost"]:
-            terminated = True
-            truncated = False
-            succeeded = False
-            mdp_score = mdp_score - 1
-        else:
-            terminated = False
-            truncated = True
-            succeeded = False
-    else:
-        terminated = False
-        truncated = False
-        succeeded = None
-    
-    return mdp_score, terminated, truncated, succeeded, override_objective
-
-
-def goal_pursuit_eval(node, obs):
-    done = obs.done
-    infos = obs.info
-    target_transition = node.objective
-    progress_transition = obs - node.start_observation
-    score = target_transition.score(progress_transition)
-    n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-    mdp_score = score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 1.0
-    override_objective = None
-    if target_transition == progress_transition:
-        terminated = True
-        truncated = False
-        succeeded = True
-        mdp_score = mdp_score + 100
-    elif done:
-        if infos["won"]:
-            terminated = True
-            truncated = False
-            succeeded = True
-            mdp_score = mdp_score - 1
-        elif infos["lost"]:
-            terminated = True
-            truncated = False
-            succeeded = False
-            mdp_score = mdp_score - 1
-        else:
-            terminated = False
-            truncated = True
-            succeeded = False
-    elif not target_transition.is_main and n_action_node + n_quest_node > 20:
-        terminated = False
-        truncated = True
-        succeeded = False
-    else:
-        terminated = False
-        truncated = False
-        succeeded = None
-
-    return mdp_score, terminated, truncated, succeeded, override_objective
 
 
 def compute_folds(objective_transition, state_scores):
@@ -358,15 +357,12 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
             objective_transition = Textworld_Transition.from_string(random.choice(goals))
             objective_transition.is_main = True
             max_score = len(objective_transition)
-            eval_func = goal_pursuit_eval
         else:
             objective_transition = Textworld_Main_Goal(infos["objective"])
             max_score = infos["max_score"]
-            eval_func = env_eval
         
         root_node = rl_graph.Quest_Node(
             objective = objective_transition,
-            eval_func = eval_func,
             start_observation = Textworld_State(obs, score, done, infos),
             allow_relegation=persona.compute_allow_relegation()
         )
@@ -388,7 +384,7 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
         if root_node.observation is None:
             # error skip
             continue
-        score, _, _, _, _ = eval_func(root_node, root_node.observation)
+        score, _, _, _, _ = root_node.eval(root_node.observation)
 
         num_children, num_quest_node, max_context, min_context = root_node.compute_statistics()
         stat_n_moves.append(num_children)
@@ -481,7 +477,6 @@ if __name__ == "__main__":
         tokenizer,
         compute_folds,
         env_step,
-        goal_pursuit_eval=goal_pursuit_eval,
         training_relegation_probability=0.5
     )
 

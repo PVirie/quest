@@ -5,6 +5,14 @@ class MDP_Transition:
     Represents a change in the state of an MDP.
     """
 
+    def eval(self, state):
+        """
+        Evaluates the transition from a given state.
+        return mdp_score, terminated, truncated, succeeded, override_objective
+        """
+        pass
+
+
     def __str__(self):
         """
         Returns a string representation of the transition.

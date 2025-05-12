@@ -29,12 +29,11 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, training_relegation_probability=0.25, train_prompt=None):
+    def __init__(self, rl_core, tokenizer, compute_folds, env_step, training_relegation_probability=0.25, train_prompt=None):
         self.rl_core = rl_core
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
         self.env_step = env_step
-        self.goal_pursuit_eval = goal_pursuit_eval
         self.training_relegation_probability = training_relegation_probability
         self.action_set = set()
         self.extra_actions = {}
@@ -195,7 +194,7 @@ class Persona:
                 end_context_mark = pivots[to_transition_index][1]
                 for i in range(from_transition_index, to_transition_index + 1):
                     sub_quest_node.children.append(supports[i])
-                    sub_mdp_score, _, _, _, _ = self.goal_pursuit_eval(sub_quest_node, supports[i].observation)
+                    sub_mdp_score, _, _, _, _ = sub_quest_node.eval(supports[i].observation)
                     sub_pivots.append((sub_mdp_score - last_sub_score, pivots[i][1] - start_context_mark, pivots[i][2]))
                     sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
                     last_sub_score = sub_mdp_score
@@ -313,7 +312,6 @@ class Persona:
             return_sub_action = Sub_Action_Type.Relegate
             return_node = Quest_Node(
                 objective = sub_objective,
-                eval_func = self.goal_pursuit_eval,
                 start_observation = last_observation,
                 train_ref = train_ref,
                 allow_relegation = self.compute_allow_relegation()

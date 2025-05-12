@@ -48,9 +48,8 @@ class Trainable:
 
 
 class Quest_Node(RL_Node, Trainable):
-    def __init__(self, objective=None, eval_func=None, start_observation=None, succeeded=None, observation=None, truncated=False, train_ref=None, allow_relegation=True):
+    def __init__(self, objective=None, start_observation=None, succeeded=None, observation=None, truncated=False, train_ref=None, allow_relegation=True):
         self.objective = objective
-        self.eval_func = eval_func
         self.start_observation = start_observation
         self.allow_relegation = allow_relegation
         self.succeeded = succeeded
@@ -99,7 +98,7 @@ class Quest_Node(RL_Node, Trainable):
             return True
     
     def eval(self, observation):
-        return self.eval_func(self, observation)
+        return self.objective.eval(self, observation)
 
     def count_context_type(self):
         num_observation_node = 0
