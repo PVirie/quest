@@ -70,29 +70,22 @@ def extract_inventory(infos):
     return set([item.replace(".", "").strip() for item in inv_str.split(",") if item.replace(".", "").strip() != ""])
 
 
-def parse_transition(objective):
-    if "(Main)" in objective:
-        is_main = True
-        is_rush_goal = False
-        objective = objective.replace("(Main) ", "")
-    elif "Rush goal" in objective:
-        is_main = False
-        is_rush_goal = True
-    else:
-        is_main = False
-        is_rush_goal = False
-    
-    # find Go to {location}( and Find {item1} , {item2} ...)*( and Use {item1} , {item2} ...)*
-    go_to = None
-    find_items = []
-    parts = objective.split(" and ")
-    for part in parts:
-        if part.startswith("Go to "):
-            go_to = part.replace("Go to ", "")
-        elif part.startswith("Find "):
-            find_items = [item.strip() for item in part.replace("Find ", "").split(",") if item.strip() != ""]
+class Textworld_Main_Goal(mdp_state.MDP_Transition):
+    def __init__(self, objective):
+        self.objective = objective
+        self.is_main = True
 
-    return Textworld_Transition(go_to, set(find_items), is_main=is_main, is_rush_goal=is_rush_goal)
+
+    def __str__(self):
+        return f"{self.objective}"
+    
+
+    def __lt__(self, other):
+        return False
+
+
+    def applicable_from(self, state):
+        return False
 
 
 class Textworld_Transition(mdp_state.MDP_Transition):
@@ -116,11 +109,30 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         self.count_diff = count_diff
 
 
-    def __str__(self):
-        if self.is_main:
-            return f"(Main) {self.objective}"
+    @staticmethod
+    def from_string(objective):
+        if "Rush goal" in objective:
+            is_main = False
+            is_rush_goal = True
         else:
-            return f"{self.objective}"
+            is_main = False
+            is_rush_goal = False
+        
+        # find Go to {location}( and Find {item1} , {item2} ...)*( and Use {item1} , {item2} ...)*
+        go_to = None
+        find_items = []
+        parts = objective.split(" and ")
+        for part in parts:
+            if part.startswith("Go to "):
+                go_to = part.replace("Go to ", "")
+            elif part.startswith("Find "):
+                find_items = [item.strip() for item in part.replace("Find ", "").split(",") if item.strip() != ""]
+
+        return Textworld_Transition(go_to, set(find_items), is_main=is_main, is_rush_goal=is_rush_goal)
+
+
+    def __str__(self):
+        return f"{self.objective}"
     
 
     def __len__(self):
@@ -246,8 +258,7 @@ def env_eval(node, obs):
 def goal_pursuit_eval(node, obs):
     done = obs.done
     infos = obs.info
-    objective = node.objective
-    target_transition = parse_transition(objective)
+    target_transition = node.objective
     progress_transition = obs - node.start_observation
     score = target_transition.score(progress_transition)
     n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
@@ -273,6 +284,10 @@ def goal_pursuit_eval(node, obs):
             terminated = False
             truncated = True
             succeeded = False
+    elif not target_transition.is_main and n_action_node + n_quest_node > 20:
+        terminated = False
+        truncated = True
+        succeeded = False
     else:
         terminated = False
         truncated = False
@@ -281,10 +296,9 @@ def goal_pursuit_eval(node, obs):
     return mdp_score, terminated, truncated, succeeded, override_objective
 
 
-def compute_folds(objective, state_scores):
+def compute_folds(objective_transition, state_scores):
     # states is a list of obs, score, info, last_context_mark
     # return list of end value, diff_str, comparable_transition, from_context_mark, to_context_mark
-    objective_transition = parse_transition(objective)
     states = [state for state, mdp_score in state_scores]
     transition_matrix = [] # the first row is at index 1 but the first column is at index 0
     for i in range(1, len(states)):
@@ -303,7 +317,7 @@ def compute_folds(objective, state_scores):
     # check fit gap size, and also whether all the changes are the same
     selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 3 and i - j <= 10]
     # return fixed end state value of 100 for first training
-    return [(st.objective, st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
+    return [(st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
 
 
 def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, verbose_step=10):
@@ -341,17 +355,17 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
                 "Go to Bathroom",
                 "Find a toothbrush"
             ]
-            objective = "(Main) " + random.choice(goals)
-            objective_transition = parse_transition(objective)
+            objective_transition = Textworld_Transition.from_string(random.choice(goals))
+            objective_transition.is_main = True
             max_score = len(objective_transition)
             eval_func = goal_pursuit_eval
         else:
-            objective = "(Main) " + infos["objective"]
+            objective_transition = Textworld_Main_Goal(infos["objective"])
             max_score = infos["max_score"]
             eval_func = env_eval
         
         root_node = rl_graph.Quest_Node(
-            objective = objective,
+            objective = objective_transition,
             eval_func = eval_func,
             start_observation = Textworld_State(obs, score, done, infos),
             allow_relegation=persona.compute_allow_relegation()
@@ -468,16 +482,15 @@ if __name__ == "__main__":
         compute_folds,
         env_step,
         goal_pursuit_eval=goal_pursuit_eval,
-        action_parser=parse_transition,
-        training_relegation_probability=1.0
+        training_relegation_probability=0.5
     )
 
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=2000, allow_relegation=False, verbose=True)
+        play(env, persona, nb_episodes=5000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
-    play(env, persona, nb_episodes=100, allow_relegation=False, verbose=True, verbose_step=20)
+    play(env, persona, nb_episodes=100, allow_relegation=True, verbose=True, verbose_step=20)
     env.close()

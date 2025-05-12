@@ -4,8 +4,6 @@ class MDP_Transition:
     """
     Represents a change in the state of an MDP.
     """
-    pass
-
 
     def __str__(self):
         """

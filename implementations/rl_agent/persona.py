@@ -3,6 +3,7 @@ from utilities.language_models import Language_Model
 from .rl_graph import Trainable, Quest_Node, Observation_Node, Thought_Node
 import random
 import os
+import json
 
 """
 Non-Batched version of the Persona class.
@@ -28,13 +29,12 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, training_relegation_probability=0.25, train_prompt=None):
+    def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, training_relegation_probability=0.25, train_prompt=None):
         self.rl_core = rl_core
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
         self.env_step = env_step
         self.goal_pursuit_eval = goal_pursuit_eval
-        self.action_parser = action_parser
         self.training_relegation_probability = training_relegation_probability
         self.action_set = set()
         self.extra_actions = {}
@@ -67,9 +67,8 @@ class Persona:
 
     def save(self, path):
         # save the rl_core and the extra actions
-        with open(os.path.join(path, "extra_actions.txt"), "w", encoding="utf-8") as f:
-            for action in self.extra_actions.keys():
-                f.write(action[10:] + "\n")
+        with open(os.path.join(path, "extra_actions.json"), "w", encoding="utf-8") as f:
+            json.dump(list(self.extra_actions.values()), f, ensure_ascii=False, indent=4)
 
         tokenizer_path = os.path.join(path, "tokenizer")
         os.makedirs(tokenizer_path, exist_ok=True)
@@ -81,12 +80,12 @@ class Persona:
 
 
     def load(self, path):
-        extra_actions_path = os.path.join(path, "extra_actions.txt")
+        extra_actions_path = os.path.join(path, "extra_actions.json")
         if not os.path.exists(extra_actions_path):
             return False
         with open(extra_actions_path, "r", encoding="utf-8") as f:
-            action_keys = set([line.strip() for line in f.readlines()])
-            self.extra_actions = {f"Sub Task: {action}": self.action_parser(action) for action in action_keys}
+            actions = json.load(f)
+            self.extra_actions = {f"Sub Task: {str(action)}": action for action in actions}
         # load the rl_core and the extra actions
         succeeded = self.tokenizer.load(os.path.join(path, "tokenizer"))
         if not succeeded:
@@ -163,9 +162,9 @@ class Persona:
             i += 1
 
         folds = self.compute_folds(quest_node.objective, selected_nodes)
-        for diff_str, obj, from_transition_index, to_transition_index in folds:
-            fold_action = f"Sub Task: {diff_str}"
-            self.extra_actions[fold_action] = obj
+        for sub_objective, from_transition_index, to_transition_index in folds:
+            fold_action = f"Sub Task: {str(sub_objective)}"
+            self.extra_actions[fold_action] = sub_objective
             pivots[from_transition_index][2].append(fold_action)
             # train_data.append((fold_action, from_transition_index, to_transition_index))
 
@@ -181,9 +180,9 @@ class Persona:
             # if not self.allow_relegation:
             #     return
 
-            for diff_str, _, from_transition_index, to_transition_index in folds:
+            for sub_objective, from_transition_index, to_transition_index in folds:
                 sub_quest_node = Quest_Node(
-                    objective=diff_str,
+                    objective=sub_objective,
                     start_observation=supports[from_transition_index-1].observation if from_transition_index > 0 else quest_node.start_observation
                 )
                 sub_quest_node.parent = quest_node.parent
@@ -231,12 +230,12 @@ class Persona:
                 last_node.train_ref.mdp_score = mdp_score
                 if new_objective is not None:
                     # increase end goal discover speed
-                    new_action = f"Sub Task: {new_objective}"
+                    new_action = f"Sub Task: {str(new_objective)}"
                     last_node.objective = new_objective
                     last_node.train_ref.selected_action = new_action
                     last_node.train_ref.selected_action_rank = -1
                     last_node.train_ref.available_actions.add(new_action)
-                    self.extra_actions[new_action] = self.action_parser(new_objective)
+                    self.extra_actions[new_action] = new_objective
 
             train_last_node = False
             if terminated:
@@ -262,7 +261,7 @@ class Persona:
         selectible_action_set = set([f"Action: {ac}" for ac in last_observation.get_available_actions()])
         self.action_set.update(selectible_action_set)
         valid_extra_actions = set()
-        current_objective = self.action_parser(quest_node.objective)
+        current_objective = quest_node.objective
         for key, obj in self.extra_actions.items():
             if obj < current_objective and obj.applicable_from(last_observation):
                 # must check less than and diff to prevent infinite loop
@@ -310,7 +309,7 @@ class Persona:
         command, detail = extract_command_and_detail(response)
 
         if command.startswith("Sub Task"):
-            sub_objective = detail
+            sub_objective = self.extra_actions[response]
             return_sub_action = Sub_Action_Type.Relegate
             return_node = Quest_Node(
                 objective = sub_objective,
