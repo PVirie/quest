@@ -3,7 +3,7 @@ from utilities.language_models import Language_Model
 from .rl_graph import Trainable, Quest_Node, Observation_Node, Thought_Node
 import random
 import os
-import json
+import pickle
 
 """
 Non-Batched version of the Persona class.
@@ -66,8 +66,8 @@ class Persona:
 
     def save(self, path):
         # save the rl_core and the extra actions
-        with open(os.path.join(path, "extra_actions.json"), "w", encoding="utf-8") as f:
-            json.dump(list(self.extra_actions.values()), f, ensure_ascii=False, indent=4)
+        with open(os.path.join(path, "extra_actions.pickle"), "wb") as f:
+            pickle.dump(list(self.extra_actions.values()), f)
 
         tokenizer_path = os.path.join(path, "tokenizer")
         os.makedirs(tokenizer_path, exist_ok=True)
@@ -79,11 +79,11 @@ class Persona:
 
 
     def load(self, path):
-        extra_actions_path = os.path.join(path, "extra_actions.json")
+        extra_actions_path = os.path.join(path, "extra_actions.pickle")
         if not os.path.exists(extra_actions_path):
             return False
-        with open(extra_actions_path, "r", encoding="utf-8") as f:
-            actions = json.load(f)
+        with open(extra_actions_path, "rb") as f:
+            actions = pickle.load(f)
             self.extra_actions = {f"Sub Task: {str(action)}": action for action in actions}
         # load the rl_core and the extra actions
         succeeded = self.tokenizer.load(os.path.join(path, "tokenizer"))

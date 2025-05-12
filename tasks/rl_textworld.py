@@ -345,14 +345,13 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
 
         if random.random() < 0.9:
             goals = [
-                "Go to Kitchen",
                 "Find a carrot",
-                "Go to Bedroom",
                 "Find a soap bar",
                 "Find a note",
                 "Find a bell pepper",
-                "Go to Bathroom",
-                "Find a toothbrush"
+                "Find a toothbrush",
+                "Find a shovel",
+                "Find an apple"
             ]
             objective_transition = Textworld_Transition.from_string(random.choice(goals))
             objective_transition.is_main = True
@@ -483,7 +482,7 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=5000, allow_relegation=True, verbose=True)
+        play(env, persona, nb_episodes=1000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
