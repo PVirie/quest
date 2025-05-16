@@ -140,3 +140,10 @@ These models seem to work with the given instructions:
 -   text-embedding-3-large
 -   ibm-granite/granite-embedding-125m-english
 -   intfloat/multilingual-e5-large-instruct
+
+### RL models
+
+Actor critic models work well when combined with the following:
+
+-   Deeper transformer layers
+-   Fully connected layers for heads.

@@ -90,7 +90,7 @@ class Textworld_Main_Goal(mdp_state.MDP_Transition):
 
     def eval(self, node, obs):
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 1.0
+        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02
         done = obs.done
         infos = obs.info
         override_objective = None
@@ -236,7 +236,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         progress_transition = obs - node.start_observation
         score = self.score(progress_transition)
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 1.0
+        mdp_score = score - (n_action_node + n_quest_node) * 0.02
         override_objective = None
         if self == progress_transition:
             terminated = True
@@ -247,7 +247,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
             if infos["won"]:
                 terminated = True
                 truncated = False
-                succeeded = True
+                succeeded = False
                 mdp_score = mdp_score - 1
             elif infos["lost"]:
                 terminated = True
@@ -258,10 +258,10 @@ class Textworld_Transition(mdp_state.MDP_Transition):
                 terminated = False
                 truncated = True
                 succeeded = False
-        elif not self.is_main and n_action_node + n_quest_node > 20:
-            terminated = False
-            truncated = True
-            succeeded = False
+        # elif not self.is_main and n_action_node + n_quest_node > 20:
+        #     terminated = False
+        #     truncated = True
+        #     succeeded = False
         else:
             terminated = False
             truncated = False
@@ -466,25 +466,25 @@ if __name__ == "__main__":
         return Textworld_State(obs, score, done, infos)
 
     # from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model
-    # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
+    # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.985, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
 
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.00002, entropy_weight=0.1, train_temperature=2.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.95, learning_rate=0.00002, entropy_weight=0.05, train_temperature=1.0)
 
     persona = Persona(
         rl_core,
         tokenizer,
         compute_folds,
         env_step,
-        training_relegation_probability=0.5
+        training_relegation_probability=0.4
     )
 
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=1000, allow_relegation=True, verbose=True)
+        play(env, persona, nb_episodes=10000, allow_relegation=False, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
-    play(env, persona, nb_episodes=100, allow_relegation=True, verbose=True, verbose_step=20)
+    play(env, persona, nb_episodes=100, allow_relegation=False, verbose=True, verbose_step=20)
     env.close()
