@@ -1,11 +1,13 @@
 from .package_install import install
 import os
 import torch
-from pydantic import BaseModel
 from typing import List
 import json
 import time
 import logging
+
+install("pydantic")
+from pydantic import BaseModel
 
 class Chat_Message(BaseModel):
     role: str
