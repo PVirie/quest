@@ -7,6 +7,7 @@ import json
 import logging
 import random
 import argparse
+import tempfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -27,33 +28,6 @@ if len(os.listdir(musique_path)) == 0:
     subprocess.run(["git", "clone", "https://github.com/StonyBrookNLP/musique.git", musique_repo_path])
     # run bash download_data.sh, the result will be downloaded to musique_path/repo/data
     subprocess.run(["bash", "download_data.sh"], cwd=musique_repo_path)
-
-
-def load_data_records(data_path):
-    data_records = {}
-    # jsonl file
-    with open(data_path, 'r') as f:
-        for line in f:
-            json_line = json.loads(line)
-            record = musique_classes.Question_Record(**json_line)
-            # if not record.id.startswith("4hop"):
-            #     continue
-            data_records[record.id] = record
-    return data_records
-
-
-def save_jsonl(f, answer_records):
-    for record in answer_records:
-        f.write(json.dumps(record.to_json()) + "\n")
-
-
-def evaluate(answer_path, dev_file_path):
-    # python evaluate_v1.0.py <answer_path> <dev_file_path>
-    console_result = subprocess.run(["python", f"{musique_repo_path}/evaluate_v1.0.py", answer_path, dev_file_path], capture_output=True)
-    output_str = console_result.stdout.decode()
-    # parse into object
-    json_obj = json.loads(output_str)
-    return json_obj
 
 
 def compute(record, verbose=False):
@@ -107,29 +81,30 @@ if __name__ == "__main__":
     # musique_ans_v1.0_dev.jsonl contains full answer
     # use musique_ans_v1.0_train.jsonl to train
     # use musique_ans_v1.0_test.jsonl to generate submission results
-    data_records = load_data_records(f"{musique_data_path}/musique_ans_v1.0_dev.jsonl")
-    total = len(data_records)
+    task = musique_classes.Task(f"{musique_data_path}/musique_ans_v1.0_dev.jsonl", answer_path)
 
-    if not args.reset and os.path.exists(answer_path):
-        # continue from the last record
-        with open(answer_path, 'r') as f:
-            for line in f:
-                line_json = json.loads(line)
-                record = musique_classes.Answer_Record(**line_json)
-                data_records.pop(record.id, None)
-
-    while len(data_records) > 0:
-        record_id, record = data_records.popitem()
-        # generate answer here
+    i = 0
+    while task.has_next():
+        record_id, record = task.pop()
         answer_record = compute(record, verbose=False)
-        with open(answer_path, 'a') as f:
-            f.write(json.dumps(answer_record.to_json()) + "\n")
-
-        i = total - len(data_records)
-        # print every 100 records
+        task.fulfill(record_id, answer_record)
+        i += 1
         if i % 100 == 0:
-            logging.info(f"Record {i}/{total} done")
+            logging.info(task.status())
 
     # evaluate result
-    result = evaluate(answer_path, f"{musique_data_path}/musique_ans_v1.0_dev.jsonl")
-    logging.info(result)
+    # write answer to tempfile
+    with tempfile.NamedTemporaryFile(mode="w", delete=True, delete_on_close=True) as temp_file:
+        task.write_answer(temp_file)
+        eval_path = temp_file.name
+        # python evaluate_v1.0.py <eval_path> <dev_file_path>
+        console_result = subprocess.run(["python", f"{musique_repo_path}/evaluate_v1.0.py", eval_path, task.file_path], capture_output=True)
+        if console_result.returncode != 0:
+            logging.error(f"Error in evaluation: {console_result.stderr.decode()}")
+        else:
+            output_str = console_result.stdout.decode()
+            json_obj = json.loads(output_str)
+            f1 = json_obj["answer_f1"]
+            em = json_obj["answer_em"]
+            support_f1 = json_obj["support_f1"]
+            logging.info(f"F1: {f1}, EM: {em}, Support F1: {support_f1}")
