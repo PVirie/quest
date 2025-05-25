@@ -53,6 +53,10 @@ from implementations.rl_agent import agent_functions, rl_graph, mdp_state
 from implementations.rl_agent.persona import Persona
 
 
+def flatten_batch(infos):
+    return {k: v[0] for k, v in infos.items()}
+
+
 def extract_location(infos):
     # first find location pattern -= {location} =-
     result = re.search(r"-= (.*?) =-", infos["description"])
@@ -71,8 +75,9 @@ def extract_inventory(infos):
 
 
 class Textworld_Main_Goal(mdp_state.MDP_Transition):
-    def __init__(self, objective):
+    def __init__(self, objective, max_score):
         self.objective = objective
+        self.max_score = max_score
         self.is_main = True
 
 
@@ -80,6 +85,10 @@ class Textworld_Main_Goal(mdp_state.MDP_Transition):
         return f"{self.objective}"
     
 
+    def __len__(self):
+        return self.max_score
+
+    
     def __lt__(self, other):
         return False
 
@@ -90,7 +99,7 @@ class Textworld_Main_Goal(mdp_state.MDP_Transition):
 
     def eval(self, node, obs):
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02
+        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.2
         done = obs.done
         infos = obs.info
         override_objective = None
@@ -100,9 +109,9 @@ class Textworld_Main_Goal(mdp_state.MDP_Transition):
                 truncated = False
                 succeeded = True
                 if n_succeeded_node >= 2:
-                    mdp_score = mdp_score + 200
-                else:
                     mdp_score = mdp_score + 100
+                else:
+                    mdp_score = mdp_score + 50
             elif infos["lost"]:
                 terminated = True
                 truncated = False
@@ -142,12 +151,10 @@ class Textworld_Transition(mdp_state.MDP_Transition):
 
 
     @staticmethod
-    def from_string(objective):
+    def from_string(objective, is_main=False):
         if "Rush goal" in objective:
-            is_main = False
             is_rush_goal = True
         else:
-            is_main = False
             is_rush_goal = False
         
         # find Go to {location}( and Find {item1} , {item2} ...)*( and Use {item1} , {item2} ...)*
@@ -236,13 +243,16 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         progress_transition = obs - node.start_observation
         score = self.score(progress_transition)
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = score - (n_action_node + n_quest_node) * 0.02
+        mdp_score = score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.2
         override_objective = None
         if self == progress_transition:
             terminated = True
             truncated = False
             succeeded = True
-            mdp_score = mdp_score + 100
+            if n_succeeded_node >= 2:
+                mdp_score = mdp_score + 100
+            else:
+                mdp_score = mdp_score + 50
         elif done:
             if infos["won"]:
                 terminated = True
@@ -258,10 +268,10 @@ class Textworld_Transition(mdp_state.MDP_Transition):
                 terminated = False
                 truncated = True
                 succeeded = False
-        # elif not self.is_main and n_action_node + n_quest_node > 20:
-        #     terminated = False
-        #     truncated = True
-        #     succeeded = False
+        elif not self.is_main and n_action_node + n_quest_node > 20:
+            terminated = False
+            truncated = True
+            succeeded = False
         else:
             terminated = False
             truncated = False
@@ -319,7 +329,7 @@ def compute_folds(objective_transition, state_scores):
     return [(st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
 
 
-def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, verbose_step=10):
+def play(env, available_objectives, persona, nb_episodes=10, allow_relegation=True, verbose=False, verbose_step=10):
     
     with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
         # mark date
@@ -334,6 +344,7 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
     stat_scores = []
     stat_mean_context_length = []
     stat_max_context_length = []
+    stat_max_score = []
 
     for no_episode in range(1, nb_episodes + 1):
         obs, infos = env.reset()  # Start new episode.
@@ -343,23 +354,7 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
         score = 0
         done = False
 
-        if random.random() < 0.9:
-            goals = [
-                "Find a carrot",
-                "Find a soap bar",
-                "Find a note",
-                "Find a bell pepper",
-                "Find a toothbrush",
-                "Find a shovel",
-                "Find an apple"
-            ]
-            objective_transition = Textworld_Transition.from_string(random.choice(goals))
-            objective_transition.is_main = True
-            max_score = len(objective_transition)
-        else:
-            objective_transition = Textworld_Main_Goal(infos["objective"])
-            max_score = infos["max_score"]
-        
+        objective_transition = available_objectives[no_episode % len(available_objectives)]   
         root_node = rl_graph.Quest_Node(
             objective = objective_transition,
             start_observation = Textworld_State(obs, score, done, infos),
@@ -390,6 +385,7 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
         stat_scores.append(score)
         stat_mean_context_length.append(num_children / num_quest_node if num_quest_node > 0 else 0)
         stat_max_context_length.append(max_context)
+        stat_max_score.append(len(objective_transition))
 
         if verbose and no_episode % verbose_step == 0:
             # cl means context length
@@ -398,7 +394,7 @@ def play(env, persona, nb_episodes=10, allow_relegation=True, verbose=False, ver
                 no_episode,
                 nb_episodes,
                 np.mean(stat_n_moves[-verbose_step:]), 
-                np.mean(stat_scores[-verbose_step:]), max_score,
+                np.mean(stat_scores[-verbose_step:]), np.mean(stat_max_score[-verbose_step:]),
                 np.mean(stat_mean_context_length[-verbose_step:]),
                 np.mean(stat_max_context_length[-verbose_step:]))
             logging.info(report)
@@ -429,8 +425,6 @@ if __name__ == "__main__":
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    game_path = tw_envs["tw-simple-2"][-1]
-
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
 
@@ -446,14 +440,25 @@ if __name__ == "__main__":
         lost=True,                 # Whether the player has lost.
     )
 
+    game_path = tw_envs["tw-simple-2"][-1]
     env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
     env = textworld.gym.make(env_id)
+    obs, infos = env.reset()
+    infos = flatten_batch(infos)
+
+    available_objectives = [
+        Textworld_Transition.from_string("Find a carrot", is_main=True),
+        Textworld_Transition.from_string("Find a soap bar", is_main=True),
+        Textworld_Transition.from_string("Find a note", is_main=True),
+        Textworld_Transition.from_string("Find a bell pepper", is_main=True),
+        Textworld_Transition.from_string("Find a toothbrush", is_main=True),
+        Textworld_Transition.from_string("Find a shovel", is_main=True),
+        Textworld_Transition.from_string("Find an apple", is_main=True),
+        Textworld_Main_Goal(infos["objective"], infos["max_score"])
+    ]
 
     MAX_VOCAB_SIZE = 1000
     tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
-
-    def flatten_batch(infos):
-        return {k: v[0] for k, v in infos.items()}
 
     def env_step(action):
         obs, score, done, infos = env.step([action])
@@ -466,10 +471,10 @@ if __name__ == "__main__":
         return Textworld_State(obs, score, done, infos)
 
     # from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model
-    # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.985, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
+    # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.96, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
 
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.95, learning_rate=0.00002, entropy_weight=0.05, train_temperature=1.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.95, learning_rate=0.000001, entropy_weight=0.2, train_temperature=2.0)
 
     persona = Persona(
         rl_core,
@@ -482,9 +487,9 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, persona, nb_episodes=10000, allow_relegation=False, verbose=True)
+        play(env, available_objectives, persona, nb_episodes=20000, allow_relegation=False, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
-    play(env, persona, nb_episodes=100, allow_relegation=False, verbose=True, verbose_step=20)
+    play(env, available_objectives, persona, nb_episodes=100, allow_relegation=False, verbose=True, verbose_step=20)
     env.close()

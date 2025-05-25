@@ -50,11 +50,11 @@ def softmax_with_temperature(logits, temperature=1.0, dim=-1):
     Returns:
         torch.Tensor: The softmax output with temperature scaling.
     """
-    logits = logits / temperature
-    max_values = torch.max(logits, dim=dim, keepdim=True)[0]
-    shifted_logits = logits - max_values
+    with torch.no_grad():
+        max_values = torch.max(logits, dim=dim, keepdim=True)[0]
+    shifted_logits = (logits - max_values) / temperature
     
-    exp_values = torch.exp(shifted_logits)
+    exp_values = torch.exp(shifted_logits) + 1e-12 # Adding a small constant to avoid numerical issues
     sum_exp_values = torch.sum(exp_values, dim=dim, keepdim=True)
     
     softmax_output = exp_values / sum_exp_values

@@ -6,7 +6,7 @@ import os
 import logging
 
 from implementations.core.torch.qformers import Model
-from .base import Hierarchy_Base
+from .base import Hierarchy_Base, softmax_with_temperature
 
 import torch
 import torch.nn as nn
@@ -23,8 +23,8 @@ class Hierarchy_Q(Hierarchy_Base):
         # The temperature is then has to be tuned.
         model = Model(input_size=input_size, hidden_size=hidden_size, device=device)
         optimizer = optim.Adam(model.parameters(), learning_rate)
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.5)
-        # scheduler = None
+        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.5)
+        scheduler = None
         self.entropy_weight = entropy_weight
         super().__init__(model=model, optimizer=optimizer, scheduler=scheduler, device=device, discount_factor=discount_factor, train_temperature=train_temperature)
 
@@ -94,7 +94,7 @@ class Hierarchy_Q(Hierarchy_Base):
             train_mc_returns = self._compute_snake_ladder(rewards, last_value)[train_from_indexes, train_to_indexes]
 
         # use vector instead of loops
-        probs = torch.nn.functional.softmax(train_action_scores, dim=1)
+        probs = softmax_with_temperature(train_action_scores, temperature=1.0, dim=1)
         log_probs = torch.log(probs)
         current_scores = torch.gather(train_action_scores, 1, train_action_indexes)
         current_scores = current_scores.flatten()
@@ -112,7 +112,6 @@ class Hierarchy_Q(Hierarchy_Base):
                 return
 
         loss.backward()
-        nn.utils.clip_grad_norm_(self.model.parameters(), 40)
         self.optimizer.step()
         self.optimizer.zero_grad()
         if self.scheduler is not None:

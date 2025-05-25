@@ -20,7 +20,7 @@ class Hierarchy_AC(Hierarchy_Base):
     def __init__(self, input_size, hidden_size, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0) -> None:
         model = Model(input_size=input_size, hidden_size=hidden_size, device=device)
         optimizer = optim.Adam(model.parameters(), learning_rate)
-        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5000, gamma=0.5)
+        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.5)
         scheduler = None
         self.entropy_weight = entropy_weight
         super().__init__(model=model, optimizer=optimizer, scheduler=scheduler, device=device, discount_factor=discount_factor, train_temperature=train_temperature)
@@ -92,10 +92,9 @@ class Hierarchy_AC(Hierarchy_Base):
             train_advantages = train_mc_returns - train_state_values
 
         # use vector instead of loops
-        probs = softmax_with_temperature(train_action_scores, temperature=self.train_temperature, dim=1)
-        # probs = torch.nn.functional.softmax(train_action_scores, dim=1)
+        probs = softmax_with_temperature(train_action_scores, temperature=1.0, dim=1)
         log_probs = torch.log(probs)
-        log_action_probs = torch.clamp(torch.gather(log_probs, 1, train_action_indexes), min=-8)
+        log_action_probs = torch.gather(log_probs, 1, train_action_indexes)
         log_action_probs = log_action_probs.flatten()
         policy_loss = (-log_action_probs * train_advantages).sum()
         value_loss = (.5 * (train_state_values - train_mc_returns) ** 2.).sum()
@@ -113,7 +112,6 @@ class Hierarchy_AC(Hierarchy_Base):
                 return
 
         loss.backward()
-        nn.utils.clip_grad_norm_(self.model.parameters(), 40)
         self.optimizer.step()
         self.optimizer.zero_grad()
         if self.scheduler is not None:
