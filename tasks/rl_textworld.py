@@ -99,7 +99,7 @@ class Textworld_Main_Goal(mdp_state.MDP_Transition):
 
     def eval(self, node, obs):
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.2
+        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.1 - (n_quest_node - n_succeeded_node) * 0.5
         done = obs.done
         infos = obs.info
         override_objective = None
@@ -243,7 +243,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         progress_transition = obs - node.start_observation
         score = self.score(progress_transition)
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.2
+        mdp_score = score - (n_action_node + n_quest_node) * 0.1 - (n_quest_node - n_succeeded_node) * 0.5
         override_objective = None
         if self == progress_transition:
             terminated = True
@@ -474,7 +474,7 @@ if __name__ == "__main__":
     # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.96, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
 
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.95, learning_rate=0.000001, entropy_weight=0.2, train_temperature=2.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.98, learning_rate=0.00002, entropy_weight=0.1, train_temperature=2.0)
 
     persona = Persona(
         rl_core,

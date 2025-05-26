@@ -54,7 +54,7 @@ def softmax_with_temperature(logits, temperature=1.0, dim=-1):
         max_values = torch.max(logits, dim=dim, keepdim=True)[0]
     shifted_logits = (logits - max_values) / temperature
     
-    exp_values = torch.exp(shifted_logits) + 1e-12 # Adding a small constant to avoid numerical issues
+    exp_values = torch.exp(shifted_logits) + 1e-8 # Adding a small constant to avoid numerical issues
     sum_exp_values = torch.sum(exp_values, dim=dim, keepdim=True)
     
     softmax_output = exp_values / sum_exp_values
@@ -62,29 +62,50 @@ def softmax_with_temperature(logits, temperature=1.0, dim=-1):
     return softmax_output
 
 
-class Entropy_Function(torch.autograd.Function):
+def log_softmax_with_temperature(logits, temperature=1.0, dim=-1):
+    """
+    Numerically stable log softmax with temperature scaling.
+
+    Args:
+        logits (torch.Tensor): The input tensor of logits.
+        temperature (float, optional): The temperature parameter. Defaults to 1.0.
+        dim (int, optional): The dimension along which to compute log softmax. Defaults to -1.
+
+    Returns:
+        torch.Tensor: The log softmax output with temperature scaling.
+    """
+    with torch.no_grad():
+        max_values = torch.max(logits, dim=dim, keepdim=True)[0]
+    shifted_logits = (logits - max_values) / temperature
+    
+    log_exp_values = shifted_logits - torch.log(torch.sum(torch.exp(shifted_logits), dim=dim, keepdim=True) + 1e-8)
+    
+    return log_exp_values
+
+
+class Exp_Entropy_Function(torch.autograd.Function):
     """
     Custom Entropy function with manually defined gradient.
-    Entropy: H(p) = - sum(p * log(p)).
+    Entropy: H(log(p)) = - sum(p * log(p)).
     Avoids p * log(p) in the backward pass for stability or specific numerical reasons.
     """
     @staticmethod
-    def forward(ctx, p, dim):
-        epsilon = 1e-12
-        p_stable = p + epsilon
-        log_p = torch.log(p_stable)
+    def forward(ctx, log_p, dim):
+        p = torch.exp(log_p)
         entropy = -torch.sum(p * log_p, dim=dim)
 
         # Save p_stable for backward pass (or log_p directly)
-        ctx.save_for_backward(p_stable)
+        ctx.save_for_backward(log_p)
+        ctx.dim = dim
         return entropy
 
     @staticmethod
     def backward(ctx, grad_output):
-        p_stable, = ctx.saved_tensors # Retrieve saved tensor
+        log_p, = ctx.saved_tensors # Retrieve saved tensor
         dim = ctx.dim
-        grad_entropy_p = -(torch.log(p_stable) + 1.0)
-        grad_input = grad_output.unsqueeze(dim) * grad_entropy_p
+        p = torch.exp(log_p)
+        grad_entropy_p = -p * (1 + log_p)
+        grad_input = grad_entropy_p * grad_output.unsqueeze(dim)
 
         # The 'dim' argument does not require a gradient
         return grad_input, None

@@ -6,7 +6,8 @@ import os
 import logging
 
 from implementations.core.torch.qformers import Model
-from .base import Hierarchy_Base, softmax_with_temperature, Entropy_Function
+from .base import Hierarchy_Base
+from implementations.core.torch.base import log_softmax_with_temperature, Exp_Entropy_Function
 
 import torch
 import torch.nn as nn
@@ -94,13 +95,11 @@ class Hierarchy_Q(Hierarchy_Base):
             train_mc_returns = self._compute_snake_ladder(rewards, last_value)[train_from_indexes, train_to_indexes]
 
         # use vector instead of loops
-        probs = softmax_with_temperature(train_action_scores, temperature=1.0, dim=1)
-        log_probs = torch.log(probs)
+        log_probs = log_softmax_with_temperature(train_action_scores, temperature=1.0, dim=1)
         current_scores = torch.gather(train_action_scores, 1, train_action_indexes)
         current_scores = current_scores.flatten()
         q_loss = (.5 * (current_scores - train_td_returns) ** 2.).sum()
-        # entropy = (-probs * log_probs).sum(dim=1).sum()
-        entropy = Entropy_Function.apply(probs, dim=1).sum()  # Use custom entropy function for stability
+        entropy = Exp_Entropy_Function.apply(log_probs, 1).sum()  # Use custom entropy function for stability
         loss = q_loss - self.entropy_weight * entropy
         is_nan = torch.isnan(loss)
         if is_nan:
