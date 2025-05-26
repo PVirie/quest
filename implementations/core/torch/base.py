@@ -62,6 +62,34 @@ def softmax_with_temperature(logits, temperature=1.0, dim=-1):
     return softmax_output
 
 
+class Entropy_Function(torch.autograd.Function):
+    """
+    Custom Entropy function with manually defined gradient.
+    Entropy: H(p) = - sum(p * log(p)).
+    Avoids p * log(p) in the backward pass for stability or specific numerical reasons.
+    """
+    @staticmethod
+    def forward(ctx, p, dim):
+        epsilon = 1e-12
+        p_stable = p + epsilon
+        log_p = torch.log(p_stable)
+        entropy = -torch.sum(p * log_p, dim=dim)
+
+        # Save p_stable for backward pass (or log_p directly)
+        ctx.save_for_backward(p_stable)
+        return entropy
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        p_stable, = ctx.saved_tensors # Retrieve saved tensor
+        dim = ctx.dim
+        grad_entropy_p = -(torch.log(p_stable) + 1.0)
+        grad_input = grad_output.unsqueeze(dim) * grad_entropy_p
+
+        # The 'dim' argument does not require a gradient
+        return grad_input, None
+
+
 class Multilayer_Relu(nn.Module):
     def __init__(self, input_size, output_size, hidden_size, n_layers=1, device=None):
         super(Multilayer_Relu, self).__init__()
