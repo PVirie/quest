@@ -6,7 +6,7 @@ import os
 import logging
 
 from implementations.core.torch.transformers import Model
-from .base import Hierarchy_Base, softmax_with_temperature
+from .base import Hierarchy_Base, softmax_with_temperature, Entropy_Function
 
 import torch
 import torch.nn as nn
@@ -98,7 +98,8 @@ class Hierarchy_AC(Hierarchy_Base):
         log_action_probs = log_action_probs.flatten()
         policy_loss = (-log_action_probs * train_advantages).sum()
         value_loss = (.5 * (train_state_values - train_mc_returns) ** 2.).sum()
-        entropy = (-probs * log_probs).sum(dim=1).sum()
+        # entropy = (-probs * log_probs).sum(dim=1).sum()
+        entropy = Entropy_Function.apply(probs, dim=1).sum()  # Use custom entropy function for stability
         loss = policy_loss + 0.5 * value_loss - self.entropy_weight * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
         is_nan = torch.isnan(loss)
         if is_nan:
