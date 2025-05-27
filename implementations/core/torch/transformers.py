@@ -16,14 +16,14 @@ class Model(nn.Module):
         self.embedding    = nn.Embedding(input_size, hidden_size, device=device)
         # state encoder
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.context_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
 
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=8)
+        self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
 
         self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 2, device=device)
         self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 2, device=device)

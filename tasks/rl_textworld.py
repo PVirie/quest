@@ -99,7 +99,7 @@ class Textworld_Main_Goal(mdp_state.MDP_Transition):
 
     def eval(self, node, obs):
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.1 - (n_quest_node - n_succeeded_node) * 0.5
+        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.4
         done = obs.done
         infos = obs.info
         override_objective = None
@@ -109,9 +109,9 @@ class Textworld_Main_Goal(mdp_state.MDP_Transition):
                 truncated = False
                 succeeded = True
                 if n_succeeded_node >= 2:
-                    mdp_score = mdp_score + 100
+                    mdp_score = mdp_score + 20
                 else:
-                    mdp_score = mdp_score + 50
+                    mdp_score = mdp_score + 10
             elif infos["lost"]:
                 terminated = True
                 truncated = False
@@ -243,16 +243,16 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         progress_transition = obs - node.start_observation
         score = self.score(progress_transition)
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = score - (n_action_node + n_quest_node) * 0.1 - (n_quest_node - n_succeeded_node) * 0.5
+        mdp_score = score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.4
         override_objective = None
         if self == progress_transition:
             terminated = True
             truncated = False
             succeeded = True
             if n_succeeded_node >= 2:
-                mdp_score = mdp_score + 100
+                mdp_score = mdp_score + 20
             else:
-                mdp_score = mdp_score + 50
+                mdp_score = mdp_score + 10
         elif done:
             if infos["won"]:
                 terminated = True
@@ -447,13 +447,13 @@ if __name__ == "__main__":
     infos = flatten_batch(infos)
 
     available_objectives = [
-        Textworld_Transition.from_string("Find a carrot", is_main=True),
-        Textworld_Transition.from_string("Find a soap bar", is_main=True),
-        Textworld_Transition.from_string("Find a note", is_main=True),
-        Textworld_Transition.from_string("Find a bell pepper", is_main=True),
-        Textworld_Transition.from_string("Find a toothbrush", is_main=True),
-        Textworld_Transition.from_string("Find a shovel", is_main=True),
-        Textworld_Transition.from_string("Find an apple", is_main=True),
+        # Textworld_Transition.from_string("Find a carrot", is_main=True),
+        # Textworld_Transition.from_string("Find a soap bar", is_main=True),
+        # Textworld_Transition.from_string("Find a note", is_main=True),
+        # Textworld_Transition.from_string("Find a bell pepper", is_main=True),
+        # Textworld_Transition.from_string("Find a toothbrush", is_main=True),
+        # Textworld_Transition.from_string("Find a shovel", is_main=True),
+        # Textworld_Transition.from_string("Find an apple", is_main=True),
         Textworld_Main_Goal(infos["objective"], infos["max_score"])
     ]
 
@@ -474,7 +474,7 @@ if __name__ == "__main__":
     # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.96, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
 
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.98, learning_rate=0.00002, entropy_weight=0.1, train_temperature=2.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.00001, entropy_weight=0.1, train_temperature=1.0)
 
     persona = Persona(
         rl_core,
@@ -487,7 +487,7 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, available_objectives, persona, nb_episodes=20000, allow_relegation=False, verbose=True)
+        play(env, available_objectives, persona, nb_episodes=2000, allow_relegation=False, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

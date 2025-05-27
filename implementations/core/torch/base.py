@@ -99,11 +99,12 @@ class Exp_Entropy_Function(torch.autograd.Function):
         ctx.dim = dim
         return entropy
 
+
     @staticmethod
     def backward(ctx, grad_output):
         log_p, = ctx.saved_tensors # Retrieve saved tensor
         dim = ctx.dim
-        p = torch.exp(log_p)
+        p = torch.exp(log_p) + 1e-8 # Add small constant to allow gradient to flow through zero probabilities
         grad_entropy_p = -p * (1 + log_p)
         grad_input = grad_entropy_p * grad_output.unsqueeze(dim)
 

@@ -145,7 +145,7 @@ class Hierarchy_Base:
 
             if sample_action:
                 # sample
-                probs = softmax_with_temperature(action_scores, temperature=self.train_temperature, dim=0)  # n_actions
+                probs = softmax_with_temperature(action_scores, temperature=self.train_temperature, dim=0) # n_actions
                 index = torch.multinomial(probs, num_samples=1).item() # 1
                 rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
             else:
