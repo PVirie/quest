@@ -90,7 +90,7 @@ class Hierarchy_AC(Hierarchy_Base):
             # compute returns = rewards + gamma * next_state_q, but for all from to pivot
             train_td_returns = self._compute_snake_ladder_2(rewards, state_values)[train_from_indexes, train_to_indexes]
             train_mc_returns = self._compute_snake_ladder(rewards, last_value)[train_from_indexes, train_to_indexes]
-            train_advantages = train_mc_returns - train_state_values
+            train_advantages = torch.clamp(train_mc_returns - train_state_values, min=-1.0, max=1.0)
 
         # use vector instead of loops
         log_probs = log_softmax_with_temperature(train_action_scores, temperature=1.0, dim=1)
