@@ -111,11 +111,9 @@ class Log_Softmax_Function(torch.autograd.Function):
         exp_values = torch.exp(shifted_logits)
         sum_exp_values = torch.sum(exp_values, dim=dim, keepdim=True)
         p = torch.clamp(exp_values / sum_exp_values, min=1e-10)
-        
         grad_input = grad_output - p * grad_output.sum(dim=dim, keepdim=True)
         
         return grad_input / temperature, None, None  # No gradient for temperature and dim
-
 
 
 class Exp_Entropy_Function(torch.autograd.Function):

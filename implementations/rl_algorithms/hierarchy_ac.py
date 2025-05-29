@@ -64,7 +64,7 @@ class Hierarchy_AC(Hierarchy_Base):
         available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(num_pivot, -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size)) # shape: (num_pivot, max_action_length, action_size)
         available_actions_by_context = torch.reshape(available_actions_by_context, [1, num_pivot, max_available_actions, action_size])
         
-        self.model.eval()
+        self.model.train()
         action_scores, values = self.model(objective_tensor, state_tensor, available_actions_by_context, torch.reshape(context_marks, (1, -1)))
         action_scores = action_scores[0, :, :] # shape: (num_pivot, max_available_actions)
         state_values = values[0, :] # shape: (num_pivot)
