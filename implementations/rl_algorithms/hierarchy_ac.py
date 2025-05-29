@@ -7,7 +7,7 @@ import logging
 
 from implementations.core.torch.transformers import Model
 from .base import Hierarchy_Base
-from implementations.core.torch.base import log_softmax_with_temperature, Exp_Entropy_Function
+from implementations.core.torch.base import Log_Softmax_Function, Exp_Entropy_Function
 
 import torch
 import torch.nn as nn
@@ -90,10 +90,10 @@ class Hierarchy_AC(Hierarchy_Base):
             # compute returns = rewards + gamma * next_state_q, but for all from to pivot
             train_td_returns = self._compute_snake_ladder_2(rewards, state_values)[train_from_indexes, train_to_indexes]
             train_mc_returns = self._compute_snake_ladder(rewards, last_value)[train_from_indexes, train_to_indexes]
-            train_advantages = torch.clamp(train_mc_returns - train_state_values, min=-1.0, max=1.0)
+            train_advantages = train_mc_returns - train_state_values
 
         # use vector instead of loops
-        log_probs = log_softmax_with_temperature(train_action_scores, temperature=1.0, dim=1)
+        log_probs = Log_Softmax_Function.apply(train_action_scores, 1.0, 1)
         log_action_probs = torch.gather(log_probs, 1, train_action_indexes)
         log_action_probs = log_action_probs.flatten()
         policy_loss = (-log_action_probs * train_advantages).sum()

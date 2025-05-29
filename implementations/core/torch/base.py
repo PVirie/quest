@@ -83,6 +83,41 @@ def log_softmax_with_temperature(logits, temperature=1.0, dim=-1):
     return log_exp_values
 
 
+class Log_Softmax_Function(torch.autograd.Function):
+    """
+    Custom Log Softmax function with manually defined gradient.
+    Log Softmax: log(softmax(x)) = x - log(sum(exp(x))).
+    Avoids exp in the backward pass for stability or specific numerical reasons.
+    """
+    @staticmethod
+    def forward(ctx, logits, temperature=1.0, dim=-1):
+        ctx.temperature = temperature
+        ctx.dim = dim
+        max_values = torch.max(logits, dim=dim, keepdim=True)[0]
+        shifted_logits = (logits - max_values) / temperature
+        ctx.save_for_backward(shifted_logits)  # Save logits for backward pass
+        exp_values = torch.exp(shifted_logits)
+        sum_exp_values = torch.sum(exp_values, dim=dim, keepdim=True)
+        log_softmax_output = shifted_logits - torch.log(sum_exp_values)
+
+        return torch.clamp(log_softmax_output, min=-10)
+
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        temperature = ctx.temperature
+        dim = ctx.dim
+        shifted_logits = ctx.saved_tensors[0]  # Retrieve saved logits
+        exp_values = torch.exp(shifted_logits)
+        sum_exp_values = torch.sum(exp_values, dim=dim, keepdim=True)
+        p = torch.clamp(exp_values / sum_exp_values, min=1e-10)
+        
+        grad_input = grad_output - p * grad_output.sum(dim=dim, keepdim=True)
+        
+        return grad_input / temperature, None, None  # No gradient for temperature and dim
+
+
+
 class Exp_Entropy_Function(torch.autograd.Function):
     """
     Custom Entropy function with manually defined gradient.
@@ -104,7 +139,7 @@ class Exp_Entropy_Function(torch.autograd.Function):
     def backward(ctx, grad_output):
         log_p, = ctx.saved_tensors # Retrieve saved tensor
         dim = ctx.dim
-        p = torch.clamp(torch.exp(log_p), min=1e-8)
+        p = torch.clamp(torch.exp(log_p), min=1e-10)
         grad_entropy_p = -p * (1 + log_p)
         grad_input = grad_entropy_p * grad_output.unsqueeze(dim)
 
