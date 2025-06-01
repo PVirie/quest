@@ -5,7 +5,7 @@ import random
 import os
 import logging
 
-from implementations.core.torch.transformers import Model
+from implementations.core.torch.multigoal_tf import Model
 from .base import Hierarchy_Base
 from implementations.core.torch.base import Log_Softmax_Function, Exp_Entropy_Function
 
@@ -100,16 +100,6 @@ class Hierarchy_AC(Hierarchy_Base):
         value_loss = (.5 * (train_state_values - train_mc_returns) ** 2.).sum()
         entropy = Exp_Entropy_Function.apply(log_probs, 1).sum()  # Use custom entropy function for stability
         loss = policy_loss + 0.5 * value_loss - self.entropy_weight * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
-        is_nan = torch.isnan(loss)
-        if is_nan:
-            is_policy_loss_nan = torch.isnan(policy_loss).item()
-            is_value_loss_nan = torch.isnan(value_loss).item()
-            is_entropy_nan = torch.isnan(entropy).item()
-            if not is_policy_loss_nan and not is_value_loss_nan:
-                loss = policy_loss + 0.5 * value_loss
-            else:
-                logging.warning(f"Skipping nan: policy nan {is_policy_loss_nan}, value nan {is_value_loss_nan}, entropy nan {is_entropy_nan}")
-                return
 
         loss.backward()
         self.optimizer.step()

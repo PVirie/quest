@@ -89,31 +89,35 @@ class Log_Softmax_Function(torch.autograd.Function):
     Log Softmax: log(softmax(x)) = x - log(sum(exp(x))).
     Avoids exp in the backward pass for stability or specific numerical reasons.
     """
+    MIN_BOUND = -10
+
     @staticmethod
     def forward(ctx, logits, temperature=1.0, dim=-1):
         ctx.temperature = temperature
         ctx.dim = dim
         max_values = torch.max(logits, dim=dim, keepdim=True)[0]
         shifted_logits = (logits - max_values) / temperature
-        ctx.save_for_backward(shifted_logits)  # Save logits for backward pass
         exp_values = torch.exp(shifted_logits)
-        sum_exp_values = torch.sum(exp_values, dim=dim, keepdim=True)
+        sum_exp_values = torch.sum(exp_values, dim=dim, keepdim=True).clamp_min(1e-38) # Avoid log(0)
         log_softmax_output = shifted_logits - torch.log(sum_exp_values)
+        ctx.save_for_backward(log_softmax_output)  # Save log softmax output for backward pass
 
-        return torch.clamp(log_softmax_output, min=-10)
+        return torch.clamp(log_softmax_output, min=Log_Softmax_Function.MIN_BOUND)
 
 
     @staticmethod
     def backward(ctx, grad_output):
         temperature = ctx.temperature
         dim = ctx.dim
-        shifted_logits = ctx.saved_tensors[0]  # Retrieve saved logits
-        exp_values = torch.exp(shifted_logits)
-        sum_exp_values = torch.sum(exp_values, dim=dim, keepdim=True)
-        p = torch.clamp(exp_values / sum_exp_values, min=1e-10)
-        grad_input = grad_output - p * grad_output.sum(dim=dim, keepdim=True)
+        log_softmax_unclamped, = ctx.saved_tensors  # Unpack saved tensor
+
+        clamp_min_val = Log_Softmax_Function.MIN_BOUND
+        mask = (log_softmax_unclamped > clamp_min_val).type_as(grad_output)
+        adj_grad_output = grad_output * mask
+        p = torch.exp(log_softmax_unclamped)  # Compute probabilities from log softmax
+        grad_shifted_logits = adj_grad_output - p * torch.sum(adj_grad_output, dim=dim, keepdim=True)
         
-        return grad_input / temperature, None, None  # No gradient for temperature and dim
+        return grad_shifted_logits / temperature, None, None  # No gradient for temperature and dim
 
 
 class Exp_Entropy_Function(torch.autograd.Function):

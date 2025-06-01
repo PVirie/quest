@@ -447,13 +447,13 @@ if __name__ == "__main__":
     infos = flatten_batch(infos)
 
     available_objectives = [
-        # Textworld_Transition.from_string("Find a carrot", is_main=True),
-        # Textworld_Transition.from_string("Find a soap bar", is_main=True),
-        # Textworld_Transition.from_string("Find a note", is_main=True),
-        # Textworld_Transition.from_string("Find a bell pepper", is_main=True),
-        # Textworld_Transition.from_string("Find a toothbrush", is_main=True),
-        # Textworld_Transition.from_string("Find a shovel", is_main=True),
-        # Textworld_Transition.from_string("Find an apple", is_main=True),
+        Textworld_Transition.from_string("Find a carrot", is_main=True),
+        Textworld_Transition.from_string("Find a soap bar", is_main=True),
+        Textworld_Transition.from_string("Find a note", is_main=True),
+        Textworld_Transition.from_string("Find a bell pepper", is_main=True),
+        Textworld_Transition.from_string("Find a toothbrush", is_main=True),
+        Textworld_Transition.from_string("Find a shovel", is_main=True),
+        Textworld_Transition.from_string("Find an apple", is_main=True),
         Textworld_Main_Goal(infos["objective"], infos["max_score"])
     ]
 
@@ -487,7 +487,7 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, available_objectives, persona, nb_episodes=2000, allow_relegation=False, verbose=True)
+        play(env, available_objectives, persona, nb_episodes=10000, allow_relegation=False, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
