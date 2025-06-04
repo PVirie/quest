@@ -25,10 +25,10 @@ class Model(nn.Module):
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
         self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.value_decoder = nn.TransformerDecoder(decoder_layer, num_layers=8)
         
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.policy_decoder = nn.TransformerDecoder(decoder_layer, num_layers=8)
 
         self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 1, device=device)

@@ -18,7 +18,8 @@ from implementations.language_agent.persona import Persona
 with open("/app/prompt_directory/react_tree.txt", "r") as file:
     prompt = file.read()
 
-from utilities import musique_classes, install
+from utilities import install, musique_classes, language_models, embedding_models
+from utilities.tokenizer import *
 
 musique_path = "/app/cache/musique_data"
 musique_repo_path = f"{musique_path}/repo"

@@ -15,6 +15,8 @@ import torch
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import utilities
+from utilities import musique_classes, language_models, embedding_models
+from utilities.tokenizer import *
 
 utilities.install('textworld')
 utilities.install('textworld.gym')
@@ -248,7 +250,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         if self == progress_transition:
             terminated = True
             truncated = False
-            succeeded = True
+            succeeded = True if n_action_node + n_quest_node >= 2 else False # if sub task can be done in one step, discourage it
             if n_succeeded_node >= 2:
                 mdp_score = mdp_score + 20
             else:
@@ -329,9 +331,9 @@ def compute_folds(objective_transition, state_scores):
     return [(st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
 
 
-def play(env, available_objectives, persona, nb_episodes=10, allow_relegation=True, verbose=False, verbose_step=10):
+def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, allow_relegation=True, verbose=False, verbose_step=10):
     
-    with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
+    with open(rollout_file_path, "a", encoding="utf-8") as f:
         # mark date
         f.write(f"========================================================================\n")
         f.write(f"Date: {utilities.get_current_time_string()}\n")
@@ -389,7 +391,7 @@ def play(env, available_objectives, persona, nb_episodes=10, allow_relegation=Tr
 
         if verbose and no_episode % verbose_step == 0:
             # cl means context length
-            msg = "episode: {}/{} steps: {:5.1f}; score: {:4.1f}/{:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
+            msg = "episode: {}/{}; steps: {:5.1f}; score: {:4.1f}/{:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
             report = msg.format(
                 no_episode,
                 nb_episodes,
@@ -398,7 +400,7 @@ def play(env, available_objectives, persona, nb_episodes=10, allow_relegation=Tr
                 np.mean(stat_mean_context_length[-verbose_step:]),
                 np.mean(stat_max_context_length[-verbose_step:]))
             logging.info(report)
-            with open(os.path.join(experiment_path, "rollouts.txt"), "a") as f:
+            with open(rollout_file_path, "a") as f:
                 data = persona.print_context(root_node)
                 f.write(f"Episode {no_episode}\n")
                 f.write("[Report]\t" + report + "\n")
@@ -412,6 +414,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", "-r", action="store_true")
+    parser.add_argument("--record_file", "-o", type=str, default="rollouts.txt", help="The file to record the rollouts. Default is 'rollouts.txt'.")
     args = parser.parse_args()
 
     experiment_path = "/app/experiments/rl_textworld"
@@ -421,6 +424,10 @@ if __name__ == "__main__":
             shutil.rmtree(experiment_path)
         exit()
     os.makedirs(experiment_path, exist_ok=True)
+
+    rollout_file_path = os.path.join(experiment_path, "rollouts.txt")
+    if args.record_file:
+        rollout_file_path = os.path.join(experiment_path, args.record_file)
 
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
@@ -487,9 +494,13 @@ if __name__ == "__main__":
     if not persona.load(agent_parameter_path):
         logging.info("Initiate agent training ....")
         persona.set_training_mode(True)
-        play(env, available_objectives, persona, nb_episodes=10000, allow_relegation=False, verbose=True)
+        play(env, available_objectives, persona, 
+             rollout_file_path=rollout_file_path, 
+             nb_episodes=20000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
-    play(env, available_objectives, persona, nb_episodes=100, allow_relegation=False, verbose=True, verbose_step=20)
+    play(env, available_objectives, persona, 
+         rollout_file_path=rollout_file_path, 
+         nb_episodes=100, allow_relegation=True, verbose=True, verbose_step=20)
     env.close()
