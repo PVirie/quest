@@ -2,6 +2,7 @@ import os
 import sys
 from tkinter import filedialog
 import logging
+from datetime import datetime
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -27,6 +28,23 @@ def open_file_dialog():
         for file_path in file_paths:
             yield file_path
 
+
+def save_file_dialog(default_path = None):
+    """Opens a file dialog to save a file."""
+    root = tk.Tk()
+    root.withdraw()
+
+    file_path = filedialog.asksaveasfilename(
+        title="Save Plot",
+        defaultextension=".pgf",
+        filetypes=[("PGF Files", "*.pgf"), ("All Files", "*.*")],
+        initialfile=default_path if default_path else "plot.pgf"
+    )
+    if file_path:
+        return file_path
+    else:
+        logging.warning("No file selected for saving.")
+        return None
 
 
 def parse_rollout_file(file_generator):
@@ -134,3 +152,8 @@ if __name__ == "__main__":
     plt.grid()
     plt.tight_layout()
     plt.show()
+
+    plot_name = f"plot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pgf"
+    save_path = save_file_dialog(default_path=plot_name)
+    if save_path is not None:
+        plt.savefig(save_path, format="pgf", bbox_inches="tight")
