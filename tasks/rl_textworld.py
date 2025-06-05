@@ -15,7 +15,6 @@ import torch
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import utilities
-from utilities import musique_classes, language_models, embedding_models
 from utilities.tokenizer import *
 
 utilities.install('textworld')
@@ -347,6 +346,7 @@ def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, 
     stat_mean_context_length = []
     stat_max_context_length = []
     stat_max_score = []
+    stat_count_succeeded = []
 
     for no_episode in range(1, nb_episodes + 1):
         obs, infos = env.reset()  # Start new episode.
@@ -380,7 +380,7 @@ def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, 
         if root_node.observation is None:
             # error skip
             continue
-        score, _, _, _, _ = root_node.eval(root_node.observation)
+        score, _, _, succeeded, _ = root_node.eval(root_node.observation)
 
         num_children, num_quest_node, max_context, min_context = root_node.compute_statistics()
         stat_n_moves.append(num_children)
@@ -388,14 +388,16 @@ def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, 
         stat_mean_context_length.append(num_children / num_quest_node if num_quest_node > 0 else 0)
         stat_max_context_length.append(max_context)
         stat_max_score.append(len(objective_transition))
+        stat_count_succeeded.append(1.0 if succeeded else 0.0)
 
         if verbose and no_episode % verbose_step == 0:
             # cl means context length
-            msg = "episode: {}/{}; steps: {:5.1f}; score: {:4.1f}/{:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
+            msg = "episode: {}/{}; steps: {:5.1f}; succeeded: {:4.1f}; score: {:4.1f}/{:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
             report = msg.format(
                 no_episode,
                 nb_episodes,
-                np.mean(stat_n_moves[-verbose_step:]), 
+                np.mean(stat_n_moves[-verbose_step:]),
+                np.mean(stat_count_succeeded[-verbose_step:]),
                 np.mean(stat_scores[-verbose_step:]), np.mean(stat_max_score[-verbose_step:]),
                 np.mean(stat_mean_context_length[-verbose_step:]),
                 np.mean(stat_max_context_length[-verbose_step:]))
@@ -465,7 +467,7 @@ if __name__ == "__main__":
     ]
 
     MAX_VOCAB_SIZE = 1000
-    tokenizer = utilities.Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
+    tokenizer = Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
 
     def env_step(action):
         obs, score, done, infos = env.step([action])
@@ -481,7 +483,7 @@ if __name__ == "__main__":
     # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.96, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
 
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.00002, entropy_weight=0.1, train_temperature=1.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.00002, entropy_weight=0.2, train_temperature=1.0)
 
     persona = Persona(
         rl_core,
@@ -496,7 +498,7 @@ if __name__ == "__main__":
         persona.set_training_mode(True)
         play(env, available_objectives, persona, 
              rollout_file_path=rollout_file_path, 
-             nb_episodes=20000, allow_relegation=True, verbose=True)
+             nb_episodes=10000, allow_relegation=True, verbose=True)
         persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)

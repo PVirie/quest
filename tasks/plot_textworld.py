@@ -40,11 +40,12 @@ def parse_rollout_file(file_generator):
             session_text = session_text.strip()
             if len(session_text) < 10:
                 continue
-            date, steps = parse_session(session_text)
+            date, stats = parse_session(session_text)
             yield {
                 'file_path': file_path,
                 'date': date,
-                'steps': steps,
+                'stats': stats,
+                'moving_average': compute_moving_average(stats)
             }
 
 
@@ -53,7 +54,7 @@ def parse_session(session):
     Date: 2025-06-01 13:45:52
     ------------------------------------------------------------------------
     Episode 10
-    [Report]	episode: 10/20000; steps: 100.0; score: -2.0/ 1.2; cl: 100.0; max cl: 100.0
+    [Report]	episode: 10/20000; steps: 100.0; succeeded: 0.8; score: -2.0/ 1.2; cl: 100.0; max cl: 100.0
     ...
     ------------------------------------------------------------------------
     Episode 20
@@ -64,7 +65,7 @@ def parse_session(session):
     header = episodes[0].strip()
     logging.info(f"Parsing session header: {header}")
     date = utilities.get_datetime_from_string(header.split("Date: ")[-1].strip())
-    steps = []
+    stats = []
 
     def parse_slash(slash_string):
         """Parses a string with slash notation into a float."""
@@ -79,20 +80,33 @@ def parse_session(session):
             if len(lines) > 1:
                 report_line = lines[1].strip()
                 parts = report_line.split(';')
-                # handle backward if "steps" is in part[0]
-                if "steps" in parts[0]:
-                    sub_parts = parts[0].split('steps')
-                    parts = [sub_parts[0]] + ['steps' + sub_parts[1]] + parts[1:]
-                step_info = {
-                    'episode': int(parse_slash(parts[0].split(':')[1].strip())),
-                    'steps': float(parts[1].split(':')[1].strip()),
-                    'score': parse_slash(parts[2].split(':')[1].strip()),
-                    'cl': float(parts[3].split(':')[1].strip()),
-                    'max_cl': float(parts[4].split(':')[1].strip())
-                }
-                steps.append(step_info)
-    return date, steps
 
+                episode = int(parse_slash(parts[0].split(':')[1].strip()))
+                steps = float(parts[1].split(':')[1].strip())
+                succeeded = float(parts[2].split(':')[1].strip())
+                score = parse_slash(parts[3].split(':')[1].strip())
+                cl = float(parts[4].split(':')[1].strip())
+                max_cl = float(parts[5].split(':')[1].strip())
+                stats.append({
+                    'episode': episode,
+                    'steps': steps,
+                    'succeeded': succeeded,
+                    'score': score,
+                    'cl': cl,
+                    'max_cl': max_cl 
+                })
+    return date, stats
+
+
+def compute_moving_average(stats, alpha=0.995):
+    """Computes the moving average of the scores."""
+    output = []
+    moving_avg = {}
+    for stat in stats:
+        for k, v in stat.items():
+            moving_avg[k] = moving_avg.get(k, 0.0) * alpha + v * (1 - alpha)
+        output.append(moving_avg.copy())
+    return output
 
 
 if __name__ == "__main__":
@@ -110,10 +124,9 @@ if __name__ == "__main__":
     plt.figure(figsize=(12, 6))
     for session in sessions:
         date = session['date']
-        steps = session['steps']
-        episodes = [step['episode'] for step in steps]
-        scores = [step['score'] for step in steps]
-        plt.plot(episodes, scores, label=date.strftime("%Y-%m-%d %H:%M:%S"))
+        X = [stat['episode'] for stat in session['stats']]
+        Y = [avg['succeeded'] for avg in session['moving_average']]
+        plt.plot(X, Y, label=date.strftime("%Y-%m-%d %H:%M:%S"))
     plt.xlabel('Episode')
     plt.ylabel('Score')
     plt.title('TextWorld Rollout Scores')

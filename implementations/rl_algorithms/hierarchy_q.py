@@ -101,15 +101,6 @@ class Hierarchy_Q(Hierarchy_Base):
         q_loss = (.5 * (current_scores - train_td_returns) ** 2.).sum()
         entropy = Exp_Entropy_Function.apply(log_probs, 1).sum()  # Use custom entropy function for stability
         loss = q_loss - self.entropy_weight * entropy
-        is_nan = torch.isnan(loss)
-        if is_nan:
-            is_q_loss_nan = torch.isnan(q_loss).item()
-            is_entropy_nan = torch.isnan(entropy).item()
-            if not is_q_loss_nan:
-                loss = q_loss
-            else:
-                logging.warning(f"Skipping nan: q loss nan {is_q_loss_nan}, entropy nan {is_entropy_nan}")
-                return
 
         loss.backward()
         self.optimizer.step()
