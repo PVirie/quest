@@ -139,21 +139,32 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Plotting the data
-    plt.figure(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(12, 6))
     for session in sessions:
         date = session['date']
         X = [stat['episode'] for stat in session['stats']]
         Y = [avg['succeeded'] for avg in session['moving_average']]
-        plt.plot(X, Y, label=date.strftime("%Y-%m-%d %H:%M:%S"))
-    plt.xlabel('Episode')
-    plt.ylabel('Score')
-    plt.title('TextWorld Rollout Scores')
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
+        ax.plot(X, Y, label=date.strftime("%Y-%m-%d %H:%M:%S"))
+    ax.set_xlabel('Episode')
+    ax.set_ylabel('Score')
+    ax.set_title('TextWorld Rollout Scores')
+    ax.legend()
+    ax.grid()
+    fig.tight_layout()
     plt.show()
 
     plot_name = f"plot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pgf"
     save_path = save_file_dialog(default_path=plot_name)
     if save_path is not None:
-        plt.savefig(save_path, format="pgf", bbox_inches="tight")
+        logging.info(f"Saving plot to {save_path}")
+        fig.savefig(save_path, format="pgf", bbox_inches="tight")
+        # now clear all the header sections from the file starts with %%
+        with open(save_path, 'r') as f:
+            lines = f.readlines()
+        with open(save_path, 'w') as f:
+            for i, line in enumerate(lines):
+                if line.startswith('%') and i >= 8:
+                    continue
+                f.write(line)
+
+    plt.close(fig)
