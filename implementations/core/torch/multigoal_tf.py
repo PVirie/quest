@@ -16,17 +16,22 @@ class Model(nn.Module):
         self.embedding    = nn.Embedding(input_size, hidden_size, device=device)
         # state encoder
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
         self.context_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
+        self.objective_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
         self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
 
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
+        self.value_decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
+        
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
+        self.policy_decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
 
-        self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 2, device=device)
-        self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 2, device=device)
+        self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 1, device=device)
 
         self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
 
@@ -46,6 +51,7 @@ class Model(nn.Module):
 
         objective_embedding = self.embedding(objectives) # batch x objective_context_size x hidden
         objective_embedding = objective_embedding + self.pe[:objective_context_size, :] # add positional encoding
+        objective_embedding = apply_transformer(self.objective_decoder, objective_embedding)
         
         obs_embedding = self.embedding(observations) # batch x n_contexts x context_size x hidden
         obs_embedding = obs_embedding + self.pe[:context_size, :] # add positional encoding
@@ -53,9 +59,8 @@ class Model(nn.Module):
         obs_embedding = torch.reshape(obs_embedding[:, 0, :], (-1, n_contexts, self.hidden_size)) # batch x n_contexts x hidden
 
         obs_embedding = obs_embedding + self.pe[:n_contexts, :] # add positional encoding
-        state_internal = apply_transformer(self.state_decoder, obs_embedding, memory=objective_embedding, tgt_mask=causal_mask(n_contexts, self.device), tgt_is_causal=True) # batch x n_contexts x hidden
-        
-        pivot_state_internal = torch.gather(state_internal, 1, pivot_positions.unsqueeze(-1).expand(-1, -1, self.hidden_size)) # batch x n_pivots x hidden
+        policy_internal = apply_transformer(self.policy_decoder, obs_embedding, memory=objective_embedding, tgt_mask=causal_mask(n_contexts, self.device), tgt_is_causal=True) # batch x n_contexts x hidden
+        pivot_policy_internal = torch.gather(policy_internal, 1, pivot_positions.unsqueeze(-1).expand(-1, -1, self.hidden_size)) # batch x n_pivots x hidden
         
         action_embedding = self.embedding(actions) # batch x n_pivots x n_actions x action_size x hidden
         action_embedding = action_embedding + self.pe[:action_size, :] # add positional encoding
@@ -63,10 +68,12 @@ class Model(nn.Module):
         action_embedding = torch.reshape(action_embedding[:, 0, :], (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
 
         # now cross product between the state_internal and the action_embedding
-        pre_actions = torch.reshape(self.actor(pivot_state_internal), (batch, n_pivots, self.hidden_size, 1)) # batch x n_pivots x hidden x 1
+        pre_actions = torch.reshape(pivot_policy_internal, (batch, n_pivots, self.hidden_size, 1)) # batch x n_pivots x hidden x 1
         scores = torch.matmul(action_embedding, pre_actions) # batch x n_pivots x n_actions x 1
 
-        state_values = self.critic(pivot_state_internal) # batch x n_pivots x 1
+        value_internal = apply_transformer(self.value_decoder, obs_embedding, memory=objective_embedding, tgt_mask=causal_mask(n_contexts, self.device), tgt_is_causal=True) # batch x n_contexts x hidden
+        pivot_value_internal = torch.gather(value_internal, 1, pivot_positions.unsqueeze(-1).expand(-1, -1, self.hidden_size)) # batch x n_pivots x hidden
+        state_values = self.critic(pivot_value_internal) # batch x n_pivots x 1
 
         # return scores has shape batch x n_pivots x n_actions; is the scores of individual actions along the context length
         # state_values has shape batch x n_pivots; is the values of the best action from the current state

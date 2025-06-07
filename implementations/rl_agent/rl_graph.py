@@ -28,79 +28,112 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
     def get_children(self):
         return self.children
     
-    def get_last_child(self):
-        if len(self.children) == 0:
-            return None
-        return self.children[-1]
-    
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            # if key is a slice, return the children in that range
+            start, stop, step = key.start, key.stop, key.step
+            return self.children[start:stop:step]
+        else:
+            # if key is an integer, return the child at that index
+            return self.children[key] if len(self.children) > 0 else None
+
     def get_context(self):
         raise NotImplementedError("get_context() not implemented")
     
 
-class Quest_Node(RL_Node):
-    def __init__(self, objective=None, eval_func=None, start_observation=None, result=None, end_observation=None, truncated=False, train_ref=None):
-        super().__init__()
-        self.objective = objective
-        self.eval_func = eval_func
-        self.start_observation = start_observation
-        self.result = result
-        self.end_observation = end_observation
-        self.truncated = truncated
+class Trainable:
+    def __init__(self, train_ref=None, observation=None):
         self.train_ref = train_ref
+        self.observation = observation
+
+
+class Quest_Node(RL_Node, Trainable):
+    def __init__(self, objective=None, start_observation=None, succeeded=None, observation=None, truncated=False, train_ref=None, allow_relegation=True):
+        self.objective = objective
+        self.start_observation = start_observation
+        self.allow_relegation = allow_relegation
+        self.succeeded = succeeded
+        self.truncated = truncated
+        Trainable.__init__(self, train_ref=train_ref, observation=observation)
+        RL_Node.__init__(self)
 
     def get_start_contexts(self):
-        return f"Objective: {self.objective}", f"Observation: {self.start_observation.get_context()}"
+        return f"Objective: {str(self.objective)}", f"Observation: {self.start_observation.get_context()}"
 
     def get_context(self):
         contexts = []
-        contexts.append(f"Sub Task: {self.objective}")
-        if self.result is not None:
-            contexts.append(f"Result: {"Succeeded" if self.result else "Failed"}")
+        contexts.append(f"Sub Task: {str(self.objective)}")
+        if self.succeeded is not None:
+            contexts.append(f"Result: {"Succeeded" if self.succeeded else "Failed"}")
         elif self.truncated:
             contexts.append(f"Result: Truncated")
-        contexts.append(f"Observation: {self.end_observation.get_context()}")
+        contexts.append(f"Observation: {self.observation.get_context()}")
         return contexts
 
     def set(self, another):
         # check same class
         if not isinstance(another, self.__class__):
             return
-        if another.result is not None:
-            self.result = another.result
-        if another.end_observation is not None:
-            self.end_observation = another.end_observation
+        if another.succeeded is not None:
+            self.succeeded = another.succeeded
+        if another.observation is not None:
+            self.observation = another.observation
         if another.truncated is not None:
             self.truncated = another.truncated
             
     def is_completed(self):
-        return self.result is not None or self.truncated
+        return self.succeeded is not None
     
-    def eval(self, obs):
-        return self.eval_func(self, obs)
+    def is_succeeded(self):
+        return self.succeeded is not None and self.succeeded
     
-    def context_length(self):
-        # does not count Quest_Node type
+    def last_child_succeeded(self):
+        if len(self.children) == 0:
+            return True
+        last_child = self.children[-1]
+        if isinstance(last_child, self.__class__):
+            return last_child.is_succeeded()
+        else:
+            # other type of node, assume succeed
+            return True
+    
+    def eval(self, observation):
+        return self.objective.eval(self, observation)
+
+    def count_context_type(self):
+        num_observation_node = 0
+        num_thought_node = 0
+        num_quest_node = 0
+        num_succeeded_quest_node = 0
+        for child in self.children:
+            if isinstance(child, Observation_Node):
+                num_observation_node += 1
+            elif isinstance(child, Thought_Node):
+                num_thought_node += 1
+            elif isinstance(child, Quest_Node):
+                num_quest_node += 1
+                if child.is_succeeded():
+                    num_succeeded_quest_node += 1
+        
+        return num_observation_node, num_thought_node, num_quest_node, num_succeeded_quest_node
+    
+    def compute_statistics(self):
         num_children = len(self.children)
-        return num_children
-    
-    def total_context_length(self):
-        num_children = len(self.children)
-        num_quest_node = 1 if num_children > 0 else 0
+        num_quest_nodes = 1
+        max_children = num_children
+        min_children = num_children
         for child in self.children:
             if isinstance(child, self.__class__):
-                cc, cn = child.total_context_length()
-                num_children += cc
-                num_quest_node += cn
-        return num_children, num_quest_node
-    
-    def max_context_length(self):
-        max_children = len(self.children)
-        for child in self.children:
-            if isinstance(child, self.__class__):
-                cc = child.max_context_length()
-                if cc > max_children:
-                    max_children = cc
-        return max_children
+                cc, cq, cm, cn = child.compute_statistics()
+                num_children += (cc - 1)
+                num_quest_nodes += cq
+                if cm > max_children:
+                    max_children = cm
+                if cn < min_children:
+                    min_children = cn
+        if num_quest_nodes == 0:
+            min_children = 0
+        return num_children, num_quest_nodes, max_children, min_children
     
 
 class Thought_Node(RL_Node):
@@ -120,12 +153,11 @@ class Thought_Node(RL_Node):
             self.thought = another.thought
 
 
-class Observation_Node(RL_Node):
+class Observation_Node(RL_Node, Trainable):
     def __init__(self, action=None, observation=None, train_ref=None):
-        super().__init__()
         self.action = action
-        self.observation = observation
-        self.train_ref = train_ref
+        Trainable.__init__(self, train_ref=train_ref, observation=observation)
+        RL_Node.__init__(self)
 
     def get_context(self):
         contexts = []

@@ -1,4 +1,6 @@
 from typing import List
+import json
+import os
 
 class Serializable:
     def to_json(self):
@@ -57,3 +59,62 @@ class Answer_Record(Record):
         self.predicted_answer = predicted_answer
         self.predicted_support_idxs = predicted_support_idxs
         self.predicted_answerable = predicted_answerable
+
+
+
+class Task:
+    def __init__(self, file_path: str, answer_file_path: str):
+        self.file_path = file_path
+        self.answer_path = answer_file_path
+
+        self.record_order = []
+        self.questions = {}
+        self.answers = {}
+        self.unanswered = set()
+
+        with open(self.file_path, 'r') as f:
+            for line in f:
+                json_line = json.loads(line)
+                record = Question_Record(**json_line)
+                self.questions[record.id] = record
+                self.record_order.append(record.id)
+                self.unanswered.add(record.id)
+
+        if os.path.exists(self.answer_path):
+            with open(self.answer_path, 'r') as f:
+                for line in f:
+                    json_line = json.loads(line)
+                    record = Answer_Record(**json_line)
+                    self.answers[record.id] = record
+                    self.unanswered.discard(record.id)
+    
+
+    def status(self):
+        return f"Task status: {len(self.unanswered)} unanswered, {len(self.answers)} answered"
+
+
+    def has_next(self):
+        return len(self.unanswered) > 0
+    
+
+    def pop(self):
+        if not self.has_next():
+            return None, None
+        record_id = self.unanswered.pop()
+        record = self.questions[record_id]
+        return record_id, record
+    
+
+    def fulfill(self, record_id: str, answer_record: Answer_Record):
+        self.answers[record_id] = answer_record
+        # remove from unanswered
+        self.unanswered.discard(record_id)
+        # save to file
+        with open(self.answer_path, 'a') as f:
+            f.write(json.dumps(answer_record.to_json()) + "\n")
+
+
+    def write_answer(self, file):
+        for record_id in self.record_order:
+            file.write(json.dumps(self.answers[record_id].to_json()) + "\n")
+        file.seek(0)

@@ -1,10 +1,10 @@
 services:
-    pure-python-service:
-        profiles: ["pure-python"]
+    python-service:
+        profiles: ["python"]
         build:
-            dockerfile: ./Dockerfile.pure-python
+            dockerfile: ./Dockerfile.python
             context: .
-        container_name: thinking-pure-python
+        container_name: thinking-python
         restart: no
         volumes:
             - ./artifacts/log:/app/log

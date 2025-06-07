@@ -8,11 +8,10 @@ RUN apt install -y build-essential libffi-dev curl git zip
 WORKDIR /app
 
 # install torch with cuda support
-RUN pip3 install --upgrade --upgrade-strategy eager optimum[amd] --break-system-packages
-RUN pip3 install torch==2.2.1 torchvision==0.17.1 torchaudio==2.2.1 --index-url https://download.pytorch.org/whl/rocm5.7 --break-system-packages
-RUN pip3 install auto-gptq[triton] --no-build-isolation --extra-index-url https://huggingface.github.io/autogptq-index/whl/rocm573/ --break-system-packages
-RUN pip3 install numpy==1.26.4 --break-system-packages
-COPY ./requirements.txt /app/requirements.txt
-RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
+RUN pip3 install --upgrade --upgrade-strategy eager optimum[amd]
+RUN pip3 install torch==2.2.1 torchvision==0.17.1 torchaudio==2.2.1 --index-url https://download.pytorch.org/whl/rocm5.7
+RUN pip3 install auto-gptq[triton] --no-build-isolation --extra-index-url https://huggingface.github.io/autogptq-index/whl/rocm573/
+RUN pip3 install numpy==1.26.4
+RUN pip3 install debugpy
 
 CMD ["python3", "-m", "debugpy", "--listen", "0.0.0.0:43690", "tasks/benchmark.py"]

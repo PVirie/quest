@@ -1,8 +1,9 @@
 from enum import Enum
-from utilities.language_models import Language_Model, Chat, Chat_Message
-from .rl_graph import Quest_Node, Observation_Node, Thought_Node
+from utilities.language_models import Language_Model
+from .rl_graph import Trainable, Quest_Node, Observation_Node, Thought_Node
 import random
 import os
+import pickle
 
 """
 Non-Batched version of the Persona class.
@@ -28,18 +29,18 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, rl_core, tokenizer, compute_folds, env_step, goal_pursuit_eval, action_parser, allow_relegation=True, train_prompt=None):
+    def __init__(self, rl_core, tokenizer, compute_folds, env_step, training_relegation_probability=0.25, train_prompt=None):
         self.rl_core = rl_core
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
         self.env_step = env_step
-        self.goal_pursuit_eval = goal_pursuit_eval
-        self.action_parser = action_parser
-        self.allow_relegation = allow_relegation
+        self.training_relegation_probability = training_relegation_probability
         self.action_set = set()
         self.extra_actions = {}
 
         self.training_mode = False
+        self.allow_relegation = True
+        self.allow_sub_training = True
 
         self.use_lm = False
         self.long_lm = None
@@ -60,32 +61,53 @@ class Persona:
         self.allow_relegation = flag
 
 
+    def compute_allow_relegation(self):
+        return self.allow_relegation and (random.random() < self.training_relegation_probability or not self.training_mode)
+
+
+    def set_allow_sub_training(self, flag):
+        self.allow_sub_training = flag
+
+
     def save(self, path):
         # save the rl_core and the extra actions
+        with open(os.path.join(path, "extra_actions.pickle"), "wb") as f:
+            pickle.dump(list(self.extra_actions.values()), f)
+
+        tokenizer_path = os.path.join(path, "tokenizer")
+        os.makedirs(tokenizer_path, exist_ok=True)
+        self.tokenizer.save(tokenizer_path)
+
         rl_core_path = os.path.join(path, "rl_core")
         os.makedirs(rl_core_path, exist_ok=True)
         self.rl_core.save(rl_core_path)
-        with open(os.path.join(path, "extra_actions.txt"), "w", encoding="utf-8") as f:
-            for action in self.extra_actions.keys():
-                f.write(action[10:] + "\n")
 
 
     def load(self, path):
-        if not os.path.exists(path):
+        extra_actions_path = os.path.join(path, "extra_actions.pickle")
+        if not os.path.exists(extra_actions_path):
             return False
+        with open(extra_actions_path, "rb") as f:
+            actions = pickle.load(f)
+            self.extra_actions = {f"Sub Task: {str(action)}": action for action in actions}
         # load the rl_core and the extra actions
-        success = self.rl_core.load(os.path.join(path, "rl_core"))
-        if success:
-            with open(os.path.join(path, "extra_actions.txt"), "r", encoding="utf-8") as f:
-                action_keys = set([line.strip() for line in f.readlines()])
-                self.extra_actions = {f"Sub Task: {action}": self.action_parser(action) for action in action_keys}
-        return success
+        succeeded = self.tokenizer.load(os.path.join(path, "tokenizer"))
+        if not succeeded:
+            return False
+        succeeded = self.rl_core.load(os.path.join(path, "rl_core"))
+        if not succeeded:
+            return False
+        return succeeded
 
 
     def print_context(self, quest_node, prefix=""):
         children = quest_node.get_children()
         objective_context, start_obs_context = quest_node.get_start_contexts()
-        contexts = [f"{prefix}{objective_context}", f"{prefix}{start_obs_context.replace("\n", f"\n{prefix}")}"]
+        contexts = [
+            f"{prefix}Relegation: {'enabled' if quest_node.allow_relegation else 'disabled'}",
+            f"{prefix}{objective_context}", 
+            f"{prefix}{start_obs_context.replace("\n", f"\n{prefix}")}"
+        ]
         last_score = 0
         for i, node in enumerate(children):
             node_contexts = node.get_context()
@@ -124,10 +146,7 @@ class Persona:
         i = 0
         while i < len(supports):
             node = supports[i]
-            if isinstance(node, Quest_Node):
-                rl_contexts.extend(node.get_context())
-                last_observation = node.end_observation
-            elif isinstance(node, Observation_Node):
+            if isinstance(node, Trainable):
                 rl_contexts.extend(node.get_context())
                 last_observation = node.observation
             else:
@@ -147,11 +166,11 @@ class Persona:
             i += 1
 
         folds = self.compute_folds(quest_node.objective, selected_nodes)
-        for diff_str, obj, from_transition_index, to_transition_index in folds:
-            fold_action = f"Sub Task: {diff_str}"
-            self.extra_actions[fold_action] = obj
+        for sub_objective, from_transition_index, to_transition_index in folds:
+            fold_action = f"Sub Task: {str(sub_objective)}"
+            self.extra_actions[fold_action] = sub_objective
             pivots[from_transition_index][2].append(fold_action)
-            train_data.append((fold_action, from_transition_index, to_transition_index))
+            # train_data.append((fold_action, from_transition_index, to_transition_index))
 
         # add extra actions
         all_action_list = list(self.action_set.union(self.extra_actions.keys()))
@@ -162,83 +181,97 @@ class Persona:
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
             self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
-            # for diff_str, _, from_transition_index, to_transition_index in folds:
-            #     sub_objective_tensor = self.tokenizer([diff_str], stack=True)
-            #     sub_pivots = []
-            #     sub_train_data = []
-            #     start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
-            #     end_context_mark = pivots[to_transition_index][1]
-            #     for i in range(from_transition_index, to_transition_index + 1):
-            #         sub_pivots.append((0 if i < to_transition_index else 100, pivots[i][1] - start_context_mark, pivots[i][2]))
-            #         sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
-            #     self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
+            if not self.allow_relegation or not self.allow_sub_training:
+                return
+
+            for sub_objective, from_transition_index, to_transition_index in folds:
+                sub_quest_node = Quest_Node(
+                    objective=sub_objective,
+                    start_observation=supports[from_transition_index-1].observation if from_transition_index > 0 else quest_node.start_observation
+                )
+                sub_quest_node.parent = quest_node.parent
+                sub_objective_context, sub_start_obs_context = sub_quest_node.get_start_contexts()
+                sub_objective_tensor = self.tokenizer([sub_objective_context], stack=True)
+                last_sub_score = 0
+                sub_pivots = []
+                sub_train_data = []
+                start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
+                end_context_mark = pivots[to_transition_index][1]
+                for i in range(from_transition_index, to_transition_index + 1):
+                    sub_quest_node.children.append(supports[i])
+                    sub_mdp_score, _, _, _, _ = sub_quest_node.eval(supports[i].observation)
+                    sub_pivots.append((sub_mdp_score - last_sub_score, pivots[i][1] - start_context_mark, pivots[i][2]))
+                    sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
+                    last_sub_score = sub_mdp_score
+                self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
 
-    def think(self, quest_node, supports):
+    def think(self, quest_node):
         # supports is a list of nodes
+        supports = quest_node.get_children()
         last_observation = quest_node.start_observation
         objective_context, start_obs_context = quest_node.get_start_contexts()
         objective_contexts = [objective_context]
         contexts = [start_obs_context]
+        should_eval = False
         for node in supports:
-            if isinstance(node, Quest_Node):
+            if isinstance(node, Trainable):
                 contexts.extend(node.get_context())
-                last_observation = node.end_observation
-            elif isinstance(node, Observation_Node):
-                contexts.extend(node.get_context())
-                last_observation  = node.observation
+                last_observation = node.observation
+                should_eval = True
             elif isinstance(node, Thought_Node):
                 contexts.extend(node.get_context())
+                should_eval = False
                 continue
+        
+        ################# Evaluate current situation #################
+        if should_eval:
+            mdp_score, terminated, truncated, succeeded, new_objective = quest_node.eval(last_observation)
+            if len(supports) > 0:
+                # Because training has to update weight anyway, which violate the functional programming paradigm
+                # I'll just update the last child's mdp_score
+                last_node = supports[-1]
+                last_node.train_ref.mdp_score = mdp_score
+                if new_objective is not None:
+                    # increase end goal discover speed
+                    new_action = f"Sub Task: {str(new_objective)}"
+                    last_node.objective = new_objective
+                    last_node.train_ref.selected_action = new_action
+                    last_node.train_ref.selected_action_rank = -1
+                    last_node.train_ref.available_actions.add(new_action)
+                    self.extra_actions[new_action] = new_objective
 
-        mdp_score, terminated, truncated, result = quest_node.eval(last_observation)
-        if len(supports) > 0:
-            # Because training has to update weight anyway, which violate the functional programming paradigm
-            # I'll just update the last child's mdp_score
-            last_node = supports[-1]
-            last_node.train_ref.mdp_score = mdp_score
-            # # now compute the correct Sub Task (sometimes, sub task does not follow the original objective)
-            # if isinstance(last_node, Quest_Node):
-            #     action_obj = last_node.end_observation - last_node.start_observation
-            #     diff_str = str(action_obj)
-            #     if len(action_obj) > 0:
-            #         action_str = f"Sub Task: {diff_str}"
-            #         last_node.train_ref.selected_action = action_str
-            #         last_node.train_ref.selected_action_rank = -1
-            #         last_node.train_ref.available_actions.add(action_str)
-            #         self.extra_actions[action_str] = action_obj
+            train_last_node = False
+            if terminated:
+                train_last_node = True
+                return_sub_action = Sub_Action_Type.Fulfill
+                return_node = Quest_Node(succeeded=succeeded, observation=last_observation)
+            elif truncated:
+                return_sub_action = Sub_Action_Type.Done
+                return_node = Quest_Node(truncated=True, succeeded=succeeded, observation=last_observation)
 
-        train_last_node = False
-        if terminated:
-            train_last_node = True
-            return_sub_action = Sub_Action_Type.Fulfill
-            return_node = Quest_Node(result=result, end_observation=last_observation)
-        elif truncated:
-            return_sub_action = Sub_Action_Type.Done
-            return_node = Quest_Node(end_observation=last_observation, truncated=True)
+            if self.training_mode:
+                self.step += 1
+                if terminated or truncated or self.step % self.TRAIN_STEP == 0:
+                    self.train(quest_node, train_last_node=train_last_node)
 
-        if self.training_mode:
-            self.step += 1
-            if terminated or truncated or self.step % self.TRAIN_STEP == 0:
-                self.train(quest_node, train_last_node=train_last_node)
+                # if self.step % self.PRINT_STEP == 0:
+                #     self.rl_core.print(self.step)
 
-            # if self.step % self.PRINT_STEP == 0:
-            #     self.rl_core.print(self.step)
-
-        if terminated or truncated:
-            return return_sub_action, return_node
+            if terminated or truncated:
+                return return_sub_action, return_node
 
         ################# ACTION SELECTION #################
         selectible_action_set = set([f"Action: {ac}" for ac in last_observation.get_available_actions()])
         self.action_set.update(selectible_action_set)
         valid_extra_actions = set()
-        current_objective = self.action_parser(quest_node.objective)
+        current_objective = quest_node.objective
         for key, obj in self.extra_actions.items():
             if obj < current_objective and obj.applicable_from(last_observation):
                 # must check less than and diff to prevent infinite loop
                 valid_extra_actions.add(key)
         available_actions = selectible_action_set.union(valid_extra_actions)
-        if self.allow_relegation:
+        if quest_node.allow_relegation:
             selectible_action_set.update(valid_extra_actions)
 
         lm_response = ""
@@ -280,13 +313,13 @@ class Persona:
         command, detail = extract_command_and_detail(response)
 
         if command.startswith("Sub Task"):
-            sub_objective = detail
-            return_sub_action = Sub_Action_Type.Relegate 
+            sub_objective = self.extra_actions[response]
+            return_sub_action = Sub_Action_Type.Relegate
             return_node = Quest_Node(
-                objective=sub_objective,
-                eval_func=self.goal_pursuit_eval,
-                start_observation=last_observation,
-                train_ref=train_ref
+                objective = sub_objective,
+                start_observation = last_observation,
+                train_ref = train_ref,
+                allow_relegation = self.compute_allow_relegation()
             )
             return return_sub_action, return_node
         elif command.startswith("Action"):
@@ -294,9 +327,9 @@ class Persona:
             last_observation = self.env_step(action)
             return_sub_action = Sub_Action_Type.Act
             return_node = Observation_Node(
-                action=action, 
-                observation=last_observation, 
-                train_ref=train_ref
+                action = action, 
+                observation = last_observation, 
+                train_ref = train_ref
             )
             return return_sub_action, return_node
 

@@ -5,9 +5,9 @@ import random
 import os
 import logging
 
-from implementations.core.torch.transformers import Model
-from implementations.core.torch.base import softmax_with_temperature
-from .base import Value_Action, Hierarchy_Base
+from implementations.core.torch.multigoal_tf import Model
+from .base import Hierarchy_Base
+from implementations.core.torch.base import Log_Softmax_Function, Exp_Entropy_Function
 
 import torch
 import torch.nn as nn
@@ -16,55 +16,15 @@ from torch import optim
 torch.autograd.set_detect_anomaly(False)
 
 
-
 class Hierarchy_AC(Hierarchy_Base):
 
-    def __init__(self, input_size, device) -> None:
-        super().__init__(device)
-        self.model = Model(input_size=input_size, hidden_size=128, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.00003)
-
-
-    def save(self, dir_path):
-        torch.save(self.model.state_dict(), os.path.join(dir_path, "model.pth"))
-        torch.save(self.optimizer.state_dict(), os.path.join(dir_path, "optimizer.pth"))
-        super().save(dir_path)
-
-
-    def load(self, dir_path):
-        result = super().load(dir_path)
-        if not result:
-            return result
-        self.model.load_state_dict(torch.load(os.path.join(dir_path, "model.pth"), map_location=self.device))
-        self.optimizer.load_state_dict(torch.load(os.path.join(dir_path, "optimizer.pth"), map_location=self.device))
-        return True
-
-
-    def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
-        # action_list_tensor has shape (all_action_length, action_size)
-        n_context = state_tensor.size(0)
-        
-        with torch.no_grad():
-            objective_tensor = torch.reshape(objective_tensor, [1, -1])
-            state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
-            action_list_tensor = torch.reshape(action_list_tensor, [1, 1, -1, action_list_tensor.size(1)])
-            pivot_positions = torch.tensor([[n_context - 1]], dtype=torch.int64, device=self.device) # shape: (1, 1)
-
-            self.model.eval()
-            action_scores, _ = self.model(objective_tensor, state_tensor, action_list_tensor, pivot_positions)
-            action_scores = action_scores[0, 0, :]
-
-            if sample_action:
-                # sample
-                probs = softmax_with_temperature(action_scores, temperature=1.0, dim=0)  # n_actions
-                index = torch.multinomial(probs, num_samples=1).item() # 1
-                rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
-            else:
-                # greedy
-                index = torch.argmax(action_scores, dim=0).item()
-                rank = 1
-
-        return Value_Action(action_list[index], rank, self.iteration)
+    def __init__(self, input_size, hidden_size, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0) -> None:
+        model = Model(input_size=input_size, hidden_size=hidden_size, device=device)
+        optimizer = optim.Adam(model.parameters(), learning_rate)
+        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.5)
+        scheduler = None
+        self.entropy_weight = entropy_weight
+        super().__init__(model=model, optimizer=optimizer, scheduler=scheduler, device=device, discount_factor=discount_factor, train_temperature=train_temperature)
 
 
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
@@ -118,36 +78,34 @@ class Hierarchy_AC(Hierarchy_Base):
 
         train_state_values = torch.gather(state_values, 0, train_from_indexes)
 
-        # now specialize truncated end
-        if not train_last_node:
-            last_value = state_values[-1].item()
-            rewards = rewards[:-1]
-        else:
-            last_value = 0
-
         with torch.no_grad():
-            all_returns = self._compute_snake_ladder(rewards, last_value)
-            train_returns = all_returns[train_from_indexes, train_to_indexes]
-            train_advantages = train_returns - train_state_values
+            # now specialize truncated end
+            if not train_last_node:
+                last_value = state_values[-1].item()
+                rewards = rewards[:-1]
+            else:
+                last_value = 0
+                state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
+
+            # compute returns = rewards + gamma * next_state_q, but for all from to pivot
+            train_td_returns = self._compute_snake_ladder_2(rewards, state_values)[train_from_indexes, train_to_indexes]
+            train_mc_returns = self._compute_snake_ladder(rewards, last_value)[train_from_indexes, train_to_indexes]
+            train_advantages = train_mc_returns - train_state_values
 
         # use vector instead of loops
-        probs = torch.nn.functional.softmax(train_action_scores, dim=1)
-        log_probs = torch.log(probs)
-        log_action_probs = torch.clamp(torch.gather(log_probs, 1, train_action_indexes), min=-8)
+        log_probs = Log_Softmax_Function.apply(train_action_scores, 1.0, 1)
+        log_action_probs = torch.gather(log_probs, 1, train_action_indexes)
         log_action_probs = log_action_probs.flatten()
-        policy_loss = (-log_action_probs * train_advantages).mean()
-        value_loss = (.5 * (train_state_values - train_returns) ** 2.).mean()
-        entropy = (-probs * log_probs).sum(dim=1).mean()
-        loss = policy_loss + 0.5 * value_loss - 0.1 * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
-        is_nan = torch.isnan(loss)
-        if is_nan:
-            logging.warning("Loss is NaN, skipping training")
-            return
+        policy_loss = (-log_action_probs * train_advantages).sum()
+        value_loss = (.5 * (train_state_values - train_mc_returns) ** 2.).sum()
+        entropy = Exp_Entropy_Function.apply(log_probs, 1).sum()  # Use custom entropy function for stability
+        loss = policy_loss + 0.5 * value_loss - self.entropy_weight * entropy # entropy has to be adjusted, too low and it will get stuck at a command.
 
         loss.backward()
-        nn.utils.clip_grad_norm_(self.model.parameters(), 40)
         self.optimizer.step()
         self.optimizer.zero_grad()
+        if self.scheduler is not None:
+            self.scheduler.step()
         self.iteration += 1
 
         self.ave_loss = self.LOG_ALPHA * self.ave_loss + (1 - self.LOG_ALPHA) * loss.item()

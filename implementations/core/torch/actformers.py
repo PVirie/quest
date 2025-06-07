@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding
 
 
+
 class Model(nn.Module):
     def __init__(self, input_size, hidden_size, device):
         super(Model, self).__init__()
@@ -25,13 +26,16 @@ class Model(nn.Module):
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
         self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
 
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
+        self.q_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+
         self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 2, device=device)
-        self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 2, device=device)
 
         self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
 
 
     def forward(self, objectives, observations, actions, pivot_positions):
+
         # objectives has shape batch x objective_context_size
         # observations has shape batch x n_contexts x context_size
         # actions has shape batch x n_pivots x n_actions x action_size
@@ -56,19 +60,19 @@ class Model(nn.Module):
         state_internal = apply_transformer(self.state_decoder, obs_embedding, memory=objective_embedding, tgt_mask=causal_mask(n_contexts, self.device), tgt_is_causal=True) # batch x n_contexts x hidden
         
         pivot_state_internal = torch.gather(state_internal, 1, pivot_positions.unsqueeze(-1).expand(-1, -1, self.hidden_size)) # batch x n_pivots x hidden
-        
+
         action_embedding = self.embedding(actions) # batch x n_pivots x n_actions x action_size x hidden
         action_embedding = action_embedding + self.pe[:action_size, :] # add positional encoding
         action_embedding = apply_transformer(self.action_decoder, torch.reshape(action_embedding, (-1, action_size, self.hidden_size)))
         action_embedding = torch.reshape(action_embedding[:, 0, :], (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
 
-        # now cross product between the state_internal and the action_embedding
-        pre_actions = torch.reshape(self.actor(pivot_state_internal), (batch, n_pivots, self.hidden_size, 1)) # batch x n_pivots x hidden x 1
-        scores = torch.matmul(action_embedding, pre_actions) # batch x n_pivots x n_actions x 1
+        collapsed_pivot_state_internal = torch.reshape(pivot_state_internal, (-1, 1, self.hidden_size))
+        collapsed_actions = torch.reshape(action_embedding, (-1, n_actions, self.hidden_size))
+
+        scores = apply_transformer(self.q_decoder, collapsed_actions, memory=collapsed_pivot_state_internal)
+        scores = torch.reshape(scores, (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
+        scores = scores[:, :, :, 0] # batch x n_pivots x n_actions
 
         state_values = self.critic(pivot_state_internal) # batch x n_pivots x 1
 
-        # return scores has shape batch x n_pivots x n_actions; is the scores of individual actions along the context length
-        # state_values has shape batch x n_pivots; is the values of the best action from the current state
-        return scores.squeeze(-1), state_values.squeeze(-1)
-    
+        return scores, state_values.squeeze(-1)

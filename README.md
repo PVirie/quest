@@ -48,9 +48,15 @@ An implementation of agentic systems with quest graphs.
             "python.analysis.extraPaths": [...]
         }
         ```
+        -   We recommend using `.venv` as the default virtual environment directory.
         -   Note that when building docker, python packages required for the experiment will be installed under `artifacts/pip_modules` directory. Except for pytorch, which will be installed in the docker image. To fix pylance, either refer to local install pytorch or use virtual environment on top.
 -   Running on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
+-   Running plots:
+    -   Plots use graphics therefore they cannot be run in the docker container.
+    -   Create python virtual environment in the root directory of the project, e.g. `python -m venv .venv`.
+    -   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib`.
+    -   Run the plot script in the virtual environment, e.g. `python tasks/plot.py`.
 
 | Experiment       | Description                                             | Valid configurations (pick one)         | Path to file (+flags)   |
 | ---------------- | ------------------------------------------------------- | --------------------------------------- | ----------------------- |
@@ -83,8 +89,8 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] ReAct
 -   [x] ReAct with dynamic hierarchy
 -   [x] Transformer RL
-    -   [x] Actor-critic (a policy gradient method: **work best** for text-world)
-    -   [x] Q-learning
+    -   [x] Actor-critic (a policy gradient method; **works well**, because it can auto-tune exploration and exploitation.)
+    -   [x] Q-learning (a value-based method; works but not as good as actor-critic, hard to tune exploration.)
 -   [ ] Positional encoding
     -   [x] Add PE to state, action, and context
     -   [ ] RoPE
@@ -96,11 +102,12 @@ Apart from the above environment variables, you must also include _third-party A
     -   [x] Gradient clipping
 -   [x] Hierarchical RL
     -   [x] Score conversion when up-hierarchy
-    -   [x] Check learnining on done within the sub-task
+    -   [x] Check learnining on done within the sub-problem
 -   [x] Infinite loop prevention
-    -   [x] Contracting sub-task filter
--   [x] Target goal A but finith with goal B
-    -   [x] Recompute the actual goal after sub-task end
+    -   [x] Contracting sub-problem filter
+-   [x] Sub-problem parallel training
+-   [x] The process ends under the sub-problem
+    -   [x] Reassign the surrogate rush goal after sub-problem end
 
 ### Backends
 
@@ -119,8 +126,9 @@ Apart from the above environment variables, you must also include _third-party A
     -   [x] [TextWorld](https://github.com/microsoft/TextWorld) environment
     -   [x] [ALFWorld](https://github.com/alfworld/alfworld) environment
     -   [ ] [Textworld express] (https://github.com/cognitiveailab/TextWorldExpress) environment, to speed up simulation.
--   [x] Custom textworld reward structure
-    -   [x] Redefine textworld reward structure
+-   [x] Sub-problem reward structure
+    -   [x] Define textworld reward structure
+    -   [ ] Define ALFWorld reward structure
 
 ## Note
 
@@ -137,3 +145,10 @@ These models seem to work with the given instructions:
 -   text-embedding-3-large
 -   ibm-granite/granite-embedding-125m-english
 -   intfloat/multilingual-e5-large-instruct
+
+### RL models
+
+Actor critic models work well when combined with the following:
+
+-   Deeper transformer layers
+-   Fully connected layers for heads.

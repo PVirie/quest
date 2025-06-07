@@ -6,8 +6,8 @@ import os
 import logging
 
 from implementations.core.torch.qformers import Model
-from implementations.core.torch.base import softmax_with_temperature
-from .base import Value_Action, Hierarchy_Base
+from .base import Hierarchy_Base
+from implementations.core.torch.base import Log_Softmax_Function, Exp_Entropy_Function
 
 import torch
 import torch.nn as nn
@@ -18,52 +18,16 @@ torch.autograd.set_detect_anomaly(False)
 
 class Hierarchy_Q(Hierarchy_Base):
 
-    def __init__(self, input_size, device) -> None:
-        super().__init__(device)
-        self.model = Model(input_size=input_size, hidden_size=128, device=device)
-        self.optimizer = optim.Adam(self.model.parameters(), 0.0001)
-
-
-    def save(self, dir_path):
-        torch.save(self.model.state_dict(), os.path.join(dir_path, "model.pth"))
-        torch.save(self.optimizer.state_dict(), os.path.join(dir_path, "optimizer.pth"))
-        super().save(dir_path)
-
-
-    def load(self, dir_path):
-        result = super().load(dir_path)
-        if not result:
-            return result
-        self.model.load_state_dict(torch.load(os.path.join(dir_path, "model.pth"), map_location=self.device))
-        self.optimizer.load_state_dict(torch.load(os.path.join(dir_path, "optimizer.pth"), map_location=self.device))
-        return True
-
-
-    def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True) -> Optional[str]:
-        # action_list_tensor has shape (all_action_length, action_size)
-        n_context = state_tensor.size(0)
-        
-        with torch.no_grad():
-            objective_tensor = torch.reshape(objective_tensor, [1, -1])
-            state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
-            action_list_tensor = torch.reshape(action_list_tensor, [1, 1, -1, action_list_tensor.size(1)])
-            pivot_positions = torch.tensor([[n_context - 1]], dtype=torch.int64, device=self.device) # shape: (1, 1)
-
-            self.model.eval()
-            action_scores, _ = self.model(objective_tensor, state_tensor, action_list_tensor, pivot_positions)
-            action_scores = action_scores[0, 0, :]
-
-            if sample_action:
-                # sample
-                probs = softmax_with_temperature(action_scores, temperature=2.0, dim=0)  # n_actions
-                index = torch.multinomial(probs, num_samples=1).item() # 1
-                rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
-            else:
-                # greedy
-                index = torch.argmax(action_scores, dim=0).item()
-                rank = 1
-
-        return Value_Action(action_list[index], rank, self.iteration)
+    def __init__(self, input_size, hidden_size, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=0.1):
+        # Because q learning does not directly update the action probabaility distribution (as it only updates the q value),
+        # the reward from MDP therefore directly responsible for the action probability distribution.
+        # The temperature is then has to be tuned.
+        model = Model(input_size=input_size, hidden_size=hidden_size, device=device)
+        optimizer = optim.Adam(model.parameters(), learning_rate)
+        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.5)
+        scheduler = None
+        self.entropy_weight = entropy_weight
+        super().__init__(model=model, optimizer=optimizer, scheduler=scheduler, device=device, discount_factor=discount_factor, train_temperature=train_temperature)
 
 
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
@@ -115,40 +79,34 @@ class Hierarchy_Q(Hierarchy_Base):
         train_to_indexes = torch.tensor([p for _, _, p in train_data], dtype=torch.int64, device=self.device)
         train_action_scores = torch.gather(action_scores, 0, train_from_indexes.unsqueeze(-1).expand(-1, max_available_actions))
 
-        # now specialize truncated end
-        if not train_last_node:
-            last_value = state_values[-1].item()
-            rewards = rewards[:-1]
-        else:
-            last_value = 0
-            state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
+        train_state_values = torch.gather(state_values, 0, train_from_indexes)
 
         with torch.no_grad():
-            #  compute returns = rewards + self.gammas * next_state_q, but for all from to pivot
-            # all_returns = self._compute_snake_ladder_2(rewards, state_values)
-            # train_returns = all_returns[train_from_indexes, train_to_indexes]
+            # now specialize truncated end
+            if not train_last_node:
+                last_value = state_values[-1].item()
+                rewards = rewards[:-1]
+            else:
+                last_value = 0
+                state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
 
-            all_returns = self._compute_snake_ladder(rewards, last_value)
-            train_returns = all_returns[train_from_indexes, train_to_indexes]
+            # compute returns = rewards + gamma * next_state_q, but for all from to pivot
+            train_td_returns = self._compute_snake_ladder_2(rewards, state_values)[train_from_indexes, train_to_indexes]
+            train_mc_returns = self._compute_snake_ladder(rewards, last_value)[train_from_indexes, train_to_indexes]
 
         # use vector instead of loops
-        probs = torch.nn.functional.softmax(train_action_scores, dim=1)
-        log_probs = torch.log(probs)
+        log_probs = Log_Softmax_Function.apply(train_action_scores, 1.0, 1)
         current_scores = torch.gather(train_action_scores, 1, train_action_indexes)
         current_scores = current_scores.flatten()
-        q_loss = (.5 * (current_scores - train_returns) ** 2.).mean()
-        score_reg = (.5 * (action_scores) ** 2.).mean(dim=1).mean()
-        entropy = (-probs * log_probs).sum(dim=1).mean()
-        loss = q_loss - 0.1 * entropy - 0.01 * score_reg
-        is_nan = torch.isnan(loss)
-        if is_nan:
-            logging.warning("Loss is NaN, skipping training")
-            return
+        q_loss = (.5 * (current_scores - train_td_returns) ** 2.).sum()
+        entropy = Exp_Entropy_Function.apply(log_probs, 1).sum()  # Use custom entropy function for stability
+        loss = q_loss - self.entropy_weight * entropy
 
         loss.backward()
-        nn.utils.clip_grad_norm_(self.model.parameters(), 40)
         self.optimizer.step()
         self.optimizer.zero_grad()
+        if self.scheduler is not None:
+            self.scheduler.step()
         self.iteration += 1
 
         self.ave_loss = self.LOG_ALPHA * self.ave_loss + (1 - self.LOG_ALPHA) * loss.item()

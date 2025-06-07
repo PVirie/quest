@@ -1,6 +1,8 @@
 import re
 import numpy as np
 import torch
+import os
+import json
 
 
 class Text_Tokenizer:
@@ -10,6 +12,30 @@ class Text_Tokenizer:
         self.device = device
         self.id2word = ["<PAD>", "<UNK>"]
         self.word2id = {w: i for i, w in enumerate(self.id2word)}
+
+
+    def save(self, path):
+        tokenizer_path = os.path.join(path, "tokenizer_data.json")
+        with open(tokenizer_path, "w") as f:
+            tokenizer = {
+                "max_vocab_size": self.max_vocab_size,
+                "id2word": self.id2word,
+                "word2id": self.word2id
+            }
+            json.dump(tokenizer, f, indent=4)
+        
+
+    def load(self, path):
+        tokenizer_path = os.path.join(path, "tokenizer_data.json")
+        if not os.path.exists(tokenizer_path):
+            return False
+        with open(tokenizer_path, "r") as f:
+            tokenizer = json.load(f)
+            self.max_vocab_size = tokenizer["max_vocab_size"]
+            self.id2word = tokenizer["id2word"]
+            self.word2id = tokenizer["word2id"]
+        return True
+
 
     def _get_word_id(self, word):
         if word not in self.word2id:
