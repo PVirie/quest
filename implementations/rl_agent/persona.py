@@ -40,6 +40,7 @@ class Persona:
 
         self.training_mode = False
         self.allow_relegation = True
+        self.allow_sub_training = True
 
         self.use_lm = False
         self.long_lm = None
@@ -62,6 +63,10 @@ class Persona:
 
     def compute_allow_relegation(self):
         return self.allow_relegation and (random.random() < self.training_relegation_probability or not self.training_mode)
+
+
+    def set_allow_sub_training(self, flag):
+        self.allow_sub_training = flag
 
 
     def save(self, path):
@@ -176,29 +181,29 @@ class Persona:
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
             self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
-            # if not self.allow_relegation:
-            #     return
+            if not self.allow_relegation or not self.allow_sub_training:
+                return
 
-            # for sub_objective, from_transition_index, to_transition_index in folds:
-            #     sub_quest_node = Quest_Node(
-            #         objective=sub_objective,
-            #         start_observation=supports[from_transition_index-1].observation if from_transition_index > 0 else quest_node.start_observation
-            #     )
-            #     sub_quest_node.parent = quest_node.parent
-            #     sub_objective_context, sub_start_obs_context = sub_quest_node.get_start_contexts()
-            #     sub_objective_tensor = self.tokenizer([sub_objective_context], stack=True)
-            #     last_sub_score = 0
-            #     sub_pivots = []
-            #     sub_train_data = []
-            #     start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
-            #     end_context_mark = pivots[to_transition_index][1]
-            #     for i in range(from_transition_index, to_transition_index + 1):
-            #         sub_quest_node.children.append(supports[i])
-            #         sub_mdp_score, _, _, _, _ = sub_quest_node.eval(supports[i].observation)
-            #         sub_pivots.append((sub_mdp_score - last_sub_score, pivots[i][1] - start_context_mark, pivots[i][2]))
-            #         sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
-            #         last_sub_score = sub_mdp_score
-            #     self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
+            for sub_objective, from_transition_index, to_transition_index in folds:
+                sub_quest_node = Quest_Node(
+                    objective=sub_objective,
+                    start_observation=supports[from_transition_index-1].observation if from_transition_index > 0 else quest_node.start_observation
+                )
+                sub_quest_node.parent = quest_node.parent
+                sub_objective_context, sub_start_obs_context = sub_quest_node.get_start_contexts()
+                sub_objective_tensor = self.tokenizer([sub_objective_context], stack=True)
+                last_sub_score = 0
+                sub_pivots = []
+                sub_train_data = []
+                start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
+                end_context_mark = pivots[to_transition_index][1]
+                for i in range(from_transition_index, to_transition_index + 1):
+                    sub_quest_node.children.append(supports[i])
+                    sub_mdp_score, _, _, _, _ = sub_quest_node.eval(supports[i].observation)
+                    sub_pivots.append((sub_mdp_score - last_sub_score, pivots[i][1] - start_context_mark, pivots[i][2]))
+                    sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
+                    last_sub_score = sub_mdp_score
+                self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
 
     def think(self, quest_node):
