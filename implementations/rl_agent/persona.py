@@ -181,7 +181,7 @@ class Persona:
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
             self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
-            if not self.allow_relegation or not self.allow_sub_training:
+            if not self.allow_sub_training:
                 return
 
             for sub_objective, from_transition_index, to_transition_index in folds:

@@ -153,3 +153,7 @@ Actor critic models work well when combined with the following:
 
 -   Deeper transformer layers
 -   Fully connected layers for heads.
+
+### Hiearachy
+
+-   Low sub-problem trial count allows agent to cut losses and learn higher level faster. (Around 10 trials.)

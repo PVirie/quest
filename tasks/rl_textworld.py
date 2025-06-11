@@ -269,7 +269,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
                 terminated = False
                 truncated = True
                 succeeded = False
-        elif not self.is_main and n_action_node + n_quest_node > 20:
+        elif not self.is_main and n_action_node + n_quest_node > 10:
             terminated = False
             truncated = True
             succeeded = False
@@ -481,26 +481,26 @@ if __name__ == "__main__":
     # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.96, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
 
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.000001, entropy_weight=0.1, train_temperature=1.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.000002, entropy_weight=0.1, train_temperature=1.0)
 
     persona = Persona(
         rl_core,
         tokenizer,
         compute_folds,
         env_step,
-        training_relegation_probability=0.4
+        training_relegation_probability=1.0
     )
 
     persona.set_allow_relegation(True)
     persona.set_allow_sub_training(True)
 
-    if not persona.load(agent_parameter_path):
-        logging.info("Initiate agent training ....")
-        persona.set_training_mode(True)
-        play(env, available_objectives, persona, 
-             rollout_file_path=rollout_file_path, 
-             nb_episodes=10000, verbose=True)
-        persona.save(agent_parameter_path)
+    # if not persona.load(agent_parameter_path):
+    logging.info("Initiate agent training ....")
+    persona.set_training_mode(True)
+    play(env, available_objectives, persona, 
+         rollout_file_path=rollout_file_path, 
+         nb_episodes=10000, verbose=True)
+    # persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
     play(env, available_objectives, persona, 
