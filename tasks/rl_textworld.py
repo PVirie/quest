@@ -419,9 +419,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", "-r", action="store_true")
     parser.add_argument("--record_file", "-o", metavar='record-file', type=str, default="rollouts.txt", help="The file to record the rollouts. Default is 'rollouts.txt'.")
-    parser.add_argument("--relegation", "-re", action="store_true", help="Enable relegation during training.")
+    parser.add_argument("--relegation", "-re", action="store_true", default=True, help="Enable relegation during training.")
     parser.add_argument("--rel_prob", "-rp", metavar='rel-prob', type=float, default=1.0, help="The probability of relegation during training. Default is 1.0.")
-    parser.add_argument("--sub_training", "-st", action="store_true", help="Enable sub training during training.")
+    parser.add_argument("--sub_training", "-st", action="store_true", default=True, help="Enable sub training during training.")
     args = parser.parse_args()
 
     experiment_path = "/app/experiments/rl_textworld"
