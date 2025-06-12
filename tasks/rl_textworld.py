@@ -50,7 +50,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 from quest_interface import Quest_Graph, Action
-from implementations.rl_agent import agent_functions, rl_graph, mdp_state
+from quest_interface.mdp_state import MDP_State, MDP_Transition
+from implementations.rl_agent import agent_functions, rl_graph
 from implementations.rl_agent.persona import Persona
 
 
@@ -75,7 +76,7 @@ def extract_inventory(infos):
     return set([item.replace(".", "").strip() for item in inv_str.split(",") if item.replace(".", "").strip() != ""])
 
 
-class Textworld_Main_Goal(mdp_state.MDP_Transition):
+class Textworld_Main_Goal(MDP_Transition):
     def __init__(self, objective, max_score):
         self.objective = objective
         self.max_score = max_score
@@ -130,7 +131,7 @@ class Textworld_Main_Goal(mdp_state.MDP_Transition):
         return mdp_score, terminated, truncated, succeeded, override_objective
 
 
-class Textworld_Transition(mdp_state.MDP_Transition):
+class Textworld_Transition(MDP_Transition):
     def __init__(self, new_location=None, added_items=set(), is_main=False, is_rush_goal=False):
         self.new_location = new_location
         self.added_items = set(added_items)
@@ -281,7 +282,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         return mdp_score, terminated, truncated, succeeded, override_objective
 
 
-class Textworld_State(mdp_state.MDP_State):
+class Textworld_State(MDP_State):
     def __init__(self, obs, score, done, info):
         self.location = extract_location(info)
         self.inventory = extract_inventory(info)
@@ -414,7 +415,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", "-r", action="store_true")
-    parser.add_argument("--record_file", "-o", type=str, default="rollouts.txt", help="The file to record the rollouts. Default is 'rollouts.txt'.")
+    parser.add_argument("--record_file", "-o", metavar='record-file', type=str, default="rollouts.txt", help="The file to record the rollouts. Default is 'rollouts.txt'.")
+    parser.add_argument("--relegation", "-re", action="store_true", help="Enable relegation during training.")
+    parser.add_argument("--rel_prob", "-rp", metavar='rel-prob', type=float, default=1.0, help="The probability of relegation during training. Default is 1.0.")
+    parser.add_argument("--sub_training", "-st", action="store_true", help="Enable sub training during training.")
     args = parser.parse_args()
 
     experiment_path = "/app/experiments/rl_textworld"
@@ -488,14 +492,18 @@ if __name__ == "__main__":
         tokenizer,
         compute_folds,
         env_step,
-        training_relegation_probability=1.0
+        training_relegation_probability=args.rel_prob,
     )
 
-    persona.set_allow_relegation(True)
-    persona.set_allow_sub_training(True)
+    persona.set_allow_relegation(True if args.relegation else False)
+    persona.set_allow_sub_training(True if args.sub_training else False)
 
     # if not persona.load(agent_parameter_path):
-    logging.info("Initiate agent training ....")
+    logging.info(f"Initiate agent training with following parameters:")
+    logging.info(f"  - Allow relegation: {args.relegation}")
+    logging.info(f"  - Relegation probability: {args.rel_prob}")
+    logging.info(f"  - Allow sub training: {args.sub_training}")
+    
     persona.set_training_mode(True)
     play(env, available_objectives, persona, 
          rollout_file_path=rollout_file_path, 
