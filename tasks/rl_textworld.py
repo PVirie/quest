@@ -337,6 +337,9 @@ def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, 
         # mark date
         f.write(f"========================================================================\n")
         f.write(f"Date: {utilities.get_current_time_string()}\n")
+        f.write(f"Allow relegation: {persona.allow_relegation}\n")
+        f.write(f"Allow sub training: {persona.allow_sub_training}\n")
+        f.write(f"Relegation probability: {persona.training_relegation_probability}\n")
         f.write(f"------------------------------------------------------------------------\n")
 
     # Collect some statistics: nb_steps, final reward.
