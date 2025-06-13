@@ -6,12 +6,13 @@ from .persona import Sub_Action_Type
         
 
 def basic_tree(persona, focus_node):
-    last_child = focus_node[-1]
+    children = focus_node.get_children()
+    if len(children) > 0:
+        last_child = children[-1]
+        if isinstance(last_child, Quest_Node) and not last_child.is_completed():
+            return Action.ANSWER, None, last_child
+        
     parent_node = focus_node.get_parent()
-
-    if isinstance(last_child, Quest_Node) and not last_child.is_completed():
-        return Action.ANSWER, None, last_child
-    
     subact, node = persona.think(focus_node)
     if subact == Sub_Action_Type.Fulfill:
         return Action.ANSWER, node, parent_node

@@ -1,5 +1,5 @@
 from quest_interface import Node, Node_List, Direction, Direction_List
-
+from copy import copy
 
 class RL_Node(Node, Direction, Node_List, Direction_List):
     def __init__(self):
@@ -29,13 +29,15 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
         return self.children
     
     def __getitem__(self, key):
+        cloned = copy(self)
         if isinstance(key, slice):
-            # if key is a slice, return the children in that range
+            # if key is a slice, get the children in that range
             start, stop, step = key.start, key.stop, key.step
-            return self.children[start:stop:step]
+            cloned.children = self.children[start:stop:step]
         else:
-            # if key is an integer, return the child at that index
-            return self.children[key] if len(self.children) > 0 else None
+            # if key is an integer, get the children to just before that index
+            cloned.children = self.children[:key]
+        return cloned
 
     def get_context(self):
         raise NotImplementedError("get_context() not implemented")
