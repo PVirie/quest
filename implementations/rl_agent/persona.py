@@ -155,10 +155,10 @@ class Persona:
             train_ref = node.train_ref
             score = train_ref.mdp_score
             selected_nodes.append((last_observation, score))
-            pivots.append((score - last_score, last_context_mark, list(train_ref.available_actions)))
+            pivots.append((last_context_mark, list(train_ref.available_actions)))
             if i >= len(supports) - self.TRAIN_STEP:
                 if i < len(supports) - 1 or train_last_node:
-                    train_data.append((train_ref.selected_action, len(pivots) - 1, len(pivots)))
+                    train_data.append((score - last_score, train_ref.selected_action, len(pivots) - 1, len(pivots)))
                     train_ref.release()
 
             last_context_mark = len(rl_contexts) - 1
@@ -169,7 +169,7 @@ class Persona:
         for sub_objective, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {str(sub_objective)}"
             self.extra_actions[fold_action] = sub_objective
-            pivots[from_transition_index][2].append(fold_action)
+            pivots[from_transition_index][1].append(fold_action)
             # train_data.append((fold_action, from_transition_index, to_transition_index))
 
         # add extra actions
@@ -195,13 +195,13 @@ class Persona:
                 last_sub_score = 0
                 sub_pivots = []
                 sub_train_data = []
-                start_context_mark = pivots[from_transition_index][1] # in my rl_contexts, the start context mark is the start observation
-                end_context_mark = pivots[to_transition_index][1]
+                start_context_mark = pivots[from_transition_index][0] # in my rl_contexts, the start context mark is the start observation
+                end_context_mark = pivots[to_transition_index][0]
                 for i in range(from_transition_index, to_transition_index + 1):
                     sub_quest_node.children.append(supports[i])
                     sub_mdp_score, _, _, _, _ = sub_quest_node.eval(supports[i].observation)
-                    sub_pivots.append((sub_mdp_score - last_sub_score, pivots[i][1] - start_context_mark, pivots[i][2]))
-                    sub_train_data.append((supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
+                    sub_pivots.append((pivots[i][0] - start_context_mark, pivots[i][1]))
+                    sub_train_data.append((sub_mdp_score - last_sub_score, supports[i].train_ref.selected_action, len(sub_pivots) - 1, len(sub_pivots)))
                     last_sub_score = sub_mdp_score
                 self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, state_tensor[start_context_mark:(end_context_mark + 1), :], action_list_tensor, all_action_list)
 
