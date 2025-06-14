@@ -176,7 +176,7 @@ class Persona:
         for sub_objective, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {str(sub_objective)}"
             self.extra_actions[fold_action] = sub_objective
-            pivots[from_transition_index][1].append(fold_action)
+            pivots[from_transition_index + 1][1].append(fold_action)
 
         # add extra actions
         all_action_list = list(self.action_set.union(self.extra_actions.keys()))
