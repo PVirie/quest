@@ -77,6 +77,7 @@ def parse_session(session):
     Date: 2025-06-01 13:45:52
     Allow relegation: True
     Allow sub training: True
+    Allow prospect training: True
     Relegation probability: 0.1
     ------------------------------------------------------------------------
     Episode 10
@@ -90,16 +91,13 @@ def parse_session(session):
     episodes = session.strip().split('------------------------------------------------------------------------')
     header = episodes[0].strip()
     logging.info(f"Parsing session header: {header}")
-    parts = header.split('\n')
-    date = utilities.get_datetime_from_string(parts[0].split(':', 1)[1].strip())
-    allow_relegation = parts[1].split(':', 1)[1].strip().lower() == 'true'
-    allow_sub_training = parts[2].split(':', 1)[1].strip().lower() == 'true'
-    relegation_probability = float(parts[3].split(':', 1)[1].strip())
+    field_values = {line.split(':', 1)[0].strip().lower(): line.split(':', 1)[1].strip().lower() for line in header.split('\n')} 
     metadata = {
-        'date': date,
-        'allow_relegation': allow_relegation,
-        'allow_sub_training': allow_sub_training,
-        'relegation_probability': relegation_probability
+        'date': utilities.get_datetime_from_string(field_values.get('date', '')),
+        'allow_relegation': field_values.get('allow relegation', 'false') == 'true',
+        'allow_sub_training': field_values.get('allow sub training', 'false') == 'true',
+        'allow_prospect_training': field_values.get('allow prospect training', 'false') == 'true',
+        'relegation_probability': float(field_values.get('relegation probability', '0.0'))
     }
     stats = []
 
@@ -168,10 +166,10 @@ if __name__ == "__main__":
         metadata = session['metadata']
         X = [stat['episode'] for stat in session['stats']]
         Y = [avg[args.metric] for avg in session['moving_average']]
-        label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['relegation_probability']:.2f}"
+        label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
         ax.plot(X, Y, label=label)
-    ax.set_xlabel('Episode')
-    ax.set_ylabel('Score')
+    ax.set_xlabel('episode')
+    ax.set_ylabel(args.metric)
     ax.set_title('TextWorld Rollout Scores')
     ax.legend()
     ax.grid()
