@@ -107,6 +107,7 @@ Apart from the above environment variables, you must also include _third-party A
 -   [x] Infinite loop prevention
     -   [x] Contracting sub-problem filter
 -   [x] Sub-problem parallel training
+-   [x] Prospect training
 -   [x] The process ends under the sub-problem
     -   [x] Reassign the surrogate rush goal after sub-problem end
 
