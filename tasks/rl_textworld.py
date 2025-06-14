@@ -508,6 +508,7 @@ if __name__ == "__main__":
     logging.info(f"  - Allow relegation: {args.relegation}")
     logging.info(f"  - Relegation probability: {args.rel_prob}")
     logging.info(f"  - Allow sub training: {args.sub_training}")
+    logging.info(f"  - Allow prospect training: {args.prospect_training}")
     
     persona.set_training_mode(True)
     play(env, available_objectives, persona, 
