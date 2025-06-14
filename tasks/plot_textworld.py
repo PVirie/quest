@@ -76,9 +76,9 @@ def parse_session(session):
     """
     Date: 2025-06-01 13:45:52
     Allow relegation: True
+    Relegation probability: 0.1
     Allow sub training: True
     Allow prospect training: True
-    Relegation probability: 0.1
     ------------------------------------------------------------------------
     Episode 10
     [Report]	episode: 10/20000; steps: 100.0; succeeded: 0.8; score: -2.0/ 1.2; cl: 100.0; max cl: 100.0

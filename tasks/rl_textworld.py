@@ -331,15 +331,16 @@ def compute_folds(objective_transition, state_scores):
     return [(st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
 
 
-def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, allow_relegation=True, verbose=False, verbose_step=10):
+def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, verbose=False, verbose_step=10):
     
     with open(rollout_file_path, "a", encoding="utf-8") as f:
         # mark date
         f.write(f"========================================================================\n")
         f.write(f"Date: {utilities.get_current_time_string()}\n")
         f.write(f"Allow relegation: {persona.allow_relegation}\n")
-        f.write(f"Allow sub training: {persona.allow_sub_training}\n")
         f.write(f"Relegation probability: {persona.training_relegation_probability}\n")
+        f.write(f"Allow sub training: {persona.allow_sub_training}\n")
+        f.write(f"Allow prospect training: {persona.allow_prospect_training}\n")
         f.write(f"------------------------------------------------------------------------\n")
 
     # Collect some statistics: nb_steps, final reward.
@@ -418,11 +419,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", "-r", action="store_true")
-    parser.add_argument("--record_file", "-o", metavar='record-file', type=str, default="rollouts.txt", help="The file to record the rollouts. Default is 'rollouts.txt'.")
-    parser.add_argument("--relegation", "-re", action="store_true", default=True, help="Enable relegation during training.")
-    parser.add_argument("--rel_prob", "-rp", metavar='rel-prob', type=float, default=1.0, help="The probability of relegation during training. Default is 1.0.")
-    parser.add_argument("--sub-training", "-st", action="store_true", default=True, help="Enable sub training during training.")
-    parser.add_argument("--prospect-training", "-pt", action="store_true", default=True, help="Enable prospect training during training.")
+    parser.add_argument("--record_file",            "-o",   type=str, default="rollouts.txt",   help="The file to record the rollouts. Default is 'rollouts.txt'.")
+    parser.add_argument("--no_relegation",          "-nre", action="store_true",                help="Disable relegation during training.")
+    parser.add_argument("--rel_prob",               "-rp",  type=float, default=1.0,            help="The probability of relegation during training. Default is 1.0.")
+    parser.add_argument("--no-sub-training",        "-nst", action="store_true",                help="Disable sub training during training.")
+    parser.add_argument("--no-prospect-training",   "-npt", action="store_true",                help="Disable prospect training during training.")
     args = parser.parse_args()
 
     experiment_path = "/app/experiments/rl_textworld"
@@ -499,16 +500,16 @@ if __name__ == "__main__":
         training_relegation_probability=args.rel_prob,
     )
 
-    persona.set_allow_relegation(True if args.relegation else False)
-    persona.set_allow_sub_training(True if args.sub_training else False)
-    persona.set_allow_prospect_training(True if args.prospect_training else False)
+    persona.set_allow_relegation(not args.no_relegation)
+    persona.set_allow_sub_training(not args.no_sub_training)
+    persona.set_allow_prospect_training(not args.no_prospect_training)
 
     # if not persona.load(agent_parameter_path):
     logging.info(f"Initiate agent training with following parameters:")
-    logging.info(f"  - Allow relegation: {args.relegation}")
+    logging.info(f"  - Allow relegation: {not args.no_relegation}")
     logging.info(f"  - Relegation probability: {args.rel_prob}")
-    logging.info(f"  - Allow sub training: {args.sub_training}")
-    logging.info(f"  - Allow prospect training: {args.prospect_training}")
+    logging.info(f"  - Allow sub training: {not args.no_sub_training}")
+    logging.info(f"  - Allow prospect training: {not args.no_prospect_training}")
     
     persona.set_training_mode(True)
     play(env, available_objectives, persona, 
