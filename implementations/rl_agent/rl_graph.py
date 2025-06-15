@@ -2,7 +2,8 @@ from quest_interface import Node, Node_List, Direction, Direction_List
 from copy import copy
 
 class RL_Node(Node, Direction, Node_List, Direction_List):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.parent = None
         self.children = []
 
@@ -44,7 +45,8 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
     
 
 class Trainable:
-    def __init__(self, train_ref=None, observation=None):
+    def __init__(self, train_ref=None, observation=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.train_ref = train_ref
         self.observation = observation
 
@@ -56,8 +58,8 @@ class Quest_Node(RL_Node, Trainable):
         self.allow_relegation = allow_relegation
         self.succeeded = succeeded
         self.truncated = truncated
-        Trainable.__init__(self, train_ref=train_ref, observation=observation)
-        RL_Node.__init__(self)
+        super().__init__(train_ref=train_ref, observation=observation)
+
 
     def get_start_contexts(self):
         return f"Objective: {str(self.objective)}", f"Observation: {self.start_observation.get_context()}"
@@ -158,8 +160,7 @@ class Thought_Node(RL_Node):
 class Observation_Node(RL_Node, Trainable):
     def __init__(self, action=None, observation=None, train_ref=None):
         self.action = action
-        Trainable.__init__(self, train_ref=train_ref, observation=observation)
-        RL_Node.__init__(self)
+        super().__init__(train_ref=train_ref, observation=observation)
 
     def get_context(self):
         contexts = []
