@@ -333,7 +333,7 @@ def compute_folds(objective_transition, state_scores):
     return [(st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
 
 
-def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, verbose=False, verbose_step=10):
+def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, verbose=False, verbose_step=10, verbose_prefix=""):
     
     with open(rollout_file_path, "a", encoding="utf-8") as f:
         # mark date
@@ -397,7 +397,7 @@ def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, 
 
         if verbose and no_episode % verbose_step == 0:
             # cl means context length
-            msg = "episode: {}/{}; steps: {:5.1f}; succeeded: {:4.1f}; score: {:4.1f}/{:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
+            msg = "{verbose_prefix} episode: {}/{}; steps: {:5.1f}; succeeded: {:4.1f}; score: {:4.1f}/{:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
             report = msg.format(
                 no_episode,
                 nb_episodes,
@@ -520,7 +520,7 @@ if __name__ == "__main__":
         persona.set_training_mode(True)
         play(env, available_objectives, persona, 
             rollout_file_path=rollout_file_path, 
-            nb_episodes=10000, verbose=True)
+            nb_episodes=10000, verbose=True, verbose_step=100, verbose_prefix=f"[Run {i+1}/{args.run_count}]")
         # persona.save(agent_parameter_path)
 
         persona.set_training_mode(False)
