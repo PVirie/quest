@@ -397,8 +397,9 @@ def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, 
 
         if verbose and no_episode % verbose_step == 0:
             # cl means context length
-            msg = "{verbose_prefix} episode: {}/{}; steps: {:5.1f}; succeeded: {:4.1f}; score: {:4.1f}/{:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
+            msg = "{} episode: {}/{}; steps: {:5.1f}; succeeded: {:4.1f}; score: {:4.1f}/{:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
             report = msg.format(
+                verbose_prefix,
                 no_episode,
                 nb_episodes,
                 np.mean(stat_n_moves[-verbose_step:]),
