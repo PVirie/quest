@@ -111,7 +111,7 @@ class Persona:
         contexts = [
             f"{prefix}Relegation: {'enabled' if quest_node.allow_relegation else 'disabled'}",
             f"{prefix}{objective_context}", 
-            f"{prefix}{start_obs_context.replace("\n", f"\n{prefix}")}"
+            f"{prefix}{start_obs_context.replace('\n', f'\n{prefix}')}"
         ]
         last_score = 0
         for i, node in enumerate(children):
