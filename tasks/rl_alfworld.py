@@ -11,6 +11,8 @@ import torch
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
+APP_ROOT = os.getenv("APP_ROOT", "/app")
+
 import utilities
 
 utilities.install('alfworld')
@@ -21,7 +23,7 @@ import yaml
 from alfworld.agents.environment import get_environment
 import alfworld.agents.modules.generic as generic
 
-alfworld_path = "/app/cache/alfworld_data"
+alfworld_path = f"{APP_ROOT}/cache/alfworld_data"
 os.environ['ALFWORLD_DATA'] = alfworld_path
 os.makedirs(alfworld_path, exist_ok=True)
 if len(os.listdir(alfworld_path)) == 0:
@@ -117,7 +119,7 @@ if __name__ == "__main__":
     parser.add_argument("--reset", "-r", action="store_true")
     args = parser.parse_args()
 
-    experiment_path = "/app/experiments/rl_alfworld"
+    experiment_path = f"{APP_ROOT}/experiments/rl_alfworld"
     if args.reset:
         # clear the experiment path
         if os.path.exists(experiment_path):

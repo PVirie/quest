@@ -14,6 +14,8 @@ import torch
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
+APP_ROOT = os.getenv("APP_ROOT", "/app")
+
 import utilities
 from utilities.tokenizer import *
 
@@ -23,7 +25,7 @@ utilities.install('textworld.gym')
 import textworld
 import textworld.gym
 
-textworld_path = "/app/cache/textworld_data"
+textworld_path = f"{APP_ROOT}/cache/textworld_data"
 os.makedirs(textworld_path, exist_ok=True)
 
 # expected envs
@@ -426,7 +428,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-prospect-training",   "-npt", action="store_true",                help="Disable prospect training during training.")
     args = parser.parse_args()
 
-    experiment_path = "/app/experiments/rl_textworld"
+    experiment_path = f"{APP_ROOT}/experiments/rl_textworld"
     if args.reset:
         # clear the experiment path
         if os.path.exists(experiment_path):

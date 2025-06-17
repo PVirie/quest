@@ -157,7 +157,8 @@ elif deployment_type == "cloud-api-runpod":
 
 elif deployment_type == "local-hf":
 
-    os.environ['HF_HOME'] = '/app/cache/hf_home'
+    APP_ROOT = os.getenv("APP_ROOT", "/app")
+    os.environ['HF_HOME'] = f"{APP_ROOT}/cache/hf_home"
     install("transformers")
 
     from transformers import AutoTokenizer, AutoModelForCausalLM, TextGenerationPipeline
