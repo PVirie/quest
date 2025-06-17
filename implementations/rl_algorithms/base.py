@@ -54,6 +54,18 @@ class Hierarchy_Base:
         self.gammas = torch.triu(self.gammas, diagonal=0)
 
 
+    def reset(self):
+        self.ave_loss = 0
+        self.iteration = 0
+        if self.scheduler is not None:
+            self.scheduler.last_epoch = -1
+            self.scheduler.step()
+        self.model.reset_parameters()
+        self.model.train()
+        self.optimizer.zero_grad(set_to_none=True)
+        logging.info("Model reset.")
+
+
     def save(self, dir_path):
         torch.save(self.model.state_dict(), os.path.join(dir_path, "model.pth"))
         torch.save(self.optimizer.state_dict(), os.path.join(dir_path, "optimizer.pth"))

@@ -160,11 +160,18 @@ class Multilayer_Relu(nn.Module):
             self.layers.append(nn.Linear(hidden_size, hidden_size, device=device))
         self.layers.append(nn.Linear(hidden_size, output_size, device=device))
 
+
     def forward(self, x):
         for layer in self.layers[:-1]:
             x = F.relu(layer(x))
         x = self.layers[-1](x)
         return x
+    
+
+    def reset_parameters(self):
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                layer.reset_parameters()
 
 
 class Res_Net(Multilayer_Relu):
@@ -178,3 +185,9 @@ class Res_Net(Multilayer_Relu):
             x = x + pre_x
         x = self.layers[-1](x)
         return x
+    
+
+    def reset_parameters(self):
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                layer.reset_parameters()

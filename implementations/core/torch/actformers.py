@@ -34,6 +34,16 @@ class Model(nn.Module):
         self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
 
 
+    def reset_parameters(self):
+        # Reset parameters of all layers
+        self.embedding.reset_parameters()
+        self.context_decoder.reset_parameters()
+        self.action_decoder.reset_parameters()
+        self.state_decoder.reset_parameters()
+        self.q_decoder.reset_parameters()
+        self.critic.reset_parameters()
+
+
     def forward(self, objectives, observations, actions, pivot_positions):
 
         # objectives has shape batch x objective_context_size
