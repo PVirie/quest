@@ -407,11 +407,11 @@ def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, 
             logging.info(report)
             with open(rollout_file_path, "a") as f:
                 data = persona.print_context(root_node)
-                f.write(f"Episode {no_episode}\n")
+                f.write("Episode " + no_episode + "\n")
                 f.write("[Report]\t" + report + "\n")
                 f.write(data)
                 f.write("\n")
-                f.write(f"------------------------------------------------------------------------\n")
+                f.write("------------------------------------------------------------------------" + "\n")
 
 
 if __name__ == "__main__":
