@@ -47,15 +47,18 @@ class Text_Tokenizer:
 
         return self.word2id[word]
 
+
     def _tokenize(self, text):
         # Simple tokenizer: strip out all non-alphabetic characters.
-        text = re.sub("[^a-zA-Z0-9\- ]", " ", text)
-        word_ids = list(map(self._get_word_id, text.split()))
+        text_parts = re.findall(r"[a-zA-Z0-9\-]+", text)
+        word_ids = list(map(self._get_word_id, text_parts))
         return word_ids
     
+
     def __len__(self):
         return len(self.id2word)
     
+
     def __call__(self, texts, stack=True):
         texts = list(map(self._tokenize, texts))
 

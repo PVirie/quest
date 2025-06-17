@@ -45,14 +45,13 @@ class Hierarchy_Q(Hierarchy_Base):
         objective_tensor = torch.reshape(objective_tensor, [1, -1])
         state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
 
-        context_marks = torch.tensor([m for _, m, _ in pivot], dtype=torch.int64, device=self.device)
-        rewards = torch.tensor([r for r, _, _ in pivot], dtype=torch.float32, device=self.device)
+        context_marks = torch.tensor([m for m, _ in pivot], dtype=torch.int64, device=self.device)
         
         # now prepare available actions
-        max_available_actions = max([len(aa) for _, _, aa in pivot])
+        max_available_actions = max([len(aa) for _, aa in pivot])
         available_actions_indices = []
         action_set = set(action_list)
-        for _, _, aa in pivot:
+        for _, aa in pivot:
             # compute free actions
             free_actions = action_set - set(aa)
             new_aa = aa.copy()
@@ -66,7 +65,7 @@ class Hierarchy_Q(Hierarchy_Base):
         # available_actions_indices has shape (num_pivot, max_action_length) must be expanded to (num_pivot, max_action_length, action_size)
         available_actions_by_context = torch.gather(action_list_tensor.unsqueeze(0).expand(num_pivot, -1, -1), 1, available_actions_indices.unsqueeze(2).expand(-1, -1, action_size)) # shape: (num_pivot, max_action_length, action_size)
         available_actions_by_context = torch.reshape(available_actions_by_context, [1, num_pivot, max_available_actions, action_size])
-
+        
         self.model.train()
         action_scores, values = self.model(objective_tensor, state_tensor, available_actions_by_context, torch.reshape(context_marks, (1, -1)))
         action_scores = action_scores[0, :, :] # shape: (num_pivot, max_available_actions)
@@ -74,25 +73,21 @@ class Hierarchy_Q(Hierarchy_Base):
 
         # ----------------------
         # now map to training data items
-        train_action_indexes = torch.reshape(torch.tensor([pivot[p][2].index(a) for a, p, _ in train_data], dtype=torch.int64, device=self.device), (-1, 1))
-        train_from_indexes = torch.tensor([p for _, p, _ in train_data], dtype=torch.int64, device=self.device)
-        train_to_indexes = torch.tensor([p for _, _, p in train_data], dtype=torch.int64, device=self.device)
+        train_action_indexes = torch.reshape(torch.tensor([pivot[p][1].index(a) for _, a, p, _ in train_data], dtype=torch.int64, device=self.device), (-1, 1))
+        train_from_indexes = torch.tensor([p for _, _, p, _ in train_data], dtype=torch.int64, device=self.device)
+        train_to_indexes = torch.tensor([p for _, _, _, p in train_data], dtype=torch.int64, device=self.device)
         train_action_scores = torch.gather(action_scores, 0, train_from_indexes.unsqueeze(-1).expand(-1, max_available_actions))
-
-        train_state_values = torch.gather(state_values, 0, train_from_indexes)
+        train_rewards = torch.tensor([r for r, _, _, _ in train_data], dtype=torch.float32, device=self.device)
 
         with torch.no_grad():
             # now specialize truncated end
             if not train_last_node:
-                last_value = state_values[-1].item()
-                rewards = rewards[:-1]
+                extended_state_values = state_values
             else:
-                last_value = 0
-                state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
-
-            # compute returns = rewards + gamma * next_state_q, but for all from to pivot
-            train_td_returns = self._compute_snake_ladder_2(rewards, state_values)[train_from_indexes, train_to_indexes]
-            train_mc_returns = self._compute_snake_ladder(rewards, last_value)[train_from_indexes, train_to_indexes]
+                extended_state_values = torch.concat([state_values, torch.zeros(1, device=self.device)], dim=0)
+                
+            train_next_state_values = torch.gather(extended_state_values, 0, train_to_indexes)
+            train_td_returns = train_rewards + self.GAMMA * train_next_state_values
 
         # use vector instead of loops
         log_probs = Log_Softmax_Function.apply(train_action_scores, 1.0, 1)

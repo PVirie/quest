@@ -32,7 +32,8 @@ if len(os.listdir(alfworld_path)) == 0:
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from quest_interface import Quest_Graph, Action
-from implementations.rl_agent import agent_functions, rl_graph, mdp_state
+from quest_interface.mdp_state import MDP_State
+from implementations.rl_agent import agent_functions, rl_graph
 from implementations.rl_agent.persona import Persona
 
 

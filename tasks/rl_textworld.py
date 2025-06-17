@@ -50,7 +50,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 from quest_interface import Quest_Graph, Action
-from implementations.rl_agent import agent_functions, rl_graph, mdp_state
+from quest_interface.mdp_state import MDP_State, MDP_Transition
+from implementations.rl_agent import agent_functions, rl_graph
 from implementations.rl_agent.persona import Persona
 
 
@@ -75,7 +76,7 @@ def extract_inventory(infos):
     return set([item.replace(".", "").strip() for item in inv_str.split(",") if item.replace(".", "").strip() != ""])
 
 
-class Textworld_Main_Goal(mdp_state.MDP_Transition):
+class Textworld_Main_Goal(MDP_Transition):
     def __init__(self, objective, max_score):
         self.objective = objective
         self.max_score = max_score
@@ -130,7 +131,7 @@ class Textworld_Main_Goal(mdp_state.MDP_Transition):
         return mdp_score, terminated, truncated, succeeded, override_objective
 
 
-class Textworld_Transition(mdp_state.MDP_Transition):
+class Textworld_Transition(MDP_Transition):
     def __init__(self, new_location=None, added_items=set(), is_main=False, is_rush_goal=False):
         self.new_location = new_location
         self.added_items = set(added_items)
@@ -269,7 +270,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
                 terminated = False
                 truncated = True
                 succeeded = False
-        elif not self.is_main and n_action_node + n_quest_node > 20:
+        elif not self.is_main and n_action_node + n_quest_node > 10:
             terminated = False
             truncated = True
             succeeded = False
@@ -281,7 +282,7 @@ class Textworld_Transition(mdp_state.MDP_Transition):
         return mdp_score, terminated, truncated, succeeded, override_objective
 
 
-class Textworld_State(mdp_state.MDP_State):
+class Textworld_State(MDP_State):
     def __init__(self, obs, score, done, info):
         self.location = extract_location(info)
         self.inventory = extract_inventory(info)
@@ -330,12 +331,16 @@ def compute_folds(objective_transition, state_scores):
     return [(st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
 
 
-def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, allow_relegation=True, verbose=False, verbose_step=10):
+def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, verbose=False, verbose_step=10):
     
     with open(rollout_file_path, "a", encoding="utf-8") as f:
         # mark date
         f.write(f"========================================================================\n")
         f.write(f"Date: {utilities.get_current_time_string()}\n")
+        f.write(f"Allow relegation: {persona.allow_relegation}\n")
+        f.write(f"Relegation probability: {persona.training_relegation_probability}\n")
+        f.write(f"Allow sub training: {persona.allow_sub_training}\n")
+        f.write(f"Allow prospect training: {persona.allow_prospect_training}\n")
         f.write(f"------------------------------------------------------------------------\n")
 
     # Collect some statistics: nb_steps, final reward.
@@ -414,7 +419,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", "-r", action="store_true")
-    parser.add_argument("--record_file", "-o", type=str, default="rollouts.txt", help="The file to record the rollouts. Default is 'rollouts.txt'.")
+    parser.add_argument("--record_file",            "-o",   type=str, default="rollouts.txt",   help="The file to record the rollouts. Default is 'rollouts.txt'.")
+    parser.add_argument("--no_relegation",          "-nre", action="store_true",                help="Disable relegation during training.")
+    parser.add_argument("--rel_prob",               "-rp",  type=float, default=1.0,            help="The probability of relegation during training. Default is 1.0.")
+    parser.add_argument("--no-sub-training",        "-nst", action="store_true",                help="Disable sub training during training.")
+    parser.add_argument("--no-prospect-training",   "-npt", action="store_true",                help="Disable prospect training during training.")
     args = parser.parse_args()
 
     experiment_path = "/app/experiments/rl_textworld"
@@ -481,26 +490,32 @@ if __name__ == "__main__":
     # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.96, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
 
     from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.000001, entropy_weight=0.1, train_temperature=1.0)
+    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.000002, entropy_weight=0.1, train_temperature=1.0)
 
     persona = Persona(
         rl_core,
         tokenizer,
         compute_folds,
         env_step,
-        training_relegation_probability=0.4
+        training_relegation_probability=args.rel_prob,
     )
 
-    persona.set_allow_relegation(True)
-    persona.set_allow_sub_training(True)
+    persona.set_allow_relegation(not args.no_relegation)
+    persona.set_allow_sub_training(not args.no_sub_training)
+    persona.set_allow_prospect_training(not args.no_prospect_training)
 
-    if not persona.load(agent_parameter_path):
-        logging.info("Initiate agent training ....")
-        persona.set_training_mode(True)
-        play(env, available_objectives, persona, 
-             rollout_file_path=rollout_file_path, 
-             nb_episodes=10000, verbose=True)
-        persona.save(agent_parameter_path)
+    # if not persona.load(agent_parameter_path):
+    logging.info(f"Initiate agent training with following parameters:")
+    logging.info(f"  - Allow relegation: {not args.no_relegation}")
+    logging.info(f"  - Relegation probability: {args.rel_prob}")
+    logging.info(f"  - Allow sub training: {not args.no_sub_training}")
+    logging.info(f"  - Allow prospect training: {not args.no_prospect_training}")
+    
+    persona.set_training_mode(True)
+    play(env, available_objectives, persona, 
+         rollout_file_path=rollout_file_path, 
+         nb_episodes=10000, verbose=True)
+    # persona.save(agent_parameter_path)
 
     persona.set_training_mode(False)
     play(env, available_objectives, persona, 

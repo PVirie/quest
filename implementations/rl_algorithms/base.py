@@ -84,6 +84,17 @@ class Hierarchy_Base:
         logging.info(msg)
 
 
+    def _compute_discounted_mc_returns(self, rewards, last_value):
+        context_length = rewards.size(0)
+        last_value = last_value if isinstance(last_value, torch.Tensor) else torch.ones(1, device=self.device) * last_value
+        # append last value to rewards
+        R = torch.cat((rewards, last_value), dim=0)
+        # gammas is [[r^0, r^1, ..., r^n], [0, r^0, r^1, ..., r^n-1], ...]
+        # S_i = R_i + gamma*(S_i+1)
+        S = torch.matmul(self.gammas[:context_length, :context_length + 1], R)
+        return S
+
+
     def _compute_snake_ladder(self, rewards, last_value):
         # this is not true snake ladder, but a simplified version
         # return a 2D matrix that contains best return from step i to step j

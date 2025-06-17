@@ -1,8 +1,9 @@
 from quest_interface import Node, Node_List, Direction, Direction_List
-
+from copy import copy
 
 class RL_Node(Node, Direction, Node_List, Direction_List):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.parent = None
         self.children = []
 
@@ -29,20 +30,23 @@ class RL_Node(Node, Direction, Node_List, Direction_List):
         return self.children
     
     def __getitem__(self, key):
+        cloned = copy(self)
         if isinstance(key, slice):
-            # if key is a slice, return the children in that range
+            # if key is a slice, get the children in that range
             start, stop, step = key.start, key.stop, key.step
-            return self.children[start:stop:step]
+            cloned.children = self.children[start:stop:step]
         else:
-            # if key is an integer, return the child at that index
-            return self.children[key] if len(self.children) > 0 else None
+            # if key is an integer, get the children to just before that index
+            cloned.children = self.children[:key]
+        return cloned
 
     def get_context(self):
         raise NotImplementedError("get_context() not implemented")
     
 
 class Trainable:
-    def __init__(self, train_ref=None, observation=None):
+    def __init__(self, train_ref=None, observation=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.train_ref = train_ref
         self.observation = observation
 
@@ -54,8 +58,8 @@ class Quest_Node(RL_Node, Trainable):
         self.allow_relegation = allow_relegation
         self.succeeded = succeeded
         self.truncated = truncated
-        Trainable.__init__(self, train_ref=train_ref, observation=observation)
-        RL_Node.__init__(self)
+        super().__init__(train_ref=train_ref, observation=observation)
+
 
     def get_start_contexts(self):
         return f"Objective: {str(self.objective)}", f"Observation: {self.start_observation.get_context()}"
@@ -156,8 +160,7 @@ class Thought_Node(RL_Node):
 class Observation_Node(RL_Node, Trainable):
     def __init__(self, action=None, observation=None, train_ref=None):
         self.action = action
-        Trainable.__init__(self, train_ref=train_ref, observation=observation)
-        RL_Node.__init__(self)
+        super().__init__(train_ref=train_ref, observation=observation)
 
     def get_context(self):
         contexts = []

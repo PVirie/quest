@@ -3,6 +3,7 @@ import sys
 from tkinter import filedialog
 import logging
 from datetime import datetime
+import argparse
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -47,7 +48,7 @@ def save_file_dialog(default_path = None):
         return None
 
 
-def parse_rollout_file(file_generator):
+def parse_rollout_file(file_generator, ma_alpha, training_trend):
     """Parses a rollout file and returns the content."""
     for file_path in file_generator:
         with open(file_path, 'r', encoding="utf-8") as file:
@@ -58,18 +59,26 @@ def parse_rollout_file(file_generator):
             session_text = session_text.strip()
             if len(session_text) < 10:
                 continue
-            date, stats = parse_session(session_text)
-            yield {
-                'file_path': file_path,
-                'date': date,
-                'stats': stats,
-                'moving_average': compute_moving_average(stats)
-            }
+            metadata, stats = parse_session(session_text)
+            if (training_trend and len(stats) > 100) or (not training_trend and len(stats) <= 100):
+                yield {
+                    'file_name': os.path.basename(file_path),
+                    'file_path': file_path,
+                    'metadata': metadata,
+                    'stats': stats,
+                    'moving_average': compute_moving_average(stats, alpha=ma_alpha)
+                }
+            else:
+                logging.warning(f"Skipping session in {file_path} due to {training_trend} and {len(stats)}")
 
 
 def parse_session(session):
     """
     Date: 2025-06-01 13:45:52
+    Allow relegation: True
+    Relegation probability: 0.1
+    Allow sub training: True
+    Allow prospect training: True
     ------------------------------------------------------------------------
     Episode 10
     [Report]	episode: 10/20000; steps: 100.0; succeeded: 0.8; score: -2.0/ 1.2; cl: 100.0; max cl: 100.0
@@ -82,7 +91,14 @@ def parse_session(session):
     episodes = session.strip().split('------------------------------------------------------------------------')
     header = episodes[0].strip()
     logging.info(f"Parsing session header: {header}")
-    date = utilities.get_datetime_from_string(header.split("Date: ")[-1].strip())
+    field_values = {line.split(':', 1)[0].strip().lower(): line.split(':', 1)[1].strip().lower() for line in header.split('\n')} 
+    metadata = {
+        'date': utilities.get_datetime_from_string(field_values.get('date', '')),
+        'allow_relegation': field_values.get('allow relegation', 'false') == 'true',
+        'allow_sub_training': field_values.get('allow sub training', 'false') == 'true',
+        'allow_prospect_training': field_values.get('allow prospect training', 'false') == 'true',
+        'relegation_probability': float(field_values.get('relegation probability', '0.0'))
+    }
     stats = []
 
     def parse_slash(slash_string):
@@ -113,10 +129,10 @@ def parse_session(session):
                     'cl': cl,
                     'max_cl': max_cl 
                 })
-    return date, stats
+    return metadata, stats
 
 
-def compute_moving_average(stats, alpha=0.995):
+def compute_moving_average(stats, alpha):
     """Computes the moving average of the scores."""
     output = []
     moving_avg = {}
@@ -131,8 +147,14 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logging.info("Starting TextWorld Plotting Task")
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ma_alpha", "-ma", metavar='ma-alpha', type=float, default=0.995, help="Moving average alpha value (default: 0.995)")
+    parser.add_argument("--training_trend", "-tt", action='store_true', help="Plot training trend")
+    parser.add_argument("--metric", "-m", type=str, default="succeeded", help="Metric to plot (default: succeeded)")
+    args = parser.parse_args()
+
     # Open file dialog to select files
-    sessions = list(parse_rollout_file(open_file_dialog()))
+    sessions = list(parse_rollout_file(open_file_dialog(), ma_alpha=args.ma_alpha, training_trend=args.training_trend))
     
     if not sessions:
         logging.error("No files selected or no valid sessions found.")
@@ -141,12 +163,13 @@ if __name__ == "__main__":
     # Plotting the data
     fig, ax = plt.subplots(figsize=(12, 6))
     for session in sessions:
-        date = session['date']
+        metadata = session['metadata']
         X = [stat['episode'] for stat in session['stats']]
-        Y = [avg['succeeded'] for avg in session['moving_average']]
-        ax.plot(X, Y, label=date.strftime("%Y-%m-%d %H:%M:%S"))
-    ax.set_xlabel('Episode')
-    ax.set_ylabel('Score')
+        Y = [avg[args.metric] for avg in session['moving_average']]
+        label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
+        ax.plot(X, Y, label=label)
+    ax.set_xlabel('episode')
+    ax.set_ylabel(args.metric)
     ax.set_title('TextWorld Rollout Scores')
     ax.legend()
     ax.grid()
