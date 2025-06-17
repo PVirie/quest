@@ -514,7 +514,7 @@ if __name__ == "__main__":
     logging.info(f"  - Allow sub training: {not args.no_sub_training}")
     logging.info(f"  - Allow prospect training: {not args.no_prospect_training}")
     
-    for i in range(len(args.run_count)):
+    for i in range(len(int(args.run_count))):
         rl_core.reset()
 
         persona.set_training_mode(True)
