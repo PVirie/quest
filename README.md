@@ -69,14 +69,15 @@ An implementation of agentic systems with quest graphs.
 
 ### Environment Variables
 
-| Environment Variables        | Description                                                              | Values                                                                      |
-| ---------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| `QUEST_LM_DEPLOYMENT`        | Use language model via API vs local.                                     | "cloud-api-litellm", "cloud-api-runpod", "local-hf"                         |
-| `QUEST_LM_MODEL`             | Language model name.                                                     | e.g. "openai/gpt-4", "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"            |
-| `QUEST_LM_API_KEY`           | Language model service provider API key. (Or use provider' own variable) | string                                                                      |
-| `QUEST_EMBEDDING_DEPLOYMENT` | Use embedding model via API.                                             | "cloud-api-litellm", "local-hf"                                             |
-| `QUEST_EMBEDDING_MODEL`      | Embedding model name.                                                    | e.g. "text-embedding-3-small", "ibm-granite/granite-embedding-125m-english" |
-| `QUEST_EMBEDDING_API_KEY`    | Embedding service provider API key. (Or use provider' own variable)      | string                                                                      |
+| Environment Variables        | Description                                                                             | Values                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `APP_ROOT`                   | Root directory to store caches and experiment results when running without a container. | e.g. `/app`                                                                 |
+| `QUEST_LM_DEPLOYMENT`        | Use language model via API vs local.                                                    | "cloud-api-litellm", "cloud-api-runpod", "local-hf"                         |
+| `QUEST_LM_MODEL`             | Language model name.                                                                    | e.g. "openai/gpt-4", "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"            |
+| `QUEST_LM_API_KEY`           | Language model service provider API key. (Or use provider' own variable)                | string                                                                      |
+| `QUEST_EMBEDDING_DEPLOYMENT` | Use embedding model via API.                                                            | "cloud-api-litellm", "local-hf"                                             |
+| `QUEST_EMBEDDING_MODEL`      | Embedding model name.                                                                   | e.g. "text-embedding-3-small", "ibm-granite/granite-embedding-125m-english" |
+| `QUEST_EMBEDDING_API_KEY`    | Embedding service provider API key. (Or use provider' own variable)                     | string                                                                      |
 
 Apart from the above environment variables, you must also include _third-party API_ keys in the `secrets.env` file in order to use their services.
 
