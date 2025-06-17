@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding
+from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_module_parameters
 
 
 class Model(nn.Module):
@@ -29,6 +29,16 @@ class Model(nn.Module):
         self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 2, device=device)
 
         self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
+
+
+    def reset_parameters(self):
+        # Reset parameters of all layers
+        self.embedding.reset_parameters()
+        reset_module_parameters(self.context_decoder)
+        reset_module_parameters(self.action_decoder)
+        reset_module_parameters(self.state_decoder)
+        self.critic.reset_parameters()
+        self.actor.reset_parameters()
 
 
     def forward(self, objectives, observations, actions, pivot_positions):

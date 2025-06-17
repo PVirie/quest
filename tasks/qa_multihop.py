@@ -15,13 +15,15 @@ from quest_interface import Quest_Graph, Action
 from implementations.language_agent import agent_functions, text_graph
 from implementations.language_agent.persona import Persona
 
-with open("/app/prompt_directory/react_tree.txt", "r") as file:
+APP_ROOT = os.getenv("APP_ROOT", "/app")
+
+with open(f"{APP_ROOT}/prompt_directory/react_tree.txt", "r") as file:
     prompt = file.read()
 
 from utilities import install, musique_classes, language_models, embedding_models
 from utilities.tokenizer import *
 
-musique_path = "/app/cache/musique_data"
+musique_path = f"{APP_ROOT}/cache/musique_data"
 musique_repo_path = f"{musique_path}/repo"
 musique_data_path = f"{musique_repo_path}/data"
 os.makedirs(musique_path, exist_ok=True)
@@ -67,7 +69,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
-    experiment_path = "/app/experiments/qa_multihop"
+    experiment_path = f"{APP_ROOT}/experiments/qa_multihop"
     answer_path = f"{experiment_path}/answers.jsonl"
 
     if args.reset:

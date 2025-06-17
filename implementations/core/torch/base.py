@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.nn.init as init
 
 
 def positional_encoding(seq_len, embed_dim):
@@ -160,11 +161,18 @@ class Multilayer_Relu(nn.Module):
             self.layers.append(nn.Linear(hidden_size, hidden_size, device=device))
         self.layers.append(nn.Linear(hidden_size, output_size, device=device))
 
+
     def forward(self, x):
         for layer in self.layers[:-1]:
             x = F.relu(layer(x))
         x = self.layers[-1](x)
         return x
+    
+
+    def reset_parameters(self):
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                layer.reset_parameters()
 
 
 class Res_Net(Multilayer_Relu):
@@ -178,3 +186,18 @@ class Res_Net(Multilayer_Relu):
             x = x + pre_x
         x = self.layers[-1](x)
         return x
+    
+
+    def reset_parameters(self):
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                layer.reset_parameters()
+
+
+def reset_module_parameters(module):
+    r"""Initiate parameters in torch module."""
+    for p in module.parameters():
+        if p.dim() > 1:
+            init.xavier_uniform_(p)
+        else:
+            init.zeros_(p)

@@ -9,13 +9,15 @@ import re
 venv_python = sys.executable
 python_version = sys.version_info
 
+APP_ROOT = os.getenv("APP_ROOT", "/app")
+
 # add the path to the local pip modules
 pip_modules_paths = []
-pip_modules_paths.append('/app/pip_modules/bin')
-pip_modules_paths.append('/app/pip_modules/lib/python{0}/site-packages'.format(python_version.major))
-pip_modules_paths.append('/app/pip_modules/lib/python{0}/dist-packages'.format(python_version.major))
-pip_modules_paths.append('/app/pip_modules/lib/python{0}.{1}/site-packages'.format(python_version.major, python_version.minor))
-pip_modules_paths.append('/app/pip_modules/lib/python{0}.{1}/dist-packages'.format(python_version.major, python_version.minor))
+pip_modules_paths.append(f"{APP_ROOT}/pip_modules/bin")
+pip_modules_paths.append(f"{APP_ROOT}/pip_modules/lib/python{python_version.major}/site-packages")
+pip_modules_paths.append(f"{APP_ROOT}/pip_modules/lib/python{python_version.major}/dist-packages")
+pip_modules_paths.append(f"{APP_ROOT}/pip_modules/lib/python{python_version.major}.{python_version.minor}/site-packages")
+pip_modules_paths.append(f"{APP_ROOT}/pip_modules/lib/python{python_version.major}.{python_version.minor}/dist-packages")
 
 for path in pip_modules_paths:
     if path not in sys.path:
@@ -68,4 +70,4 @@ def install(package):
 
     if not matched:
         logging.warning(f"Installing: {package}")
-        subprocess.check_call([venv_python, "-m", "pip", "install", package, "--prefix", "/app/pip_modules"])
+        subprocess.check_call([venv_python, "-m", "pip", "install", package, "--prefix", f"{APP_ROOT}/pip_modules"])

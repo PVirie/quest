@@ -14,6 +14,8 @@ import torch
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
+APP_ROOT = os.getenv("APP_ROOT", "/app")
+
 import utilities
 from utilities.tokenizer import *
 
@@ -23,7 +25,7 @@ utilities.install('textworld.gym')
 import textworld
 import textworld.gym
 
-textworld_path = "/app/cache/textworld_data"
+textworld_path = f"{APP_ROOT}/cache/textworld_data"
 os.makedirs(textworld_path, exist_ok=True)
 
 # expected envs
@@ -331,7 +333,7 @@ def compute_folds(objective_transition, state_scores):
     return [(st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
 
 
-def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, verbose=False, verbose_step=10):
+def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, verbose=False, verbose_step=10, verbose_prefix=""):
     
     with open(rollout_file_path, "a", encoding="utf-8") as f:
         # mark date
@@ -395,7 +397,7 @@ def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, 
 
         if verbose and no_episode % verbose_step == 0:
             # cl means context length
-            msg = "episode: {}/{}; steps: {:5.1f}; succeeded: {:4.1f}; score: {:4.1f}/{:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
+            msg = "{verbose_prefix} episode: {}/{}; steps: {:5.1f}; succeeded: {:4.1f}; score: {:4.1f}/{:4.1f}; cl: {:4.1f}; max cl: {:4.1f}"
             report = msg.format(
                 no_episode,
                 nb_episodes,
@@ -420,13 +422,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", "-r", action="store_true")
     parser.add_argument("--record_file",            "-o",   type=str, default="rollouts.txt",   help="The file to record the rollouts. Default is 'rollouts.txt'.")
+    parser.add_argument("--run_count",              "-rc",  type=int, default=1,                help="The number of runs to perform. Default is 1.")
     parser.add_argument("--no_relegation",          "-nre", action="store_true",                help="Disable relegation during training.")
     parser.add_argument("--rel_prob",               "-rp",  type=float, default=1.0,            help="The probability of relegation during training. Default is 1.0.")
     parser.add_argument("--no-sub-training",        "-nst", action="store_true",                help="Disable sub training during training.")
     parser.add_argument("--no-prospect-training",   "-npt", action="store_true",                help="Disable prospect training during training.")
     args = parser.parse_args()
 
-    experiment_path = "/app/experiments/rl_textworld"
+    experiment_path = f"{APP_ROOT}/experiments/rl_textworld"
     if args.reset:
         # clear the experiment path
         if os.path.exists(experiment_path):
@@ -511,14 +514,18 @@ if __name__ == "__main__":
     logging.info(f"  - Allow sub training: {not args.no_sub_training}")
     logging.info(f"  - Allow prospect training: {not args.no_prospect_training}")
     
-    persona.set_training_mode(True)
-    play(env, available_objectives, persona, 
-         rollout_file_path=rollout_file_path, 
-         nb_episodes=10000, verbose=True)
-    # persona.save(agent_parameter_path)
+    for i in range(len(args.run_count)):
+        rl_core.reset()
 
-    persona.set_training_mode(False)
-    play(env, available_objectives, persona, 
-         rollout_file_path=rollout_file_path, 
-         nb_episodes=100, verbose=True, verbose_step=20)
+        persona.set_training_mode(True)
+        play(env, available_objectives, persona, 
+            rollout_file_path=rollout_file_path, 
+            nb_episodes=10000, verbose=True, verbose_step=100, verbose_prefix=f"[Run {i+1}/{args.run_count}]")
+        # persona.save(agent_parameter_path)
+
+        persona.set_training_mode(False)
+        play(env, available_objectives, persona, 
+            rollout_file_path=rollout_file_path, 
+            nb_episodes=100, verbose=True, verbose_step=20)
+        
     env.close()
