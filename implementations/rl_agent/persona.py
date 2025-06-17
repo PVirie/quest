@@ -108,10 +108,11 @@ class Persona:
     def print_context(self, quest_node, prefix=""):
         children = quest_node.get_children()
         objective_context, start_obs_context = quest_node.get_start_contexts()
+        formatted_start_obs_context = start_obs_context.replace("\n", f"\n{prefix}")
         contexts = [
             f"{prefix}Relegation: {'enabled' if quest_node.allow_relegation else 'disabled'}",
             f"{prefix}{objective_context}", 
-            f"{prefix}{start_obs_context.replace('\n', f'\n{prefix}')}"
+            f"{prefix}{formatted_start_obs_context}"
         ]
         last_score = 0
         for i, node in enumerate(children):
