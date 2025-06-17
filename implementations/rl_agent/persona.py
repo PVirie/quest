@@ -108,7 +108,8 @@ class Persona:
     def print_context(self, quest_node, prefix=""):
         children = quest_node.get_children()
         objective_context, start_obs_context = quest_node.get_start_contexts()
-        formatted_start_obs_context = start_obs_context.replace("\n", f"\n{prefix}")
+        str_levelled_prefix = "\n" + prefix
+        formatted_start_obs_context = start_obs_context.replace("\n", str_levelled_prefix)
         contexts = [
             f"{prefix}Relegation: {'enabled' if quest_node.allow_relegation else 'disabled'}",
             f"{prefix}{objective_context}", 
@@ -129,11 +130,11 @@ class Persona:
                 score = last_score
                 rank = -1
             node_contexts.insert(0, f"{i} ----- reward: {(score - last_score):.2f} rank: {rank:d}")
-            node_contexts = [f"{prefix}" + c.replace("\n", f"\n{prefix}") for c in node_contexts]
+            node_contexts = [f"{prefix}" + c.replace("\n", str_levelled_prefix) for c in node_contexts]
             contexts.extend(node_contexts)
             last_score = score
         if len(prefix) == 0:
-            contexts.append(f"Extra Actions: {";".join(self.extra_actions.keys())}")
+            contexts.append(f"Extra Actions: {';'.join(self.extra_actions.keys())}")
         return f"\n".join(contexts)
 
 
