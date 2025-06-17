@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding
+from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_module_parameters
 
 
 def access(Vs, Ss, x, scores, num_slots, dims, value_access):
@@ -62,10 +62,10 @@ class Model(nn.Module):
     def reset_parameters(self):
         # Reset parameters of all layers
         self.embedding.reset_parameters()
-        self.context_decoder.reset_parameters()
-        self.objective_decoder.reset_parameters()
-        self.action_decoder.reset_parameters()
-        self.value_decoder.reset_parameters()
+        reset_module_parameters(self.context_decoder)
+        reset_module_parameters(self.objective_decoder)
+        reset_module_parameters(self.action_decoder)
+        reset_module_parameters(self.value_decoder)
 
 
     def forward(self, objectives, observations, actions, pivot_positions):

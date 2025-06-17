@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding
+from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_module_parameters
 
 
 class Model(nn.Module):
@@ -26,10 +26,10 @@ class Model(nn.Module):
         self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
 
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.value_decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
+        self.value_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
         
         decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.policy_decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
+        self.policy_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
 
         self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 1, device=device)
 
@@ -39,11 +39,11 @@ class Model(nn.Module):
     def reset_parameters(self):
         # Reset parameters of all layers
         self.embedding.reset_parameters()
-        self.context_decoder.reset_parameters()
-        self.objective_decoder.reset_parameters()
-        self.action_decoder.reset_parameters()
-        self.value_decoder.reset_parameters()
-        self.policy_decoder.reset_parameters()
+        reset_module_parameters(self.context_decoder)
+        reset_module_parameters(self.objective_decoder)
+        reset_module_parameters(self.action_decoder)
+        reset_module_parameters(self.value_decoder)
+        reset_module_parameters(self.policy_decoder)
         self.critic.reset_parameters()
 
 

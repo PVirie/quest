@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding
+from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_module_parameters
 
 
 
@@ -37,10 +37,10 @@ class Model(nn.Module):
     def reset_parameters(self):
         # Reset parameters of all layers
         self.embedding.reset_parameters()
-        self.context_decoder.reset_parameters()
-        self.action_decoder.reset_parameters()
-        self.state_decoder.reset_parameters()
-        self.q_decoder.reset_parameters()
+        reset_module_parameters(self.context_decoder)
+        reset_module_parameters(self.action_decoder)
+        reset_module_parameters(self.state_decoder)
+        reset_module_parameters(self.q_decoder)
         self.critic.reset_parameters()
 
 

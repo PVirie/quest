@@ -422,6 +422,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", "-r", action="store_true")
     parser.add_argument("--record_file",            "-o",   type=str, default="rollouts.txt",   help="The file to record the rollouts. Default is 'rollouts.txt'.")
+    parser.add_argument("--run_count",              "-rc",  type=int, default=1,                help="The number of runs to perform. Default is 1.")
     parser.add_argument("--no_relegation",          "-nre", action="store_true",                help="Disable relegation during training.")
     parser.add_argument("--rel_prob",               "-rp",  type=float, default=1.0,            help="The probability of relegation during training. Default is 1.0.")
     parser.add_argument("--no-sub-training",        "-nst", action="store_true",                help="Disable sub training during training.")
@@ -513,14 +514,18 @@ if __name__ == "__main__":
     logging.info(f"  - Allow sub training: {not args.no_sub_training}")
     logging.info(f"  - Allow prospect training: {not args.no_prospect_training}")
     
-    persona.set_training_mode(True)
-    play(env, available_objectives, persona, 
-         rollout_file_path=rollout_file_path, 
-         nb_episodes=10000, verbose=True)
-    # persona.save(agent_parameter_path)
+    for i in range(len(args.run_count)):
+        rl_core.reset()
 
-    persona.set_training_mode(False)
-    play(env, available_objectives, persona, 
-         rollout_file_path=rollout_file_path, 
-         nb_episodes=100, verbose=True, verbose_step=20)
+        persona.set_training_mode(True)
+        play(env, available_objectives, persona, 
+            rollout_file_path=rollout_file_path, 
+            nb_episodes=10000, verbose=True)
+        # persona.save(agent_parameter_path)
+
+        persona.set_training_mode(False)
+        play(env, available_objectives, persona, 
+            rollout_file_path=rollout_file_path, 
+            nb_episodes=100, verbose=True, verbose_step=20)
+        
     env.close()
