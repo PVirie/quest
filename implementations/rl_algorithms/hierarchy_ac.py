@@ -18,9 +18,9 @@ torch.autograd.set_detect_anomaly(False)
 
 class Hierarchy_AC(Hierarchy_Base):
 
-    def __init__(self, input_size, scale: Network_Scale_Preset, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0) -> None:
+    def __init__(self, input_size, network_preset: Network_Scale_Preset, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0) -> None:
         
-        if scale == Network_Scale_Preset.small:
+        if network_preset == Network_Scale_Preset.small:
             model = Model(
                 input_size=input_size, hidden_size=64,
                 context_head=8, context_layers=2,
@@ -29,7 +29,7 @@ class Hierarchy_AC(Hierarchy_Base):
                 value_head=8, value_layers=4,
                 policy_head=8, policy_layers=4,
                 device=device)
-        elif scale == Network_Scale_Preset.medium:
+        elif network_preset == Network_Scale_Preset.medium:
             model = Model(
                 input_size=input_size, hidden_size=128,
                 context_head=16, context_layers=2,
@@ -38,7 +38,7 @@ class Hierarchy_AC(Hierarchy_Base):
                 value_head=16, value_layers=12,
                 policy_head=16, policy_layers=12,
                 device=device)
-        elif scale == Network_Scale_Preset.large:
+        elif network_preset == Network_Scale_Preset.large:
             model = Model(
                 input_size=input_size, hidden_size=256,
                 context_head=32, context_layers=2,

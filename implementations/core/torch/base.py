@@ -207,10 +207,10 @@ def reset_weights(m):
         if m.out_proj.bias is not None:
             m.out_proj.bias.data.zero_()
     else:
-        for param in m.parameters():
+        for name, param in m.named_parameters():
             if param.dim() > 1:
                 init.xavier_uniform_(param)
-            elif "bias" in param.name:
+            elif "bias" in name:
                 init.zeros_(param)
             else:
                 init.normal_(param, mean=0.0, std=0.02)
