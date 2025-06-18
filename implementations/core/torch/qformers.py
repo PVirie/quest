@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_module_parameters
+from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_weights
 
 
 def access(Vs, Ss, x, scores, num_slots, dims, value_access):
@@ -34,7 +34,13 @@ def access(Vs, Ss, x, scores, num_slots, dims, value_access):
 
 
 class Model(nn.Module):
-    def __init__(self, input_size, hidden_size, device):
+    def __init__(self, 
+                 input_size, hidden_size,
+                 context_head, context_layers,
+                 objective_head, objective_layers,
+                 action_head, action_layers,
+                 value_head, value_layers,
+                 device):
         super(Model, self).__init__()
 
         self.device = device
@@ -44,17 +50,17 @@ class Model(nn.Module):
         self.embedding    = nn.Embedding(input_size, hidden_size, device=device)
         # state encoder
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.context_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=context_head, device=device)
+        self.context_decoder = nn.TransformerDecoder(decoder_layer, num_layers=context_layers)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
-        self.objective_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=objective_head, device=device)
+        self.objective_decoder = nn.TransformerDecoder(decoder_layer, num_layers=objective_layers)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=action_head, device=device)
+        self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=action_layers)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.value_decoder = nn.TransformerDecoder(decoder_layer, num_layers=8)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=value_head, device=device)
+        self.value_decoder = nn.TransformerDecoder(decoder_layer, num_layers=value_layers)
 
         self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
 
@@ -62,10 +68,10 @@ class Model(nn.Module):
     def reset_parameters(self):
         # Reset parameters of all layers
         self.embedding.reset_parameters()
-        reset_module_parameters(self.context_decoder)
-        reset_module_parameters(self.objective_decoder)
-        reset_module_parameters(self.action_decoder)
-        reset_module_parameters(self.value_decoder)
+        self.context_decoder.apply(reset_weights)
+        self.objective_decoder.apply(reset_weights)
+        self.action_decoder.apply(reset_weights)
+        self.value_decoder.apply(reset_weights)
 
 
     def forward(self, objectives, observations, actions, pivot_positions):

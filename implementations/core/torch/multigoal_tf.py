@@ -2,11 +2,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_module_parameters
+from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_weights
 
 
 class Model(nn.Module):
-    def __init__(self, input_size, hidden_size, device):
+    def __init__(self, 
+                 input_size, hidden_size,
+                 context_head, context_layers,
+                 objective_head, objective_layers,
+                 action_head, action_layers,
+                 value_head, value_layers,
+                 policy_head, policy_layers, 
+                 device):
         super(Model, self).__init__()
 
         self.device = device
@@ -16,20 +23,20 @@ class Model(nn.Module):
         self.embedding    = nn.Embedding(input_size, hidden_size, device=device)
         # state encoder
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.context_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=context_head, device=device)
+        self.context_decoder = nn.TransformerDecoder(decoder_layer, num_layers=context_layers)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
-        self.objective_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=objective_head, device=device)
+        self.objective_decoder = nn.TransformerDecoder(decoder_layer, num_layers=objective_layers)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=8, device=device)
-        self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=action_head, device=device)
+        self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=action_layers)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.value_decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=value_head, device=device)
+        self.value_decoder = nn.TransformerDecoder(decoder_layer, num_layers=value_layers)
         
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.policy_decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=policy_head, device=device)
+        self.policy_decoder = nn.TransformerDecoder(decoder_layer, num_layers=policy_layers)
 
         self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 1, device=device)
 
@@ -39,11 +46,11 @@ class Model(nn.Module):
     def reset_parameters(self):
         # Reset parameters of all layers
         self.embedding.reset_parameters()
-        reset_module_parameters(self.context_decoder)
-        reset_module_parameters(self.objective_decoder)
-        reset_module_parameters(self.action_decoder)
-        reset_module_parameters(self.value_decoder)
-        reset_module_parameters(self.policy_decoder)
+        self.context_decoder.apply(reset_weights)
+        self.objective_decoder.apply(reset_weights)
+        self.action_decoder.apply(reset_weights)
+        self.value_decoder.apply(reset_weights)
+        self.policy_decoder.apply(reset_weights)
         self.critic.reset_parameters()
 
 

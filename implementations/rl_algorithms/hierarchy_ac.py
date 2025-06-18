@@ -6,7 +6,7 @@ import os
 import logging
 
 from implementations.core.torch.multigoal_tf import Model
-from .base import Hierarchy_Base
+from .base import Hierarchy_Base, Network_Scale_Preset
 from implementations.core.torch.base import Log_Softmax_Function, Exp_Entropy_Function
 
 import torch
@@ -18,8 +18,36 @@ torch.autograd.set_detect_anomaly(False)
 
 class Hierarchy_AC(Hierarchy_Base):
 
-    def __init__(self, input_size, hidden_size, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0) -> None:
-        model = Model(input_size=input_size, hidden_size=hidden_size, device=device)
+    def __init__(self, input_size, scale: Network_Scale_Preset, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=1.0) -> None:
+        
+        if scale == Network_Scale_Preset.small:
+            model = Model(
+                input_size=input_size, hidden_size=64,
+                context_head=8, context_layers=2,
+                objective_head=8, objective_layers=2,
+                action_head=8, action_layers=2,
+                value_head=8, value_layers=4,
+                policy_head=8, policy_layers=4,
+                device=device)
+        elif scale == Network_Scale_Preset.medium:
+            model = Model(
+                input_size=input_size, hidden_size=128,
+                context_head=16, context_layers=2,
+                objective_head=8, objective_layers=2,
+                action_head=8, action_layers=2,
+                value_head=16, value_layers=12,
+                policy_head=16, policy_layers=12,
+                device=device)
+        elif scale == Network_Scale_Preset.large:
+            model = Model(
+                input_size=input_size, hidden_size=256,
+                context_head=32, context_layers=2,
+                objective_head=16, objective_layers=2,
+                action_head=16, action_layers=2,
+                value_head=32, value_layers=12,
+                policy_head=32, policy_layers=12,
+                device=device)
+        
         optimizer = optim.Adam(model.parameters(), learning_rate)
         # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.5)
         scheduler = None

@@ -6,7 +6,7 @@ import os
 import logging
 
 from implementations.core.torch.qformers import Model
-from .base import Hierarchy_Base
+from .base import Hierarchy_Base, Network_Scale_Preset
 from implementations.core.torch.base import Log_Softmax_Function, Exp_Entropy_Function
 
 import torch
@@ -18,11 +18,36 @@ torch.autograd.set_detect_anomaly(False)
 
 class Hierarchy_Q(Hierarchy_Base):
 
-    def __init__(self, input_size, hidden_size, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=0.1):
+    def __init__(self, input_size, scale: Network_Scale_Preset, device, discount_factor=0.99, learning_rate=0.0001, entropy_weight=0.1, train_temperature=0.1):
         # Because q learning does not directly update the action probabaility distribution (as it only updates the q value),
         # the reward from MDP therefore directly responsible for the action probability distribution.
         # The temperature is then has to be tuned.
-        model = Model(input_size=input_size, hidden_size=hidden_size, device=device)
+        
+        if scale == Network_Scale_Preset.small:
+            model = Model(
+                input_size=input_size, hidden_size=64,
+                context_head=8, context_layers=2,
+                objective_head=8, objective_layers=2,
+                action_head=8, action_layers=2,
+                value_head=8, value_layers=4,
+                device=device)
+        elif scale == Network_Scale_Preset.medium:
+            model = Model(
+                input_size=input_size, hidden_size=128,
+                context_head=16, context_layers=2,
+                objective_head=8, objective_layers=2,
+                action_head=8, action_layers=2,
+                value_head=16, value_layers=12,
+                device=device)
+        elif scale == Network_Scale_Preset.large:
+            model = Model(
+                input_size=input_size, hidden_size=256,
+                context_head=32, context_layers=2,
+                objective_head=16, objective_layers=2,
+                action_head=16, action_layers=2,
+                value_head=32, value_layers=12,
+                device=device)
+        
         optimizer = optim.Adam(model.parameters(), learning_rate)
         # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.5)
         scheduler = None

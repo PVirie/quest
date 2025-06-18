@@ -2,11 +2,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_module_parameters
+from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_weights
 
 
 class Model(nn.Module):
-    def __init__(self, input_size, hidden_size, device):
+    def __init__(self, 
+                 input_size, hidden_size, 
+                 context_head, context_layers,
+                 action_head, action_layers,
+                 state_head, state_layers,
+                 device):
         super(Model, self).__init__()
 
         self.device = device
@@ -16,14 +21,14 @@ class Model(nn.Module):
         self.embedding    = nn.Embedding(input_size, hidden_size, device=device)
         # state encoder
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.context_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=context_head, device=device)
+        self.context_decoder = nn.TransformerDecoder(decoder_layer, num_layers=context_layers)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=action_head, device=device)
+        self.action_decoder = nn.TransformerDecoder(decoder_layer, num_layers=action_layers)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=16, device=device)
-        self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=4)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=hidden_size, nhead=state_head, device=device)
+        self.state_decoder = nn.TransformerDecoder(decoder_layer, num_layers=state_layers)
 
         self.critic = Multilayer_Relu(hidden_size, 1, hidden_size, 2, device=device)
         self.actor = Multilayer_Relu(hidden_size, hidden_size, hidden_size, 2, device=device)
@@ -34,9 +39,9 @@ class Model(nn.Module):
     def reset_parameters(self):
         # Reset parameters of all layers
         self.embedding.reset_parameters()
-        reset_module_parameters(self.context_decoder)
-        reset_module_parameters(self.action_decoder)
-        reset_module_parameters(self.state_decoder)
+        self.context_decoder.apply(reset_weights)
+        self.action_decoder.apply(reset_weights)
+        self.state_decoder.apply(reset_weights)
         self.critic.reset_parameters()
         self.actor.reset_parameters()
 

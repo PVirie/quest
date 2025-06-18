@@ -194,10 +194,23 @@ class Res_Net(Multilayer_Relu):
                 layer.reset_parameters()
 
 
-def reset_module_parameters(module):
-    r"""Initiate parameters in torch module."""
-    for p in module.parameters():
-        if p.dim() > 1:
-            init.xavier_uniform_(p)
-        else:
-            init.normal_(p, mean=0.0, std=1.0)
+def reset_weights(m):
+    if hasattr(m, 'reset_parameters'):
+        m.reset_parameters()
+    elif isinstance(m, nn.MultiheadAttention):
+        # MultiheadAttention is composed of Linear layers for projections.
+        # We can re-initialize its parameters.
+        m.in_proj_weight.data.normal_(mean=0.0, std=0.02)
+        if m.in_proj_bias is not None:
+            m.in_proj_bias.data.zero_()
+        m.out_proj.weight.data.normal_(mean=0.0, std=0.02)
+        if m.out_proj.bias is not None:
+            m.out_proj.bias.data.zero_()
+    else:
+        for param in m.parameters():
+            if param.dim() > 1:
+                init.xavier_uniform_(param)
+            elif "bias" in param.name:
+                init.zeros_(param)
+            else:
+                init.normal_(param, mean=0.0, std=0.02)
