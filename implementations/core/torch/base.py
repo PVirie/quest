@@ -200,4 +200,4 @@ def reset_module_parameters(module):
         if p.dim() > 1:
             init.xavier_uniform_(p)
         else:
-            init.zeros_(p)
+            init.normal_(p, mean=0.0, std=1.0)
