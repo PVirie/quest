@@ -26,8 +26,19 @@ class Hierarchy_Q(Hierarchy_Base):
         optimizer = optim.Adam(model.parameters(), learning_rate)
         # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.5)
         scheduler = None
+        self.learning_rate = learning_rate
         self.entropy_weight = entropy_weight
         super().__init__(model=model, optimizer=optimizer, scheduler=scheduler, device=device, discount_factor=discount_factor, train_temperature=train_temperature)
+
+
+    def reset(self):
+        if self.scheduler is not None:
+            self.scheduler.last_epoch = -1
+            self.scheduler.step()
+        self.model.reset_parameters()
+        self.model.train()
+        self.optimizer = optim.Adam(self.model.parameters(), self.learning_rate)
+        super().reset()
 
 
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):

@@ -57,12 +57,6 @@ class Hierarchy_Base:
     def reset(self):
         self.ave_loss = 0
         self.iteration = 0
-        if self.scheduler is not None:
-            self.scheduler.last_epoch = -1
-            self.scheduler.step()
-        self.model.reset_parameters()
-        self.model.train()
-        self.optimizer.zero_grad(set_to_none=True)
         logging.info("Model reset.")
 
 
