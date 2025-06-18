@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_weights
+from .base import Multilayer_Relu, apply_transformer, causal_mask, positional_encoding, reset_transformer_decoder
 
 
 
@@ -19,7 +19,6 @@ class Model(nn.Module):
         self.device = device
         self.hidden_size = hidden_size
 
-        torch.manual_seed(42)  # For reproducibility
         self.embedding    = nn.Embedding(input_size, hidden_size, device=device)
         # state encoder
 
@@ -39,14 +38,16 @@ class Model(nn.Module):
 
         self.pe = positional_encoding(1024, hidden_size).to(device) # 1024 is the maximum length of the context
 
+        self.reset_parameters()
+
 
     def reset_parameters(self):
         # Reset parameters of all layers
         self.embedding.reset_parameters()
-        self.context_decoder.apply(reset_weights)
-        self.action_decoder.apply(reset_weights)
-        self.state_decoder.apply(reset_weights)
-        self.q_decoder.apply(reset_weights)
+        reset_transformer_decoder(self.context_decoder)
+        reset_transformer_decoder(self.action_decoder)
+        reset_transformer_decoder(self.state_decoder)
+        reset_transformer_decoder(self.q_decoder)
         self.critic.reset_parameters()
 
 
