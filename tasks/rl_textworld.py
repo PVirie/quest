@@ -494,10 +494,10 @@ if __name__ == "__main__":
 
     if args.q_learning:
         from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model, Network_Scale_Preset
-        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset.medium, device=device, discount_factor=0.97, learning_rate=0.00001, train_temperature=0.01)
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.00001, train_temperature=0.01)
     else:
         from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model, Network_Scale_Preset
-        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset.medium, device=device, discount_factor=0.97, learning_rate=0.000002, entropy_weight=0.1, train_temperature=1.0)
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.000002, entropy_weight=0.1, train_temperature=1.0)
 
     persona = Persona(
         rl_core,
@@ -514,7 +514,7 @@ if __name__ == "__main__":
     # if not persona.load(agent_parameter_path):
     logging.info(f"Initiate agent training with following parameters:")
     logging.info(f"  - Algorithm: {'Q-learning' if args.q_learning else 'Actor-Critic'}")
-    logging.info(f"  - Network scale: {args.scale}")
+    logging.info(f"  - Network scale: {str(Network_Scale_Preset(args.scale).value)}")
     logging.info(f"  - Allow relegation: {not args.no_relegation}")
     logging.info(f"  - Relegation probability: {args.rel_prob}")
     logging.info(f"  - Allow sub training: {not args.no_sub_training}")
