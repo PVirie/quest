@@ -1,9 +1,8 @@
 from typing import List, Mapping, Any, Optional
-from collections import defaultdict
 import numpy as np
-import random
 import os
 import logging
+from enum import Enum
 
 import torch
 import torch.nn as nn
@@ -12,6 +11,12 @@ from torch import optim
 from implementations.core.torch.base import softmax_with_temperature
 
 torch.autograd.set_detect_anomaly(False)
+
+
+class Network_Scale_Preset(Enum):
+    small = 0
+    medium = 1
+    large = 2
 
 
 class Value_Action:

@@ -194,10 +194,10 @@ class Res_Net(Multilayer_Relu):
                 layer.reset_parameters()
 
 
-def reset_module_parameters(module):
-    r"""Initiate parameters in torch module."""
-    for p in module.parameters():
-        if p.dim() > 1:
-            init.xavier_uniform_(p)
-        else:
-            init.normal_(p, mean=0.0, std=1.0)
+def reset_transformer_decoder(module):
+    for decoder_layer in module.modules():
+        for inner_module in decoder_layer.modules():
+            if hasattr(inner_module, 'reset_parameters'):
+                inner_module.reset_parameters()
+            elif hasattr(inner_module, '_reset_parameters'):
+                inner_module._reset_parameters()

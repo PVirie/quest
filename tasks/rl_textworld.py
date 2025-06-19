@@ -424,6 +424,8 @@ if __name__ == "__main__":
     parser.add_argument("--reset", "-r", action="store_true")
     parser.add_argument("--record_file",            "-o",   type=str, default="rollouts.txt",   help="The file to record the rollouts. Default is 'rollouts.txt'.")
     parser.add_argument("--run_count",              "-rc",  type=int, default=1,                help="The number of runs to perform. Default is 1.")
+    parser.add_argument("--q_learning",             "-q",   action="store_true",                help="Use Q-learning instead of Actor-Critic. Default is False.")
+    parser.add_argument("--scale",                  "-s",   type=str, default="medium", choices=["small", "medium", "large"], help="The scale of the neural network. Default is 'medium'.")
     parser.add_argument("--no_relegation",          "-nre", action="store_true",                help="Disable relegation during training.")
     parser.add_argument("--rel_prob",               "-rp",  type=float, default=1.0,            help="The probability of relegation during training. Default is 1.0.")
     parser.add_argument("--no-sub-training",        "-nst", action="store_true",                help="Disable sub training during training.")
@@ -490,11 +492,12 @@ if __name__ == "__main__":
         infos = flatten_batch(infos)
         return Textworld_State(obs, score, done, infos)
 
-    # from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model
-    # rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.96, learning_rate=0.001, entropy_weight=0.01, train_temperature=0.05)
-
-    from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model
-    rl_core = Model(input_size=MAX_VOCAB_SIZE, hidden_size=128, device=device, discount_factor=0.97, learning_rate=0.000002, entropy_weight=0.1, train_temperature=1.0)
+    if args.q_learning:
+        from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model, Network_Scale_Preset
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset.medium, device=device, discount_factor=0.97, learning_rate=0.00001, train_temperature=0.01)
+    else:
+        from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model, Network_Scale_Preset
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset.medium, device=device, discount_factor=0.97, learning_rate=0.000002, entropy_weight=0.1, train_temperature=1.0)
 
     persona = Persona(
         rl_core,
@@ -510,6 +513,8 @@ if __name__ == "__main__":
 
     # if not persona.load(agent_parameter_path):
     logging.info(f"Initiate agent training with following parameters:")
+    logging.info(f"  - Algorithm: {'Q-learning' if args.q_learning else 'Actor-Critic'}")
+    logging.info(f"  - Network scale: {args.scale}")
     logging.info(f"  - Allow relegation: {not args.no_relegation}")
     logging.info(f"  - Relegation probability: {args.rel_prob}")
     logging.info(f"  - Allow sub training: {not args.no_sub_training}")
