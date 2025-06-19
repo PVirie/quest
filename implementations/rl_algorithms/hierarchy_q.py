@@ -34,11 +34,11 @@ class Hierarchy_Q(Hierarchy_Base):
                 device=device)
         elif network_preset == Network_Scale_Preset.medium:
             model = Model(
-                input_size=input_size, hidden_size=128,
+                input_size=input_size, hidden_size=256,
                 context_head=16, context_layers=2,
                 objective_head=8, objective_layers=2,
                 action_head=8, action_layers=2,
-                state_head=16, state_layers=8,
+                state_head=16, state_layers=12,
                 q_head=16, q_layers=4,
                 device=device)
         elif network_preset == Network_Scale_Preset.large:
