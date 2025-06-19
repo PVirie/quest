@@ -151,31 +151,24 @@ class Hierarchy_Base:
         return W
     
 
-    def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True):
+    def _compute_action_scores(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any):
         # action_list_tensor has shape (all_action_length, action_size)
-        n_context = state_tensor.size(0)
         
-        with torch.no_grad():
-            objective_tensor = torch.reshape(objective_tensor, [1, -1])
-            state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
-            action_list_tensor = torch.reshape(action_list_tensor, [1, 1, -1, action_list_tensor.size(1)])
-            pivot_positions = torch.tensor([[n_context - 1]], dtype=torch.int64, device=self.device) # shape: (1, 1)
+        n_context = state_tensor.size(0)
+        objective_tensor = torch.reshape(objective_tensor, [1, -1])
+        state_tensor = torch.reshape(state_tensor, [1, -1, state_tensor.size(1)])
+        action_list_tensor = torch.reshape(action_list_tensor, [1, 1, -1, action_list_tensor.size(1)])
+        pivot_positions = torch.tensor([[n_context - 1]], dtype=torch.int64, device=self.device) # shape: (1, 1)
 
-            self.model.eval()
-            action_scores, _ = self.model(objective_tensor, state_tensor, action_list_tensor, pivot_positions)
-            action_scores = action_scores[0, 0, :]
+        self.model.eval()
+        action_scores, _ = self.model(objective_tensor, state_tensor, action_list_tensor, pivot_positions)
+        action_scores = action_scores[0, 0, :]
 
-            if sample_action:
-                # sample
-                probs = softmax_with_temperature(action_scores, temperature=self.train_temperature, dim=0) # n_actions
-                index = torch.multinomial(probs, num_samples=1).item() # 1
-                rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
-            else:
-                # greedy
-                index = torch.argmax(action_scores, dim=0).item()
-                rank = 1
+        return action_scores
 
-        return Value_Action(action_list[index], rank, self.iteration)
+
+    def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True):
+        raise NotImplementedError("act() is not implemented in base class")
     
     
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):

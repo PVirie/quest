@@ -494,7 +494,7 @@ if __name__ == "__main__":
 
     if args.q_learning:
         from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model, Network_Scale_Preset
-        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.00001, train_temperature=0.01)
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.000002, epsilon_greedy=0.1, train_temperature=1.0)
     else:
         from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model, Network_Scale_Preset
         rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.000002, entropy_weight=0.1, train_temperature=1.0)
