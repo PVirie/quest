@@ -13,10 +13,10 @@ from implementations.core.torch.base import softmax_with_temperature
 torch.autograd.set_detect_anomaly(False)
 
 
-class Network_Scale_Preset(Enum):
-    small = 0
-    medium = 1
-    large = 2
+class Network_Scale_Preset(str, Enum):
+    small = "small"
+    medium = "medium"
+    large = "large"
 
 
 class Value_Action:

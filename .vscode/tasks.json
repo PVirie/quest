@@ -27,7 +27,7 @@
         {
             "label": "Current file: (internal)",
             "type": "shell",
-            "command": "docker compose -f docker_compose.yaml --profile ${input:configuration} run --rm -d --build --service-ports ${input:configuration}-service python3 -m debugpy --listen 0.0.0.0:43690 --wait-for-client ${relativeFile}",
+            "command": "docker compose -f docker_compose.yaml --profile ${input:configuration} run --rm -d --build --service-ports ${input:configuration}-service python3 -m debugpy --listen 0.0.0.0:43690 --wait-for-client ${relativeFile} ${input:program_flags}",
             "dependsOn": ["docker-compose-stop"],
             "isBackground": true,
             "problemMatcher": [
@@ -56,6 +56,12 @@
             "description": "Select configuration",
             "options": ["torch-cpu", "torch-cuda", "torch-rocm"],
             "default": "torch-cpu"
+        },
+        {
+            "type": "promptString",
+            "id": "program_flags",
+            "description": "Enter program flags (optional)",
+            "default": ""
         }
     ]
 }
