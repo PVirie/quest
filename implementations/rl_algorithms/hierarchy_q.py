@@ -6,8 +6,8 @@ import os
 import logging
 
 from implementations.core.torch.actformers import Model
-from .base import Hierarchy_Base, Network_Scale_Preset
-from implementations.core.torch.base import Log_Softmax_Function, Exp_Entropy_Function
+from .base import Hierarchy_Base, Network_Scale_Preset, Value_Action
+from implementations.core.torch.base import softmax_with_temperature
 
 import torch
 import torch.nn as nn
@@ -18,10 +18,8 @@ torch.autograd.set_detect_anomaly(False)
 
 class Hierarchy_Q(Hierarchy_Base):
 
-    def __init__(self, input_size, network_preset: Network_Scale_Preset, device, discount_factor=0.99, learning_rate=0.0001, train_temperature=0.1):
-        # Because q learning does not directly update the action probabaility distribution (as it only updates the q value),
-        # the reward from MDP therefore directly responsible for the action probability distribution.
-        # The temperature is then has to be tuned.
+    def __init__(self, input_size, network_preset: Network_Scale_Preset, device, discount_factor=0.99, learning_rate=0.0001, epsilon_greedy=0.1, train_temperature=0.1):
+        # Q learning is off-policy.
         
         if network_preset == Network_Scale_Preset.small:
             model = Model(
@@ -55,6 +53,7 @@ class Hierarchy_Q(Hierarchy_Base):
         # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.5)
         scheduler = None
         self.learning_rate = learning_rate
+        self.epsilon_greedy = epsilon_greedy
         super().__init__(model=model, optimizer=optimizer, scheduler=scheduler, device=device, discount_factor=discount_factor, train_temperature=train_temperature)
 
 
@@ -67,6 +66,22 @@ class Hierarchy_Q(Hierarchy_Base):
         self.optimizer = optim.Adam(self.model.parameters(), self.learning_rate)
         super().reset()
 
+
+    def act(self, objective_tensor: Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str], sample_action=True):
+        # action_list_tensor has shape (all_action_length, action_size)
+        with torch.no_grad():
+            action_scores = self._compute_action_scores(objective_tensor, state_tensor, action_list_tensor)
+            if sample_action and random.random() < self.epsilon_greedy:
+                # sample
+                probs = softmax_with_temperature(action_scores, temperature=self.train_temperature, dim=0) # n_actions
+                index = torch.multinomial(probs, num_samples=1).item() # 1
+                rank = torch.argsort(action_scores, descending=True).tolist().index(index) + 1
+            else:
+                # greedy
+                index = torch.argmax(action_scores, dim=0).item()
+                rank = 1
+        return Value_Action(action_list[index], rank, self.iteration)
+    
 
     def train(self, train_last_node, pivot: List[Any], train_data: List[Any], objective_tensor:Any, state_tensor: Any, action_list_tensor: Any, action_list: List[str]):
         # pivot is a list of tuples (you will get this reward, moving from this context index, with the following available actions), must be sorted
