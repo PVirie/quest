@@ -109,8 +109,6 @@ Apart from the above environment variables, you must also include _third-party A
     -   [x] Contracting sub-problem filter
 -   [x] Sub-problem parallel training
 -   [x] Prospect training
--   [x] The process ends under the sub-problem
-    -   [x] Reassign the surrogate rush goal after sub-problem end
 
 ### Backends
 
@@ -154,8 +152,8 @@ These models seem to work with the given instructions:
 Actor critic models work well when combined with the following:
 
 -   Deeper transformer layers
--   Fully connected layers for heads.
 
 ### Hiearachy
 
 -   Low sub-problem trial count allows agent to cut losses and learn higher level faster. (Around 10 trials.)
+-   When do sub-problem training, scan and train the entire rollout yield consistently better results.
