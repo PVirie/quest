@@ -190,24 +190,37 @@ class Persona:
             self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
             if self.allow_prospect_training:
-                for sub_objective, from_transition_index, to_transition_index in folds:
-                    start_pivot_index = len(supports) - self.TRAIN_STEP
-                    if from_transition_index <= start_pivot_index:
+                prospect_node = quest_node[0]
+                _, start_obs_context = prospect_node.get_start_contexts()
+                prospect_rl_contexts = [start_obs_context]
+                prospect_pivots = []
+                prospect_train_data = []
+                
+                last_prospect_context_mark = len(prospect_rl_contexts) - 1
+                last_prospect_score = 0
+                
+                def include_node(pivot_index, sub_prospect_node, action):
+                    prospect_node.children.append(sub_prospect_node)
+                    prospect_rl_contexts.extend(sub_prospect_node.get_context())
+                    prospect_mdp_score, _, _, _, _ = prospect_node.eval(observation)
+                    prospect_pivots.append((last_prospect_context_mark, pivots[pivot_index][1]))
+                    prospect_train_data.append((prospect_mdp_score - last_prospect_score, action, len(prospect_pivots) - 1, len(prospect_pivots)))
+                    return observation, prospect_mdp_score, len(prospect_rl_contexts) - 1
+
+                i = 0
+                # sort folds by the second element (from_transition_index)
+                sorted_folds = sorted(folds, key=lambda x: x[1])
+                for sub_objective, from_transition_index, to_transition_index in sorted_folds:
+                    if i > from_transition_index + 1:
                         continue
-                    prospect_action = f"Sub Task: {str(sub_objective)}"
-                    start_context_mark = pivots[start_pivot_index + 1][0]
-                    prospect_rl_contexts = rl_contexts[:start_context_mark + 1]
-                    prospect_pivots = pivots[:start_pivot_index + 1]
-                    prospect_train_data = []
-                    node_index, train_ref, last_observation = auxiliary[start_pivot_index]
-                    last_prospect_score = train_ref.mdp_score
-                    last_prospect_context_mark = len(prospect_rl_contexts) - 1
-                    prospect_node = quest_node[node_index + 1]
-                    for i in range(start_pivot_index + 1, len(pivots) if train_last_node else len(pivots) - 1):
+                    while i <= from_transition_index:
                         node_index, train_ref, observation = auxiliary[i]
-                        if from_transition_index + 1 == i:
-                            _, _, observation = auxiliary[to_transition_index]
-                            sub_prospect_node = Quest_Node(
+                        sub_prospect_node = supports[node_index]
+                        action = train_ref.selected_action
+                        last_observation, last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action)
+                        i += 1
+                    node_index, train_ref, observation = auxiliary[i]
+                    sub_prospect_node = Quest_Node(
                                 objective=sub_objective,
                                 start_observation=last_observation,
                                 allow_relegation=False,
@@ -216,22 +229,65 @@ class Persona:
                                 train_ref=None,
                                 observation=observation
                             )
-                            action = prospect_action
-                        elif i <= from_transition_index or to_transition_index < i:
-                            sub_prospect_node = supports[node_index]
-                            action = train_ref.selected_action
-                        else:
-                            continue
-                        prospect_node.children.append(sub_prospect_node)
-                        prospect_rl_contexts.extend(sub_prospect_node.get_context())
-                        prospect_mdp_score, _, _, _, _ = prospect_node.eval(observation)
-                        prospect_pivots.append((last_prospect_context_mark, pivots[i][1]))
-                        prospect_train_data.append((prospect_mdp_score - last_prospect_score, action, len(prospect_pivots) - 1, len(prospect_pivots)))
-                        last_prospect_score = prospect_mdp_score
-                        last_observation = observation
-                        last_prospect_context_mark = len(prospect_rl_contexts) - 1
-                    prospect_state_tensor = self.tokenizer(prospect_rl_contexts, stack=True)
-                    self.rl_core.train(train_last_node, prospect_pivots, prospect_train_data, objective_tensor, prospect_state_tensor, action_list_tensor, all_action_list)
+                    action = f"Sub Task: {str(sub_objective)}"
+                    last_observation, last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action)
+                    i = to_transition_index + 1
+
+                while i < (len(auxiliary) if train_last_node else len(auxiliary) - 1):
+                    node_index, train_ref, observation = auxiliary[i]
+                    sub_prospect_node = supports[node_index]
+                    action = train_ref.selected_action
+                    last_observation, last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action)
+                    i += 1
+
+                prospect_state_tensor = self.tokenizer(prospect_rl_contexts, stack=True)
+                self.rl_core.train(train_last_node, prospect_pivots, prospect_train_data, objective_tensor, prospect_state_tensor, action_list_tensor, all_action_list)
+
+
+                # for sub_objective, from_transition_index, to_transition_index in folds:
+                #     start_pivot_index = len(supports) - self.TRAIN_STEP
+                #     if from_transition_index <= start_pivot_index:
+                #         continue
+                #     prospect_action = f"Sub Task: {str(sub_objective)}"
+                #     start_context_mark = pivots[start_pivot_index + 1][0]
+                #     prospect_rl_contexts = rl_contexts[:start_context_mark + 1]
+                #     prospect_pivots = pivots[:start_pivot_index + 1]
+                #     prospect_train_data = []
+                #     node_index, train_ref, last_observation = auxiliary[start_pivot_index]
+                #     last_prospect_score = train_ref.mdp_score
+                #     last_prospect_context_mark = len(prospect_rl_contexts) - 1
+                #     prospect_node = quest_node[node_index + 1]
+                #     for i in range(start_pivot_index + 1, len(pivots) if train_last_node else len(pivots) - 1):
+                #         node_index, train_ref, observation = auxiliary[i]
+                #         if from_transition_index + 1 == i:
+                #             _, _, observation = auxiliary[to_transition_index]
+                #             sub_prospect_node = Quest_Node(
+                #                 objective=sub_objective,
+                #                 start_observation=last_observation,
+                #                 allow_relegation=False,
+                #                 succeeded=True,
+                #                 truncated=False,
+                #                 train_ref=None,
+                #                 observation=observation
+                #             )
+                #             action = prospect_action
+                #         elif i <= from_transition_index or to_transition_index < i:
+                #             sub_prospect_node = supports[node_index]
+                #             action = train_ref.selected_action
+                #         else:
+                #             continue
+                #         prospect_node.children.append(sub_prospect_node)
+                #         prospect_rl_contexts.extend(sub_prospect_node.get_context())
+                #         prospect_mdp_score, _, _, _, _ = prospect_node.eval(observation)
+                #         prospect_pivots.append((last_prospect_context_mark, pivots[i][1]))
+                #         prospect_train_data.append((prospect_mdp_score - last_prospect_score, action, len(prospect_pivots) - 1, len(prospect_pivots)))
+                #         last_prospect_score = prospect_mdp_score
+                #         last_observation = observation
+                #         last_prospect_context_mark = len(prospect_rl_contexts) - 1
+
+                    
+                #     prospect_state_tensor = self.tokenizer(prospect_rl_contexts, stack=True)
+                #     self.rl_core.train(train_last_node, prospect_pivots, prospect_train_data, objective_tensor, prospect_state_tensor, action_list_tensor, all_action_list)
 
 
             if self.allow_sub_training:
