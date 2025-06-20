@@ -236,9 +236,9 @@ class Persona:
 
             if self.allow_sub_training:
                 for sub_objective, from_transition_index, to_transition_index in folds:
-                    start_pivot_index = len(supports) - self.TRAIN_STEP
-                    if from_transition_index <= start_pivot_index:
-                        continue
+                    # start_pivot_index = len(supports) - self.TRAIN_STEP
+                    # if from_transition_index <= start_pivot_index:
+                    #     continue
 
                     node_index, train_ref, observation = auxiliary[from_transition_index]
                     sub_quest_node = Quest_Node(
