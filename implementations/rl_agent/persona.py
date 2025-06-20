@@ -140,7 +140,6 @@ class Persona:
 
     def train(self, quest_node, train_last_node: bool = False):
         # finish_value only used when training the last node
-        last_observation = quest_node.start_observation
         objective_context, start_obs_context = quest_node.get_start_contexts()
         objective_contexts = [objective_context]
         rl_contexts = [start_obs_context]
@@ -149,6 +148,7 @@ class Persona:
         train_data = []
         selected_nodes = []
         supports = quest_node.get_children()
+        last_observation = quest_node.start_observation
         last_context_mark = 0
         last_score = 0
         i = 0
@@ -189,24 +189,24 @@ class Persona:
             action_list_tensor = self.tokenizer(all_action_list, stack=True)
             self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
-            if self.allow_prospect_training:
+            if self.allow_prospect_training and len(folds) > 0:
                 prospect_node = quest_node[0]
                 _, start_obs_context = prospect_node.get_start_contexts()
                 prospect_rl_contexts = [start_obs_context]
                 prospect_pivots = []
                 prospect_train_data = []
                 
-                last_prospect_context_mark = len(prospect_rl_contexts) - 1
-                last_prospect_score = 0
-                
                 def include_node(pivot_index, sub_prospect_node, action):
                     prospect_node.children.append(sub_prospect_node)
                     prospect_rl_contexts.extend(sub_prospect_node.get_context())
-                    prospect_mdp_score, _, _, _, _ = prospect_node.eval(observation)
+                    prospect_mdp_score, _, _, _, _ = prospect_node.eval(last_prospect_observation)
                     prospect_pivots.append((last_prospect_context_mark, pivots[pivot_index][1]))
                     prospect_train_data.append((prospect_mdp_score - last_prospect_score, action, len(prospect_pivots) - 1, len(prospect_pivots)))
-                    return observation, prospect_mdp_score, len(prospect_rl_contexts) - 1
+                    return prospect_mdp_score, len(prospect_rl_contexts) - 1
 
+                last_prospect_observation = prospect_node.start_observation
+                last_prospect_context_mark = len(prospect_rl_contexts) - 1
+                last_prospect_score = 0
                 i = 0
                 # sort folds by the second element (from_transition_index)
                 sorted_folds = sorted(folds, key=lambda x: x[1])
@@ -217,12 +217,15 @@ class Persona:
                         node_index, train_ref, observation = auxiliary[i]
                         sub_prospect_node = supports[node_index]
                         action = train_ref.selected_action
-                        last_observation, last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action)
+                        last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action)
+                        last_prospect_observation = observation
                         i += 1
-                    node_index, train_ref, observation = auxiliary[i]
+                    
+                    node_index, train_ref, _ = auxiliary[i]
+                    _, _, observation = auxiliary[to_transition_index]
                     sub_prospect_node = Quest_Node(
                                 objective=sub_objective,
-                                start_observation=last_observation,
+                                start_observation=last_prospect_observation,
                                 allow_relegation=False,
                                 succeeded=True,
                                 truncated=False,
@@ -230,14 +233,16 @@ class Persona:
                                 observation=observation
                             )
                     action = f"Sub Task: {str(sub_objective)}"
-                    last_observation, last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action)
+                    last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action)
+                    last_prospect_observation = observation
                     i = to_transition_index + 1
 
                 while i < (len(auxiliary) if train_last_node else len(auxiliary) - 1):
                     node_index, train_ref, observation = auxiliary[i]
                     sub_prospect_node = supports[node_index]
                     action = train_ref.selected_action
-                    last_observation, last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action)
+                    last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action)
+                    last_prospect_observation = observation
                     i += 1
 
                 prospect_state_tensor = self.tokenizer(prospect_rl_contexts, stack=True)
