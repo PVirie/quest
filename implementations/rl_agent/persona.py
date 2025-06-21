@@ -211,8 +211,9 @@ class Persona:
                 # sort folds by the second element (from_transition_index)
                 sorted_folds = sorted(folds, key=lambda x: x[1])
                 for sub_objective, from_transition_index, to_transition_index in sorted_folds:
-                    if i > from_transition_index + 1:
+                    if i > from_transition_index:
                         continue
+
                     while i <= from_transition_index:
                         node_index, train_ref, observation = auxiliary[i]
                         sub_prospect_node = supports[node_index]
@@ -221,7 +222,6 @@ class Persona:
                         last_prospect_observation = observation
                         i += 1
                     
-                    node_index, train_ref, _ = auxiliary[i]
                     _, _, observation = auxiliary[to_transition_index]
                     sub_prospect_node = Quest_Node(
                                 objective=sub_objective,
