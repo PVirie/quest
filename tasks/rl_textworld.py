@@ -309,28 +309,47 @@ class Textworld_State(MDP_State):
         return self.obs
 
 
-def compute_folds(objective_transition, state_scores):
-    # states is a list of obs, score, info, last_context_mark
+def compute_folds(objective_transition, state_tuples):
+    # states is a list of index, train_ref(score), MDP_State, sub_objective
     # return list of end value, diff_str, comparable_transition, from_context_mark, to_context_mark
-    states = [state for _, train_ref, state, is_hierarchy  in state_scores]
+    states = [state for _, train_ref, state, sub_objective  in state_tuples]
     transition_matrix = [] # the first row is at index 1 but the first column is at index 0
     for i in range(1, len(states)):
         transition_row = []
         for j in range(0, i):
             transition_row.append(states[i] - states[j])
         transition_matrix.append(transition_row)
-    pivots = [0]
+    pivots = [-1]
     for i in range(0, len(transition_matrix)):
         if len(transition_matrix[i][i]) > 0:
             pivots.append(i+1)
     # now compute all pairs of pivots
     # pairs = combinations(reversed(pivots), 2)
-    pairs = [(pivots[i], pivots[i-1] + 1) for i in range(1, len(pivots))]
+    pairs = [(pivots[i-1] + 1, pivots[i]) for i in range(1, len(pivots))]
 
-    # check fit gap size, and also whether all the changes are the same
-    selected_transitions = [(transition_matrix[i - 1][j], j, i) for i, j in pairs if i - j >= 3 and i - j <= 10]
-    # return fixed end state value of 100 for first training
-    return [(st, j, i) for st, j, i in selected_transitions if st.count_diff == 1 and st < objective_transition]
+    selected_transitions = []
+    for i, j in pairs:
+        if not (j - i >= 2 and j - i <= 10):
+            continue
+        st = transition_matrix[j - 1][i]
+        if not st.count_diff == 1:
+            continue
+        if not st < objective_transition:
+            continue
+        if i > 0 and not st.applicable_from(states[i - 1]):
+            continue
+        valid_sub_state = True
+        for k in range(i, j):
+            sub_objective = state_tuples[k][3]
+            if sub_objective is not None and not (sub_objective < st):
+                valid_sub_state = False
+                break
+        if not valid_sub_state:
+            continue
+        selected_transitions.append((st, i, j))
+    
+    # if all conditions are met, return the transition
+    return selected_transitions
 
 
 def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, verbose=False, verbose_step=10, verbose_prefix=""):
