@@ -144,7 +144,6 @@ class Persona:
         objective_contexts = [objective_context]
         rl_contexts = [start_obs_context]
         pivots = []
-        auxiliary = []
         train_data = []
         selected_nodes = []
         supports = quest_node.get_children()
@@ -162,9 +161,8 @@ class Persona:
 
             train_ref = node.train_ref
             score = train_ref.mdp_score
-            selected_nodes.append((last_observation, score))
             pivots.append((last_context_mark, list(train_ref.available_actions)))
-            auxiliary.append((i, train_ref, last_observation))
+            selected_nodes.append((i, train_ref, last_observation, isinstance(node, Quest_Node)))
             if i >= len(supports) - self.TRAIN_STEP:
                 if i < len(supports) - 1 or train_last_node:
                     train_data.append((score - last_score, train_ref.selected_action, len(pivots) - 1, len(pivots)))
@@ -215,14 +213,14 @@ class Persona:
                         continue
 
                     while i <= from_transition_index:
-                        node_index, train_ref, observation = auxiliary[i]
+                        node_index, train_ref, observation, _ = selected_nodes[i]
                         sub_prospect_node = supports[node_index]
                         action = train_ref.selected_action
                         last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action)
                         last_prospect_observation = observation
                         i += 1
                     
-                    _, _, observation = auxiliary[to_transition_index]
+                    _, _, observation, _ = selected_nodes[to_transition_index]
                     sub_prospect_node = Quest_Node(
                                 objective=sub_objective,
                                 start_observation=last_prospect_observation,
@@ -237,8 +235,8 @@ class Persona:
                     last_prospect_observation = observation
                     i = to_transition_index + 1
 
-                while i < (len(auxiliary) if train_last_node else len(auxiliary) - 1):
-                    node_index, train_ref, observation = auxiliary[i]
+                while i < (len(selected_nodes) if train_last_node else len(selected_nodes) - 1):
+                    node_index, train_ref, observation, _ = selected_nodes[i]
                     sub_prospect_node = supports[node_index]
                     action = train_ref.selected_action
                     last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action)
@@ -258,14 +256,14 @@ class Persona:
                 #     prospect_rl_contexts = rl_contexts[:start_context_mark + 1]
                 #     prospect_pivots = pivots[:start_pivot_index + 1]
                 #     prospect_train_data = []
-                #     node_index, train_ref, last_observation = auxiliary[start_pivot_index]
+                #     node_index, train_ref, last_observation, _ = selected_nodes[start_pivot_index]
                 #     last_prospect_score = train_ref.mdp_score
                 #     last_prospect_context_mark = len(prospect_rl_contexts) - 1
                 #     prospect_node = quest_node[node_index + 1]
                 #     for i in range(start_pivot_index + 1, len(pivots) if train_last_node else len(pivots) - 1):
-                #         node_index, train_ref, observation = auxiliary[i]
+                #         node_index, train_ref, observation, _ = selected_nodes[i]
                 #         if from_transition_index + 1 == i:
-                #             _, _, observation = auxiliary[to_transition_index]
+                #             _, _, observation, _ = selected_nodes[to_transition_index]
                 #             sub_prospect_node = Quest_Node(
                 #                 objective=sub_objective,
                 #                 start_observation=last_observation,
@@ -301,13 +299,13 @@ class Persona:
                     # if from_transition_index <= start_pivot_index:
                     #     continue
 
-                    node_index, train_ref, observation = auxiliary[from_transition_index]
+                    _, _, observation, _ = selected_nodes[from_transition_index]
                     sub_quest_node = Quest_Node(
                         objective=sub_objective,
                         start_observation=observation
                     )
                     sub_quest_node.parent = quest_node.parent
-                    sub_objective_context, sub_start_obs_context = sub_quest_node.get_start_contexts()
+                    sub_objective_context, _ = sub_quest_node.get_start_contexts()
                     sub_objective_tensor = self.tokenizer([sub_objective_context], stack=True)
                     last_sub_score = 0
                     sub_pivots = []
@@ -315,7 +313,7 @@ class Persona:
                     start_context_mark = pivots[from_transition_index + 1][0]
                     end_context_mark = pivots[to_transition_index][0]
                     for i in range(from_transition_index + 1, to_transition_index + 1):
-                        node_index, train_ref, observation = auxiliary[i]
+                        node_index, train_ref, observation, _ = selected_nodes[i]
                         sub_quest_node.children.append(supports[node_index])
                         sub_mdp_score, _, _, _, _ = sub_quest_node.eval(observation)
                         sub_pivots.append((pivots[i][0] - start_context_mark, pivots[i][1]))

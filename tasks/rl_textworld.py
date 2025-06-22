@@ -312,7 +312,7 @@ class Textworld_State(MDP_State):
 def compute_folds(objective_transition, state_scores):
     # states is a list of obs, score, info, last_context_mark
     # return list of end value, diff_str, comparable_transition, from_context_mark, to_context_mark
-    states = [state for state, mdp_score in state_scores]
+    states = [state for _, train_ref, state, is_hierarchy  in state_scores]
     transition_matrix = [] # the first row is at index 1 but the first column is at index 0
     for i in range(1, len(states)):
         transition_row = []
