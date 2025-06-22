@@ -7,7 +7,7 @@ import logging
 
 from implementations.core.torch.actformers import Model
 from .base import Hierarchy_Base, Network_Scale_Preset, Value_Action
-from implementations.core.torch.base import softmax_with_temperature
+from implementations.core.torch.base import Log_Softmax_Function, Exp_Entropy_Function, softmax_with_temperature
 
 import torch
 import torch.nn as nn
@@ -28,7 +28,7 @@ class Hierarchy_Q(Hierarchy_Base):
                 objective_head=8, objective_layers=2,
                 action_head=8, action_layers=2,
                 state_head=16, state_layers=4,
-                q_head=16, q_layers=4,
+                q_head=16, q_layers=2,
                 device=device)
         elif network_preset == Network_Scale_Preset.medium:
             model = Model(
@@ -36,8 +36,8 @@ class Hierarchy_Q(Hierarchy_Base):
                 context_head=16, context_layers=2,
                 objective_head=8, objective_layers=2,
                 action_head=8, action_layers=2,
-                state_head=16, state_layers=12,
-                q_head=16, q_layers=4,
+                state_head=16, state_layers=8,
+                q_head=16, q_layers=2,
                 device=device)
         elif network_preset == Network_Scale_Preset.large:
             model = Model(
@@ -143,10 +143,12 @@ class Hierarchy_Q(Hierarchy_Base):
             train_td_returns = train_rewards + self.GAMMA * train_next_state_values
 
         # use vector instead of loops
+        log_probs = Log_Softmax_Function.apply(train_action_scores, self.train_temperature, 1)
         current_scores = torch.gather(train_action_scores, 1, train_action_indexes)
         current_scores = current_scores.flatten()
         q_loss = (.5 * (current_scores - train_td_returns) ** 2.).sum()
-        loss = q_loss
+        entropy = Exp_Entropy_Function.apply(log_probs, 1).sum()  # Use custom entropy function for stability
+        loss = q_loss - 0.1 * entropy
 
         loss.backward()
         self.optimizer.step()
