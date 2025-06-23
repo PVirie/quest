@@ -92,8 +92,6 @@ class Model(nn.Module):
         scores = torch.reshape(scores, (batch, n_pivots, n_actions, self.hidden_size)) # batch x n_pivots x n_actions x hidden
         qs = scores[:, :, :, 0] # batch x n_pivots x n_actions
 
-        with torch.no_grad():
-            sfm = torch.nn.functional.softmax(qs, dim=2)
-        state_values = torch.sum(sfm * qs, dim=2, keepdim=False)
+        state_values = torch.mean(qs, dim=2, keepdim=False) # batch x n_pivots; use means stabilize training
 
         return qs, state_values
