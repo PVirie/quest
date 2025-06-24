@@ -551,6 +551,6 @@ if __name__ == "__main__":
         persona.set_training_mode(False)
         play(env, available_objectives, persona, 
             rollout_file_path=rollout_file_path, 
-            nb_episodes=100, verbose=True, verbose_step=20)
+            nb_episodes=len(available_objectives), verbose=True, verbose_step=1)
         
     env.close()
