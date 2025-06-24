@@ -32,16 +32,16 @@ class Hierarchy_AC(Hierarchy_Base):
         elif network_preset == Network_Scale_Preset.medium:
             model = Model(
                 input_size=input_size, hidden_size=128,
-                context_head=16, context_layers=2,
+                context_head=16, context_layers=4,
                 objective_head=8, objective_layers=2,
                 action_head=8, action_layers=2,
-                value_head=16, value_layers=12,
-                policy_head=16, policy_layers=12,
+                value_head=16, value_layers=8,
+                policy_head=16, policy_layers=8,
                 device=device)
         elif network_preset == Network_Scale_Preset.large:
             model = Model(
                 input_size=input_size, hidden_size=256,
-                context_head=32, context_layers=2,
+                context_head=32, context_layers=4,
                 objective_head=16, objective_layers=2,
                 action_head=16, action_layers=2,
                 value_head=32, value_layers=12,
