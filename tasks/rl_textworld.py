@@ -440,7 +440,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--reset", "-r", action="store_true")
+    parser.add_argument("--reset",                  "-r",   action="store_true")
     parser.add_argument("--record_file",            "-o",   type=str, default="rollouts.txt",   help="The file to record the rollouts. Default is 'rollouts.txt'.")
     parser.add_argument("--run_count",              "-rc",  type=int, default=1,                help="The number of runs to perform. Default is 1.")
     parser.add_argument("--q_learning",             "-q",   action="store_true",                help="Use Q-learning instead of Actor-Critic. Default is False.")
