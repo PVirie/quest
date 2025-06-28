@@ -50,8 +50,9 @@ def save_file_dialog(default_path = None):
         return None
 
 
-def parse_rollout_file(file_generator, ma_alpha, training_trend, threshold=10):
+def parse_rollout_file(file_generator, ma_alpha, training_trend, threshold=5000):
     """Parses a rollout file and returns the content."""
+    plot_data = {}
     for file_path in file_generator:
         with open(file_path, 'r', encoding="utf-8") as file:
             content = file.read()
@@ -61,17 +62,34 @@ def parse_rollout_file(file_generator, ma_alpha, training_trend, threshold=10):
             session_text = session_text.strip()
             if len(session_text) < 10:
                 continue
-            metadata, stats = parse_session(session_text)
-            if (training_trend and len(stats) > threshold) or (not training_trend and len(stats) <= threshold):
-                yield {
-                    'file_name': os.path.basename(file_path),
-                    'file_path': file_path,
-                    'metadata': metadata,
-                    'stats': stats,
-                    'moving_average': compute_moving_average(stats, alpha=ma_alpha)
-                }
+            metadata_key, metadata, stats = parse_session(session_text)
+            last_episode = stats[-1]['episode'] if len(stats) > 0 else 0
+
+            if metadata_key not in plot_data:
+                plot_data[metadata_key] = []
+            
+            if (training_trend and last_episode > threshold) or (not training_trend and last_episode <= threshold):
+                plot_data[metadata_key].append({
+                        'file_name': os.path.basename(file_path),
+                        'file_path': file_path,
+                        'metadata': metadata,
+                        'stats': stats,
+                    })
             else:
-                logging.warning(f"Skipping session in {file_path} due to {training_trend} and {len(stats)}")
+                logging.warning(f"Skipping session in {file_path = } due to {training_trend = } and {last_episode = }")
+
+    # now average paths in the same metadata_key
+    for metadata_key, sessions in plot_data.items():
+        if len(sessions) == 0:
+            logging.warning(f"No valid sessions found for metadata key: {metadata_key}")
+            continue
+        average_stats = compute_mean_stat_sequence([session['stats'] for session in sessions])
+        average_moving_average = compute_moving_average(average_stats, alpha=ma_alpha)
+        yield {
+            'metadata': sessions[0]['metadata'],
+            'stats': average_stats,
+            'moving_average': average_moving_average
+        }
 
 
 def parse_session(session):
@@ -101,6 +119,8 @@ def parse_session(session):
         'allow_prospect_training': field_values.get('allow prospect training', 'false') == 'true',
         'relegation_probability': float(field_values.get('relegation probability', '0.0'))
     }
+    metadata_key = f"{metadata['allow_relegation']}|{metadata['allow_sub_training']}|{metadata['allow_prospect_training']}|{metadata['relegation_probability']:.2f}"
+    
     stats = []
 
     def parse_slash(slash_string):
@@ -131,7 +151,8 @@ def parse_session(session):
                     'cl': cl,
                     'max_cl': max_cl 
                 })
-    return metadata, stats
+
+    return metadata_key, metadata, stats
 
 
 def compute_moving_average(stats, alpha):
@@ -142,6 +163,30 @@ def compute_moving_average(stats, alpha):
         for k, v in stat.items():
             moving_avg[k] = moving_avg.get(k, 0.0) * alpha + v * (1 - alpha)
         output.append(moving_avg.copy())
+    return output
+
+
+def compute_mean_stat_sequence(session_stat_sequences):
+    """Computes the mean of a sequence of statistics."""
+    if not session_stat_sequences:
+        return []
+
+    # Initialize the output with the first session's stats
+    output = session_stat_sequences[0].copy()
+
+    # Iterate over each session's stats
+    for session_stats in session_stat_sequences[1:]:
+        for i, stat in enumerate(session_stats):
+            for key, value in stat.items():
+                if key not in output[i]:
+                    output[i][key] = 0.0
+                output[i][key] += value
+
+    # Average the values
+    for i, stat in enumerate(output):
+        for key in stat:
+            stat[key] /= len(session_stat_sequences)
+
     return output
 
 
@@ -180,7 +225,7 @@ if __name__ == "__main__":
     ax.set_xlabel('episode')
     ax.set_ylabel(args.metric)
     ax.set_title('TextWorld Rollout Scores')
-    # ax.legend()
+    ax.legend()
     # ax.grid()
     fig.tight_layout()
     plt.show()
