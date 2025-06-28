@@ -12,6 +12,8 @@ import utilities
 utilities.install('matplotlib')
 utilities.install('tkinter')
 import matplotlib.pyplot as plt
+from matplotlib import lines, markers
+from cycler import cycler
 import tkinter as tk
 
 
@@ -48,7 +50,7 @@ def save_file_dialog(default_path = None):
         return None
 
 
-def parse_rollout_file(file_generator, ma_alpha, training_trend):
+def parse_rollout_file(file_generator, ma_alpha, training_trend, threshold=10):
     """Parses a rollout file and returns the content."""
     for file_path in file_generator:
         with open(file_path, 'r', encoding="utf-8") as file:
@@ -60,7 +62,7 @@ def parse_rollout_file(file_generator, ma_alpha, training_trend):
             if len(session_text) < 10:
                 continue
             metadata, stats = parse_session(session_text)
-            if (training_trend and len(stats) > 100) or (not training_trend and len(stats) <= 100):
+            if (training_trend and len(stats) > threshold) or (not training_trend and len(stats) <= threshold):
                 yield {
                     'file_name': os.path.basename(file_path),
                     'file_path': file_path,
@@ -148,20 +150,27 @@ if __name__ == "__main__":
     logging.info("Starting TextWorld Plotting Task")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ma_alpha", "-ma", metavar='ma-alpha', type=float, default=0.995, help="Moving average alpha value (default: 0.995)")
-    parser.add_argument("--training_trend", "-tt", action='store_true', help="Plot training trend")
-    parser.add_argument("--metric", "-m", type=str, default="succeeded", help="Metric to plot (default: succeeded)")
+    parser.add_argument("--ma-alpha",   "-ma", type=float, default=0.5, help="Moving average alpha value (default: 0.9)")
+    parser.add_argument("--end-result", "-end", action='store_true', help="Plot only the end result (default: False)")
+    parser.add_argument("--metric",     "-m", type=str, default="score", help="Metric to plot (default: score)")
     args = parser.parse_args()
 
+    logging.info(f"Arguments: {args}")
+
     # Open file dialog to select files
-    sessions = list(parse_rollout_file(open_file_dialog(), ma_alpha=args.ma_alpha, training_trend=args.training_trend))
+    sessions = list(parse_rollout_file(open_file_dialog(), ma_alpha=args.ma_alpha, training_trend=not args.end_result))
     
     if not sessions:
         logging.error("No files selected or no valid sessions found.")
         sys.exit(1)
 
     # Plotting the data
+    style_cycler = cycler(
+        color=plt.cm.tab10.colors,
+        linestyle=['-', '--', '-.', ':', '-', '--', '-.', ':', '-', '--'],
+    )
     fig, ax = plt.subplots(figsize=(12, 6))
+    ax.set_prop_cycle(style_cycler)
     for session in sessions:
         metadata = session['metadata']
         X = [stat['episode'] for stat in session['stats']]
@@ -171,8 +180,8 @@ if __name__ == "__main__":
     ax.set_xlabel('episode')
     ax.set_ylabel(args.metric)
     ax.set_title('TextWorld Rollout Scores')
-    ax.legend()
-    ax.grid()
+    # ax.legend()
+    # ax.grid()
     fig.tight_layout()
     plt.show()
 

@@ -54,11 +54,6 @@ An implementation of agentic systems with quest graphs.
         -   Note that when building docker, python packages required for the experiment will be installed under `artifacts/pip_modules` directory. Except for pytorch, which will be installed in the docker image. To fix pylance, either refer to local install pytorch or use virtual environment on top.
 -   Running on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
--   Running plots:
-    -   Plots use graphics therefore they cannot be run in the docker container.
-    -   Create python virtual environment in the root directory of the project, e.g. `python -m venv .venv`.
-    -   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib`.
-    -   Run the plot script in the virtual environment, e.g. `python tasks/plot.py`.
 
 | Experiment       | Description                                             | Valid configurations (pick one)         | Path to file (+flags)   |
 | ---------------- | ------------------------------------------------------- | --------------------------------------- | ----------------------- |
@@ -81,6 +76,13 @@ An implementation of agentic systems with quest graphs.
 | `QUEST_EMBEDDING_API_KEY`    | Embedding service provider API key. (Or use provider' own variable)                     | string                                                                      |
 
 Apart from the above environment variables, you must also include _third-party API_ keys in the `secrets.env` file in order to use their services.
+
+### Run plots:
+
+-   Plots use graphics therefore they cannot be run in the docker container.
+-   Create python virtual environment in the root directory of the project, e.g. `python -m venv .venv`.
+-   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib`.
+-   Run the plot script in the virtual environment, e.g. `python tasks/plot_{experiment}.py`.
 
 ## To do
 
