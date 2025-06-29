@@ -80,28 +80,30 @@ if __name__ == "__main__":
 
     os.makedirs(experiment_path, exist_ok=True)
 
-    # load dataset, 
-    # musique_ans_v1.0_dev.jsonl contains full answer
+    # load dataset,
     # use musique_ans_v1.0_train.jsonl to train
+    # use musique_ans_v1.0_dev.jsonl to validate results
     # use musique_ans_v1.0_test.jsonl to generate submission results
-    task = musique_classes.Task(f"{musique_data_path}/musique_ans_v1.0_dev.jsonl", answer_path)
+    train_task = musique_classes.Task(f"{musique_data_path}/musique_ans_v1.0_train.jsonl", answer_path)
+    validate_task = musique_classes.Task(f"{musique_data_path}/musique_ans_v1.0_dev.jsonl", answer_path)
+    test_task = musique_classes.Task(f"{musique_data_path}/musique_ans_v1.0_test.jsonl", answer_path)
 
     i = 0
-    while task.has_next():
-        record_id, record = task.pop()
+    while validate_task.has_next():
+        record_id, record = validate_task.pop()
         answer_record = compute(record, verbose=False)
-        task.fulfill(record_id, answer_record)
+        validate_task.fulfill(record_id, answer_record)
         i += 1
         if i % 100 == 0:
-            logging.info(task.status())
+            logging.info(validate_task.status())
 
     # evaluate result
     # write answer to tempfile
     with tempfile.NamedTemporaryFile(mode="w", delete=True, delete_on_close=True) as temp_file:
-        task.write_answer(temp_file)
+        validate_task.write_answer(temp_file)
         eval_path = temp_file.name
         # python evaluate_v1.0.py <eval_path> <dev_file_path>
-        console_result = subprocess.run(["python", f"{musique_repo_path}/evaluate_v1.0.py", eval_path, task.file_path], capture_output=True)
+        console_result = subprocess.run(["python", f"{musique_repo_path}/evaluate_v1.0.py", eval_path, validate_task.file_path], capture_output=True)
         if console_result.returncode != 0:
             logging.error(f"Error in evaluation: {console_result.stderr.decode()}")
         else:
