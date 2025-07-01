@@ -84,6 +84,16 @@ Apart from the above environment variables, you must also include _third-party A
 -   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib`.
 -   Run the plot script in the virtual environment, e.g. `python tasks/plot_{experiment}.py`.
 
+### Reproducing paper results
+
+-   Prepare accelerated hardware with at least 24GB of VRAM.
+-   run for each env_index in set(1, 2, 3, 4, 5, 6) and for each algorithm_flags in ["", "--npt", "--npt --nst"]:
+    `./run_manual.sh {configuration} tasks/rl_textworld.py --env-index {env_index} --run-count 2 -s medium {algorithm_flags} -o {random output file name}`
+    This will start the training sessions in docker containers and save the rollouts in `artifacts` directory.
+    Note that the training takes at least a day to complete one session.
+-   In the virtual environment, run `python3 tasks/plot_rl_textworld.py` to plot the results (select all rollout files) in the graph.
+-   In the virtual environment, run `python3 tasks/plot_rl_textworld.py --end-result` to print the result in the table.
+
 ## To do
 
 ### Algorithms
