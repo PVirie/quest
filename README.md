@@ -58,9 +58,9 @@ An implementation of agentic systems with quest graphs.
 | Experiment       | Description                                             | Valid configurations (pick one)         | Path to file (+flags)   |
 | ---------------- | ------------------------------------------------------- | --------------------------------------- | ----------------------- |
 | **Test devices** | Run the test to compare the performance of the devices. | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/benchmark.py`    |
-| **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/qa_multihop.py`  |
 | **TextWorld**    | Run the TextWorld experiment.                           | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_textworld.py` |
 | **ALFWorld**     | Run the ALFWorld experiment.                            | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_alfworld.py`  |
+| **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/qa_multihop.py`  |
 | **Reset**        | Reset the selected experiment.                          | Any                                     | Any with `--reset`      |
 
 ### Environment Variables
@@ -87,6 +87,7 @@ Apart from the above environment variables, you must also include _third-party A
 ### Reproducing paper results
 
 -   Prepare accelerated hardware with at least 24GB of VRAM.
+-   Create an empty `secrets.env` file in the root directory of the project. (You won't be needing LMs to run the RL experiments. We train everything from scratch.)
 -   run for each env_index in set(1, 2, 3, 4, 5, 6) and for each algorithm_flags in ["", "--npt", "--npt --nst"]:
     `./run_manual.sh {configuration} tasks/rl_textworld.py --env-index {env_index} --run-count 2 -s medium {algorithm_flags} -o {random output file name}`
     This will start the training sessions in docker containers and save the rollouts in `artifacts` directory.
