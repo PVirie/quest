@@ -50,7 +50,7 @@ def save_file_dialog(default_path = None):
         return None
 
 
-def parse_rollout_file(file_generator, ma_alpha, training_trend, threshold=5000):
+def parse_rollout_file(file_generator, ma_alpha, training_trend, trend_threshold=5000, end_result_threshold=10):
     """Parses a rollout file and returns the content."""
     plot_data = {}
     for file_path in file_generator:
@@ -68,7 +68,7 @@ def parse_rollout_file(file_generator, ma_alpha, training_trend, threshold=5000)
             if metadata_key not in plot_data:
                 plot_data[metadata_key] = []
             
-            if (training_trend and last_episode > threshold) or (not training_trend and last_episode <= threshold):
+            if (training_trend and last_episode > trend_threshold) or (not training_trend and last_episode <= end_result_threshold):
                 plot_data[metadata_key].append({
                         'file_name': os.path.basename(file_path),
                         'file_path': file_path,
@@ -209,39 +209,65 @@ if __name__ == "__main__":
         logging.error("No files selected or no valid sessions found.")
         sys.exit(1)
 
-    # Plotting the data
-    style_cycler = cycler(
-        color=plt.cm.tab10.colors,
-        linestyle=['-', '--', '-.', ':', '-', '--', '-.', ':', '-', '--'],
-    )
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.set_prop_cycle(style_cycler)
-    for session in sessions:
-        metadata = session['metadata']
-        X = [stat['episode'] for stat in session['stats']]
-        Y = [avg[args.metric] for avg in session['moving_average']]
-        label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
-        ax.plot(X, Y, label=label)
-    ax.set_xlabel('episode')
-    ax.set_ylabel(args.metric)
-    ax.set_title('TextWorld Rollout Scores')
-    ax.legend()
-    # ax.grid()
-    fig.tight_layout()
-    plt.show()
+    if args.end_result:
+        # print average of success rate and average context length and max context length group by metadata
+        metadata_stats = {}
+        for session in sessions:
+            metadata = session['metadata']
+            label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
+            if label not in metadata_stats:
+                metadata_stats[label] = {'succeeded': 0, 'cl': 0, 'max_cl': 0, 'count': 0}
+            for stat in session['stats']:
+                metadata_stats[label]['succeeded'] += stat['succeeded']
+                metadata_stats[label]['cl'] += stat['cl']
+                metadata_stats[label]['max_cl'] += stat['max_cl']
+                metadata_stats[label]['count'] += 1
 
-    plot_name = f"plot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pgf"
-    save_path = save_file_dialog(default_path=plot_name)
-    if save_path is not None:
-        logging.info(f"Saving plot to {save_path}")
-        fig.savefig(save_path, format="pgf", bbox_inches="tight")
-        # now clear all the header sections from the file starts with %%
-        with open(save_path, 'r') as f:
-            lines = f.readlines()
-        with open(save_path, 'w') as f:
-            for i, line in enumerate(lines):
-                if line.startswith('%') and i >= 8:
-                    continue
-                f.write(line)
+        # print the results
+        logging.info("End Result Statistics:")
+        for label, stats in metadata_stats.items():
+            if stats['count'] > 0:
+                avg_succeeded = stats['succeeded'] / stats['count']
+                avg_cl = stats['cl'] / stats['count']
+                avg_max_cl = stats['max_cl'] / stats['count']
+                logging.info(f"{label} - Avg Succeeded: {avg_succeeded:.2f}, Avg CL: {avg_cl:.2f}, Avg Max CL: {avg_max_cl:.2f}")
+            else:
+                logging.warning(f"{label} - No valid data found.")
 
-    plt.close(fig)
+    else:
+        # Plotting the data
+        style_cycler = cycler(
+            color=plt.cm.tab10.colors,
+            linestyle=['-', '--', '-.', ':', '-', '--', '-.', ':', '-', '--'],
+        )
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.set_prop_cycle(style_cycler)
+        for session in sessions:
+            metadata = session['metadata']
+            X = [stat['episode'] for stat in session['stats']]
+            Y = [avg[args.metric] for avg in session['moving_average']]
+            label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
+            ax.plot(X, Y, label=label)
+        ax.set_xlabel('episode')
+        ax.set_ylabel(args.metric)
+        ax.set_title('TextWorld Rollout Scores')
+        ax.legend()
+        # ax.grid()
+        fig.tight_layout()
+        plt.show()
+
+        plot_name = f"plot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pgf"
+        save_path = save_file_dialog(default_path=plot_name)
+        if save_path is not None:
+            logging.info(f"Saving plot to {save_path}")
+            fig.savefig(save_path, format="pgf", bbox_inches="tight")
+            # now clear all the header sections from the file starts with %%
+            with open(save_path, 'r') as f:
+                lines = f.readlines()
+            with open(save_path, 'w') as f:
+                for i, line in enumerate(lines):
+                    if line.startswith('%') and i >= 8:
+                        continue
+                    f.write(line)
+
+        plt.close(fig)
