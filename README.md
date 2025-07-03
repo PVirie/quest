@@ -26,14 +26,28 @@ An implementation of agentic systems with quest graphs.
 
     -   Install [ROCm-kernel (amdgpu-dkms)](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html)
 
-3.  Create `secrets.env` file to install neccessary tokens (Huggingface, OpenAI, etc.) (See the running section for more details.)
+3.  Create `secrets.env` file to install neccessary tokens (Huggingface, OpenAI, etc.) (See the table below for more details.)
     ```
-    export QUEST_LM_DEPLOYMENT="cloud-api-litellm"
-    export QUEST_LM_MODEL="openai/gpt-4o"
+    export {VARIABLE_NAME}="{VALUE}"
     ...
     ```
+    -   By default, no variables are required to run the experiments. You can run the experiments without any language model or embedding model.
 
-## Run experiments
+### Environment Variable Formats
+
+| Environment Variables        | Description                                                                             | Values                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `APP_ROOT`                   | Root directory to store caches and experiment results when running without a container. | e.g. `/app`                                                                 |
+| `QUEST_LM_DEPLOYMENT`        | Use language model via API vs local.                                                    | "cloud-api-litellm", "cloud-api-runpod", "local-hf"                         |
+| `QUEST_LM_MODEL`             | Language model name.                                                                    | e.g. "openai/gpt-4", "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"            |
+| `QUEST_LM_API_KEY`           | Language model service provider API key. (Or use provider' own variable)                | string                                                                      |
+| `QUEST_EMBEDDING_DEPLOYMENT` | Use embedding model via API.                                                            | "cloud-api-litellm", "local-hf"                                             |
+| `QUEST_EMBEDDING_MODEL`      | Embedding model name.                                                                   | e.g. "text-embedding-3-small", "ibm-granite/granite-embedding-125m-english" |
+| `QUEST_EMBEDDING_API_KEY`    | Embedding service provider API key. (Or use provider' own variable)                     | string                                                                      |
+
+Apart from the above environment variables, you might also need to include _third-party API_ keys in the `secrets.env` file in order to use their services.
+
+## Running experiments
 
 -   By default, use program script `./run_manual.sh {configuration} {path to file} {optional flags}` to execute the python file with the selected configuration. (See table below.)
     -   The program **may fail** to run on the first attempt due to the failure to find package directories. If this happens, run the program again.
@@ -46,7 +60,7 @@ An implementation of agentic systems with quest graphs.
             -   `torch-rocm` for torch in ROCm environment.
         -   VSCode will also ask for additional program arguments. Pass nothing if you want to use the default arguments.
     -   Launch `reset` to clear the cache and reset the experiment.
--   Run on Windows
+-   Running on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
 
 | Experiment       | Description                                             | Valid configurations (pick one)         | Path to file (+flags)   |
@@ -57,21 +71,7 @@ An implementation of agentic systems with quest graphs.
 | **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/qa_multihop.py`  |
 | **Reset**        | Reset the selected experiment.                          | Any                                     | Any with `--reset`      |
 
-### Environment Variables
-
-| Environment Variables        | Description                                                                             | Values                                                                      |
-| ---------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `APP_ROOT`                   | Root directory to store caches and experiment results when running without a container. | e.g. `/app`                                                                 |
-| `QUEST_LM_DEPLOYMENT`        | Use language model via API vs local.                                                    | "cloud-api-litellm", "cloud-api-runpod", "local-hf"                         |
-| `QUEST_LM_MODEL`             | Language model name.                                                                    | e.g. "openai/gpt-4", "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"            |
-| `QUEST_LM_API_KEY`           | Language model service provider API key. (Or use provider' own variable)                | string                                                                      |
-| `QUEST_EMBEDDING_DEPLOYMENT` | Use embedding model via API.                                                            | "cloud-api-litellm", "local-hf"                                             |
-| `QUEST_EMBEDDING_MODEL`      | Embedding model name.                                                                   | e.g. "text-embedding-3-small", "ibm-granite/granite-embedding-125m-english" |
-| `QUEST_EMBEDDING_API_KEY`    | Embedding service provider API key. (Or use provider' own variable)                     | string                                                                      |
-
-Apart from the above environment variables, you must also include _third-party API_ keys in the `secrets.env` file in order to use their services.
-
-### Run plots:
+### Running plots:
 
 -   Plots use graphics therefore they cannot be run in the docker container.
 -   Create python virtual environment in the root directory of the project.
@@ -83,7 +83,7 @@ Apart from the above environment variables, you must also include _third-party A
 
 -   Prepare accelerated hardware with at least 24GB of VRAM.
 -   Create an empty `secrets.env` file in the root directory of the project. (You won't be needing LMs to run the RL experiments. We train everything from scratch.)
--   run for each env_index in set(1, 2, 3, 4, 5, 6) and for each algorithm_flags in ["", "--npt", "--npt --nst"]:
+-   Run for each env_index in set(1, 2, 3, 4, 5, 6) and for each algorithm_flags in ["", "--npt", "--npt --nst"]:
     `./run_manual.sh {configuration} tasks/rl_textworld.py --env-index {env_index} --run-count 2 -s medium {algorithm_flags} -o {random output file name}`
     This will start the training sessions in docker containers and save the rollouts in `artifacts` directory.
     Note that the training takes at least a day to complete one session.
