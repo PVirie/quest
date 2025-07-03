@@ -33,8 +33,12 @@ os.makedirs(textworld_path, exist_ok=True)
 # tw-make custom --world-size 5 --nb-objects 10 --quest-length 5 --seed 1234 --output tw_games/custom_game.z8
 # tw-make tw-simple --rewards dense  --goal detailed --seed 18 --test --silent -f --output tw_games/tw-rewardsDense_goalBrief.z8
 tw_envs = {
-    "tw-simple": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250401", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple.z8"],
+    "tw-simple-1": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250401", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-1.z8"],
     "tw-simple-2": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250402", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-2.z8"],
+    "tw-simple-3": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250501", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-3.z8"],
+    "tw-simple-4": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250502", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-4.z8"],
+    "tw-simple-5": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250601", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-5.z8"],
+    "tw-simple-6": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250602", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-6.z8"],
     "custom-game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "20250401", "--output", f"{textworld_path}/games/default/custom-game.z8"],
     "custom-game-2": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "10", "--seed", "20250402", "--output", f"{textworld_path}/games/default/custom-game-2.z8"],
     "treasure_hunter": ["tw-make", "tw-treasure_hunter", "--level", "15", "--seed", "20250401", "--output", f"{textworld_path}/games/default/treasure_hunter.z8"],
@@ -440,12 +444,13 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--reset", "-r", action="store_true")
-    parser.add_argument("--record_file",            "-o",   type=str, default="rollouts.txt",   help="The file to record the rollouts. Default is 'rollouts.txt'.")
-    parser.add_argument("--run_count",              "-rc",  type=int, default=1,                help="The number of runs to perform. Default is 1.")
-    parser.add_argument("--q_learning",             "-q",   action="store_true",                help="Use Q-learning instead of Actor-Critic. Default is False.")
+    parser.add_argument("--reset",                  "-r",   action="store_true")
+    parser.add_argument("--record-file",            "-o",   type=str, default="rollouts.txt",   help="The file to record the rollouts. Default is 'rollouts.txt'.")
+    parser.add_argument("--env-index",              "-ei",  type=int, default=2,                help="The index of the environment to use. Default is 2 (start from 1).")
+    parser.add_argument("--run-count",              "-rc",  type=int, default=1,                help="The number of runs to perform. Default is 1.")
+    parser.add_argument("--q-learning",             "-q",   action="store_true",                help="Use Q-learning instead of Actor-Critic. Default is False.")
     parser.add_argument("--scale",                  "-s",   type=str, default="medium", choices=["small", "medium", "large"], help="The scale of the neural network. Default is 'medium'.")
-    parser.add_argument("--no_relegation",          "-nre", action="store_true",                help="Disable relegation during training.")
+    parser.add_argument("--no-relegation",          "-nre", action="store_true",                help="Disable relegation during training.")
     parser.add_argument("--rel_prob",               "-rp",  type=float, default=1.0,            help="The probability of relegation during training. Default is 1.0.")
     parser.add_argument("--no-sub-training",        "-nst", action="store_true",                help="Disable sub training during training.")
     parser.add_argument("--no-prospect-training",   "-npt", action="store_true",                help="Disable prospect training during training.")
@@ -459,7 +464,8 @@ if __name__ == "__main__":
         exit()
     os.makedirs(experiment_path, exist_ok=True)
 
-    rollout_file_path = os.path.join(experiment_path, "rollouts.txt")
+    selected_env_str = f"tw-simple-{args.env_index}"
+    rollout_file_path = os.path.join(experiment_path, f"rollouts_{selected_env_str}.txt")
     if args.record_file:
         rollout_file_path = os.path.join(experiment_path, args.record_file)
 
@@ -481,7 +487,7 @@ if __name__ == "__main__":
         lost=True,                 # Whether the player has lost.
     )
 
-    game_path = tw_envs["tw-simple-2"][-1]
+    game_path = tw_envs[selected_env_str][-1]
     env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
     env = textworld.gym.make(env_id)
     obs, infos = env.reset()
@@ -531,6 +537,7 @@ if __name__ == "__main__":
     persona.set_allow_prospect_training(not args.no_prospect_training)
 
     # if not persona.load(agent_parameter_path):
+    logging.info(f"Selected environment: {selected_env_str}")
     logging.info(f"Initiate agent training with following parameters:")
     logging.info(f"  - Algorithm: {'Q-learning' if args.q_learning else 'Actor-Critic'}")
     logging.info(f"  - Network scale: {str(Network_Scale_Preset(args.scale).value)}")

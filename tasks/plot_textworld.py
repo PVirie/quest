@@ -12,6 +12,8 @@ import utilities
 utilities.install('matplotlib')
 utilities.install('tkinter')
 import matplotlib.pyplot as plt
+from matplotlib import lines, markers
+from cycler import cycler
 import tkinter as tk
 
 
@@ -48,8 +50,9 @@ def save_file_dialog(default_path = None):
         return None
 
 
-def parse_rollout_file(file_generator, ma_alpha, training_trend):
+def parse_rollout_file(file_generator, ma_alpha, training_trend, trend_threshold=5000, end_result_threshold=10):
     """Parses a rollout file and returns the content."""
+    plot_data = {}
     for file_path in file_generator:
         with open(file_path, 'r', encoding="utf-8") as file:
             content = file.read()
@@ -59,17 +62,34 @@ def parse_rollout_file(file_generator, ma_alpha, training_trend):
             session_text = session_text.strip()
             if len(session_text) < 10:
                 continue
-            metadata, stats = parse_session(session_text)
-            if (training_trend and len(stats) > 100) or (not training_trend and len(stats) <= 100):
-                yield {
-                    'file_name': os.path.basename(file_path),
-                    'file_path': file_path,
-                    'metadata': metadata,
-                    'stats': stats,
-                    'moving_average': compute_moving_average(stats, alpha=ma_alpha)
-                }
+            metadata_key, metadata, stats = parse_session(session_text)
+            last_episode = stats[-1]['episode'] if len(stats) > 0 else 0
+
+            if metadata_key not in plot_data:
+                plot_data[metadata_key] = []
+            
+            if (training_trend and last_episode > trend_threshold) or (not training_trend and last_episode <= end_result_threshold):
+                plot_data[metadata_key].append({
+                        'file_name': os.path.basename(file_path),
+                        'file_path': file_path,
+                        'metadata': metadata,
+                        'stats': stats,
+                    })
             else:
-                logging.warning(f"Skipping session in {file_path} due to {training_trend} and {len(stats)}")
+                logging.warning(f"Skipping session in {file_path = } due to {training_trend = } and {last_episode = }")
+
+    # now average paths in the same metadata_key
+    for metadata_key, sessions in plot_data.items():
+        if len(sessions) == 0:
+            logging.warning(f"No valid sessions found for metadata key: {metadata_key}")
+            continue
+        average_stats = compute_mean_stat_sequence([session['stats'] for session in sessions])
+        average_moving_average = compute_moving_average(average_stats, alpha=ma_alpha)
+        yield {
+            'metadata': sessions[0]['metadata'],
+            'stats': average_stats,
+            'moving_average': average_moving_average
+        }
 
 
 def parse_session(session):
@@ -99,6 +119,8 @@ def parse_session(session):
         'allow_prospect_training': field_values.get('allow prospect training', 'false') == 'true',
         'relegation_probability': float(field_values.get('relegation probability', '0.0'))
     }
+    metadata_key = f"{metadata['allow_relegation']}|{metadata['allow_sub_training']}|{metadata['allow_prospect_training']}|{metadata['relegation_probability']:.2f}"
+    
     stats = []
 
     def parse_slash(slash_string):
@@ -129,7 +151,8 @@ def parse_session(session):
                     'cl': cl,
                     'max_cl': max_cl 
                 })
-    return metadata, stats
+
+    return metadata_key, metadata, stats
 
 
 def compute_moving_average(stats, alpha):
@@ -143,51 +166,108 @@ def compute_moving_average(stats, alpha):
     return output
 
 
+def compute_mean_stat_sequence(session_stat_sequences):
+    """Computes the mean of a sequence of statistics."""
+    if not session_stat_sequences:
+        return []
+
+    # Initialize the output with the first session's stats
+    output = session_stat_sequences[0].copy()
+
+    # Iterate over each session's stats
+    for session_stats in session_stat_sequences[1:]:
+        for i, stat in enumerate(session_stats):
+            for key, value in stat.items():
+                if key not in output[i]:
+                    output[i][key] = 0.0
+                output[i][key] += value
+
+    # Average the values
+    for i, stat in enumerate(output):
+        for key in stat:
+            stat[key] /= len(session_stat_sequences)
+
+    return output
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logging.info("Starting TextWorld Plotting Task")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ma_alpha", "-ma", metavar='ma-alpha', type=float, default=0.995, help="Moving average alpha value (default: 0.995)")
-    parser.add_argument("--training_trend", "-tt", action='store_true', help="Plot training trend")
-    parser.add_argument("--metric", "-m", type=str, default="succeeded", help="Metric to plot (default: succeeded)")
+    parser.add_argument("--ma-alpha",   "-ma", type=float, default=0.5, help="Moving average alpha value (default: 0.9)")
+    parser.add_argument("--end-result", "-end", action='store_true', help="Plot only the end result (default: False)")
+    parser.add_argument("--metric",     "-m", type=str, default="score", help="Metric to plot (default: score)")
     args = parser.parse_args()
 
+    logging.info(f"Arguments: {args}")
+
     # Open file dialog to select files
-    sessions = list(parse_rollout_file(open_file_dialog(), ma_alpha=args.ma_alpha, training_trend=args.training_trend))
+    sessions = list(parse_rollout_file(open_file_dialog(), ma_alpha=args.ma_alpha, training_trend=not args.end_result))
     
     if not sessions:
         logging.error("No files selected or no valid sessions found.")
         sys.exit(1)
 
-    # Plotting the data
-    fig, ax = plt.subplots(figsize=(12, 6))
-    for session in sessions:
-        metadata = session['metadata']
-        X = [stat['episode'] for stat in session['stats']]
-        Y = [avg[args.metric] for avg in session['moving_average']]
-        label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
-        ax.plot(X, Y, label=label)
-    ax.set_xlabel('episode')
-    ax.set_ylabel(args.metric)
-    ax.set_title('TextWorld Rollout Scores')
-    ax.legend()
-    ax.grid()
-    fig.tight_layout()
-    plt.show()
+    if args.end_result:
+        # print average of success rate and average context length and max context length group by metadata
+        metadata_stats = {}
+        for session in sessions:
+            metadata = session['metadata']
+            label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
+            if label not in metadata_stats:
+                metadata_stats[label] = {'succeeded': 0, 'cl': 0, 'max_cl': 0, 'count': 0}
+            for stat in session['stats']:
+                metadata_stats[label]['succeeded'] += stat['succeeded']
+                metadata_stats[label]['cl'] += stat['cl']
+                metadata_stats[label]['max_cl'] += stat['max_cl']
+                metadata_stats[label]['count'] += 1
 
-    plot_name = f"plot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pgf"
-    save_path = save_file_dialog(default_path=plot_name)
-    if save_path is not None:
-        logging.info(f"Saving plot to {save_path}")
-        fig.savefig(save_path, format="pgf", bbox_inches="tight")
-        # now clear all the header sections from the file starts with %%
-        with open(save_path, 'r') as f:
-            lines = f.readlines()
-        with open(save_path, 'w') as f:
-            for i, line in enumerate(lines):
-                if line.startswith('%') and i >= 8:
-                    continue
-                f.write(line)
+        # print the results
+        logging.info("End Result Statistics:")
+        for label, stats in metadata_stats.items():
+            if stats['count'] > 0:
+                avg_succeeded = stats['succeeded'] / stats['count']
+                avg_cl = stats['cl'] / stats['count']
+                avg_max_cl = stats['max_cl'] / stats['count']
+                logging.info(f"{label} - Avg Succeeded: {avg_succeeded:.2f}, Avg CL: {avg_cl:.2f}, Avg Max CL: {avg_max_cl:.2f}")
+            else:
+                logging.warning(f"{label} - No valid data found.")
 
-    plt.close(fig)
+    else:
+        # Plotting the data
+        style_cycler = cycler(
+            color=plt.cm.tab10.colors,
+            linestyle=['-', '--', '-.', ':', '-', '--', '-.', ':', '-', '--'],
+        )
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.set_prop_cycle(style_cycler)
+        for session in sessions:
+            metadata = session['metadata']
+            X = [stat['episode'] for stat in session['stats']]
+            Y = [avg[args.metric] for avg in session['moving_average']]
+            label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
+            ax.plot(X, Y, label=label)
+        ax.set_xlabel('episode')
+        ax.set_ylabel(args.metric)
+        ax.set_title('TextWorld Rollout Scores')
+        ax.legend()
+        # ax.grid()
+        fig.tight_layout()
+        plt.show()
+
+        plot_name = f"plot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pgf"
+        save_path = save_file_dialog(default_path=plot_name)
+        if save_path is not None:
+            logging.info(f"Saving plot to {save_path}")
+            fig.savefig(save_path, format="pgf", bbox_inches="tight")
+            # now clear all the header sections from the file starts with %%
+            with open(save_path, 'r') as f:
+                lines = f.readlines()
+            with open(save_path, 'w') as f:
+                for i, line in enumerate(lines):
+                    if line.startswith('%') and i >= 8:
+                        continue
+                    f.write(line)
+
+        plt.close(fig)

@@ -48,18 +48,13 @@ An implementation of agentic systems with quest graphs.
     -   Launch `reset` to clear the cache and reset the experiment.
 -   Run on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
--   Run plots:
-    -   Plots use graphics therefore they cannot be run in the docker container.
-    -   Create python virtual environment in the root directory of the project, e.g. `python -m venv .venv`.
-    -   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib`.
-    -   Run the plot script in the virtual environment, e.g. `python tasks/plot.py`.
 
 | Experiment       | Description                                             | Valid configurations (pick one)         | Path to file (+flags)   |
 | ---------------- | ------------------------------------------------------- | --------------------------------------- | ----------------------- |
 | **Test devices** | Run the test to compare the performance of the devices. | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/benchmark.py`    |
-| **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/qa_multihop.py`  |
 | **TextWorld**    | Run the TextWorld experiment.                           | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_textworld.py` |
 | **ALFWorld**     | Run the ALFWorld experiment.                            | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_alfworld.py`  |
+| **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/qa_multihop.py`  |
 | **Reset**        | Reset the selected experiment.                          | Any                                     | Any with `--reset`      |
 
 ### Environment Variables
@@ -76,6 +71,25 @@ An implementation of agentic systems with quest graphs.
 
 Apart from the above environment variables, you must also include _third-party API_ keys in the `secrets.env` file in order to use their services.
 
+### Run plots:
+
+-   Plots use graphics therefore they cannot be run in the docker container.
+-   Create python virtual environment in the root directory of the project.
+    -   We recommend using `.venv` as the default virtual environment directory, e.g. `python -m venv .venv`.
+-   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib`.
+-   Run the plot script in the virtual environment, e.g. `python tasks/plot_{experiment}.py`.
+
+### Reproducing paper results
+
+-   Prepare accelerated hardware with at least 24GB of VRAM.
+-   Create an empty `secrets.env` file in the root directory of the project. (You won't be needing LMs to run the RL experiments. We train everything from scratch.)
+-   run for each env_index in set(1, 2, 3, 4, 5, 6) and for each algorithm_flags in ["", "--npt", "--npt --nst"]:
+    `./run_manual.sh {configuration} tasks/rl_textworld.py --env-index {env_index} --run-count 2 -s medium {algorithm_flags} -o {random output file name}`
+    This will start the training sessions in docker containers and save the rollouts in `artifacts` directory.
+    Note that the training takes at least a day to complete one session.
+-   In the virtual environment, run `python3 tasks/plot_rl_textworld.py` to plot the results (select all rollout files) in the graph.
+-   In the virtual environment, run `python3 tasks/plot_rl_textworld.py --end-result` to print the result in the table.
+
 ## Development
 
 We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for development. It has great support for Python and Docker.
@@ -83,7 +97,7 @@ We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for devel
 -   To assist pylance, add paths to local install python packages in `.vscode/settings.json`:
     ```json
     {
-        "python.analysis.extraPaths": [...]
+        "python.analysis.extraPaths": ["${workspaceFolder}/.venv/lib/python3.12/site-packages", "${workspaceFolder}/artifacts/pip_modules/lib/python3.12/site-packages"]
     }
     ```
     -   We recommend using `.venv` as the default virtual environment directory.
