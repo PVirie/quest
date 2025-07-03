@@ -39,22 +39,16 @@ An implementation of agentic systems with quest graphs.
     -   The program **may fail** to run on the first attempt due to the failure to find package directories. If this happens, run the program again.
     -   To clear the cache and reset the experiment, use `./run_manual.sh {configuration} {path to file} --reset`.
 -   For VSCode, press `F5` to run the selected configuration:
-    -   Launch `pytorch current file` to run the experiment in the opening file. You will also need to choose the configuration from the dropdown list.
-        -   `torch-cpu` for torch in cpu environment
-        -   `torch-cuda` for torch in CUDA environment.
-        -   `torch-rocm` for torch in ROCm environment.
+    -   Launch `Run current file` to run the experiment in the opening file.
+        -   You will also need to choose the configuration from the dropdown list.
+            -   `torch-cpu` for torch in cpu environment
+            -   `torch-cuda` for torch in CUDA environment.
+            -   `torch-rocm` for torch in ROCm environment.
+        -   VSCode will also ask for additional program arguments. Pass nothing if you want to use the default arguments.
     -   Launch `reset` to clear the cache and reset the experiment.
-    -   To assist pylance, add paths to local install python packages in `.vscode/settings.json`:
-        ```json
-        {
-            "python.analysis.extraPaths": [...]
-        }
-        ```
-        -   We recommend using `.venv` as the default virtual environment directory.
-        -   Note that when building docker, python packages required for the experiment will be installed under `artifacts/pip_modules` directory. Except for pytorch, which will be installed in the docker image. To fix pylance, either refer to local install pytorch or use virtual environment on top.
--   Running on Windows
+-   Run on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
--   Running plots:
+-   Run plots:
     -   Plots use graphics therefore they cannot be run in the docker container.
     -   Create python virtual environment in the root directory of the project, e.g. `python -m venv .venv`.
     -   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib`.
@@ -81,6 +75,19 @@ An implementation of agentic systems with quest graphs.
 | `QUEST_EMBEDDING_API_KEY`    | Embedding service provider API key. (Or use provider' own variable)                     | string                                                                      |
 
 Apart from the above environment variables, you must also include _third-party API_ keys in the `secrets.env` file in order to use their services.
+
+## Development
+
+We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for development. It has great support for Python and Docker.
+
+-   To assist pylance, add paths to local install python packages in `.vscode/settings.json`:
+    ```json
+    {
+        "python.analysis.extraPaths": [...]
+    }
+    ```
+    -   We recommend using `.venv` as the default virtual environment directory.
+    -   Note that when building docker, python packages required for the experiment will be installed under `artifacts/pip_modules` directory. Except for pytorch, which will be installed in the docker image. To fix pylance, either refer to local install pytorch or use virtual environment on top.
 
 ## To do
 
