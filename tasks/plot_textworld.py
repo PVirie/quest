@@ -11,10 +11,12 @@ import utilities
 
 utilities.install('matplotlib')
 utilities.install('tkinter')
+utilities.install('scipy')
 import matplotlib.pyplot as plt
 from matplotlib import lines, markers
 from cycler import cycler
 import tkinter as tk
+from scipy.stats import mannwhitneyu
 
 
 def open_file_dialog():
@@ -83,13 +85,14 @@ def parse_rollout_file(file_generator, ma_alpha, training_trend, trend_threshold
         if len(sessions) == 0:
             logging.warning(f"No valid sessions found for metadata key: {metadata_key}")
             continue
-        mean_per_episode, var_per_episode = process_stat_sequence([session['stats'] for session in sessions], filter=filter)
+        mean_per_episode, var_per_episode, raw_per_metric = process_stat_sequence([session['stats'] for session in sessions], filter=filter)
         moving_average = compute_moving_average(mean_per_episode, alpha=ma_alpha)
         yield {
             'metadata': sessions[0]['metadata'],
             'stats': mean_per_episode,
             'vars': var_per_episode,
-            'moving_average': moving_average
+            'moving_average': moving_average,
+            'raws': raw_per_metric,
         }
 
 
@@ -174,6 +177,7 @@ def process_stat_sequence(session_stat_sequences, filter=False):
 
     sums = []
     sqr_sums = []
+    raws = {}
 
     # Iterate over each session's stats
     for session_stats in session_stat_sequences[1:]:
@@ -189,6 +193,9 @@ def process_stat_sequence(session_stat_sequences, filter=False):
                 if not filtered:
                     sums[i][key] += value
                     sqr_sums[i][key] += value ** 2
+                if key not in raws:
+                    raws[key] = []
+                raws[key].append(value)
             sums[i]['count'] = sums[i].get('count', 0) + (1 if not filtered else 0)
             sums[i]['unfiltered_count'] = sums[i].get('unfiltered_count', 0) + 1
 
@@ -216,7 +223,7 @@ def process_stat_sequence(session_stat_sequences, filter=False):
                 vars[i][key] = (sqr_sums[i][key] - N * m * m) / (N - 1) if N > 1 else 0.0
         means[i]['count'] = N
 
-    return means, vars
+    return means, vars, raws
 
 
 if __name__ == "__main__":
@@ -279,6 +286,33 @@ if __name__ == "__main__":
                 logging.info(f"{avg_succeeded:.2f} $\\pm$ {var_succeeded ** 0.5:.2f} & {avg_cl:.2f} $\\pm$ {var_cl ** 0.5:.2f} & {avg_max_cl:.2f} $\\pm$ {var_max_cl ** 0.5:.2f} \\\\")
             else:
                 logging.warning(f"{label} - No valid data found.")
+
+        logging.info("=========================================================")
+        logging.info("Mann-Whitney U Test Results:")
+
+        # calculate the Mann-Whitney U test for each pair of metadata
+        stat_p_value_table = [[[(0.0, 0.0) for _ in range(len(sessions))] for _ in range(len(sessions))] for metric in ['succeeded', 'cl', 'max_cl']]
+        for i, session_i in enumerate(sessions):
+            for j, session_j in enumerate(sessions):
+                if i == j:
+                    continue
+                metadata_i = session_i['metadata']
+                metadata_j = session_j['metadata']
+                label = f"{metadata_i['allow_relegation']} | {metadata_i['allow_sub_training']} | {metadata_i['allow_prospect_training']} | {metadata_i['relegation_probability']:.2f}"
+                label2 = f"{metadata_j['allow_relegation']} | {metadata_j['allow_sub_training']} | {metadata_j['allow_prospect_training']} | {metadata_j['relegation_probability']:.2f}"
+                raws_i = session_i['raws']
+                raws_j = session_j['raws']
+
+                for k, metric in enumerate(['succeeded', 'cl', 'max_cl']):
+                    # Mann-Whitney U test for succeeded
+                    u_stat, p_value = mannwhitneyu(
+                        raws_i[metric],
+                        raws_j[metric],
+                        alternative='greater' if metric == 'succeeded' else 'less'
+                    )
+                    stat_p_value_table[k][i][j] = (u_stat, p_value)
+                    logging.info(f"Mann-Whitney U test of {metric} between {label} and {label2}: U={u_stat:.2f}, p={p_value:.4f}")
+            logging.info("------------------------------------------------")
 
     else:
         # Plotting the data
