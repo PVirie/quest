@@ -262,6 +262,8 @@ if __name__ == "__main__":
                 logging.info(f"{label} - Count: {N}")
                 logging.info(f"{label} - Avg Succeeded: {avg_succeeded:.2f}, Avg CL: {avg_cl:.2f}, Avg Max CL: {avg_max_cl:.2f}")
                 logging.info(f"{label} - Std Succeeded: {var_succeeded ** 0.5:.2f}, Std CL: {var_cl ** 0.5:.2f}, Std Max CL: {var_max_cl ** 0.5:.2f}")
+                # Print LaTeX formatted output
+                logging.info(f"{avg_succeeded:.2f} $\\pm$ {var_succeeded ** 0.5:.2f} & {avg_cl:.2f} $\\pm$ {var_cl ** 0.5:.2f} & {avg_max_cl:.2f} $\\pm$ {var_max_cl ** 0.5:.2f} \\\\")
             else:
                 logging.warning(f"{label} - No valid data found.")
 
@@ -269,16 +271,18 @@ if __name__ == "__main__":
         # Plotting the data
         style_cycler = cycler(
             color=plt.cm.tab10.colors,
-            linestyle=['-', '--', '-.', ':', '-', '--', '-.', ':', '-', '--'],
+            linestyle=['-', '-.', ':', '-', '-.', ':', '-', '-.', ':', '-'],
         )
         fig, ax = plt.subplots(figsize=(12, 6))
         ax.set_prop_cycle(style_cycler)
-        for session in sessions:
+        for n, session in enumerate(sessions):
             metadata = session['metadata']
             X = [stat['episode'] for stat in session['stats']]
             Y = [avg[args.metric] for avg in session['moving_average']]
+            STD = [var[args.metric] ** 0.5 for var in session['vars']]
             label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
-            ax.plot(X, Y, label=label)
+            # ax.fill_between(X, [Y[i] - STD[i] for i in range(len(Y))], [Y[i] + STD[i] for i in range(len(Y))], alpha=0.1)
+            ax.errorbar(X[n::5], Y[n::5], yerr=STD[n::5], markersize=3, capsize=3, label=label, elinewidth=1, markeredgewidth=1, linewidth=2)
         ax.set_xlabel('episode')
         ax.set_ylabel(args.metric)
         ax.set_title('TextWorld Rollout Scores')
