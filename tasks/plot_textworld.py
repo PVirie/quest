@@ -50,7 +50,7 @@ def save_file_dialog(default_path = None):
         return None
 
 
-def parse_rollout_file(file_generator, ma_alpha, training_trend, trend_threshold=5000, end_result_threshold=10):
+def parse_rollout_file(file_generator, ma_alpha, training_trend, trend_threshold=5000, end_result_threshold=10, filter=False):
     """Parses a rollout file and returns the content."""
     plot_data = {}
     for file_path in file_generator:
@@ -83,7 +83,7 @@ def parse_rollout_file(file_generator, ma_alpha, training_trend, trend_threshold
         if len(sessions) == 0:
             logging.warning(f"No valid sessions found for metadata key: {metadata_key}")
             continue
-        mean_per_episode, var_per_episode = process_stat_sequence([session['stats'] for session in sessions])
+        mean_per_episode, var_per_episode = process_stat_sequence([session['stats'] for session in sessions], filter=filter)
         moving_average = compute_moving_average(mean_per_episode, alpha=ma_alpha)
         yield {
             'metadata': sessions[0]['metadata'],
@@ -167,7 +167,7 @@ def compute_moving_average(stats, alpha):
     return output
 
 
-def process_stat_sequence(session_stat_sequences):
+def process_stat_sequence(session_stat_sequences, filter=False):
     """Computes the mean of a sequence of statistics."""
     if not session_stat_sequences:
         return []
@@ -181,13 +181,16 @@ def process_stat_sequence(session_stat_sequences):
             if i >= len(sums):
                 sums.append({})
                 sqr_sums.append({})
+            filtered = filter and abs(stat.get('succeeded', 0)) < 0.01
             for key, value in stat.items():
                 if key not in sums[i]:
                     sums[i][key] = 0.0
                     sqr_sums[i][key] = 0.0
-                sums[i][key] += value
-                sqr_sums[i][key] += value ** 2
-            sums[i]['count'] = sums[i].get('count', 0) + 1
+                if not filtered:
+                    sums[i][key] += value
+                    sqr_sums[i][key] += value ** 2
+            sums[i]['count'] = sums[i].get('count', 0) + (1 if not filtered else 0)
+            sums[i]['unfiltered_count'] = sums[i].get('unfiltered_count', 0) + 1
 
     means = []
     vars = []
@@ -196,12 +199,21 @@ def process_stat_sequence(session_stat_sequences):
             means.append({})
             vars.append({})
         N = stat.get('count', 1)
+        UN = stat.get('unfiltered_count', 1)
         for key in stat:
             if key == 'count':
                 continue
-            m = stat[key] / N if N > 0 else 0.0
-            means[i][key] = m
-            vars[i][key] = (sqr_sums[i][key] - N * m * m) / (N - 1) if N > 1 else 0.0
+            elif key == 'unfiltered_count':
+                continue
+            elif key == 'succeeded':
+                # project the success rate to N
+                m = stat[key] / UN if UN > 0 else 0.0
+                means[i][key] = m
+                vars[i][key] = (sqr_sums[i][key] - UN * m * m) / (UN - 1) if UN > 1 else 0.0
+            else:
+                m = stat[key] / N if N > 0 else 0.0
+                means[i][key] = m
+                vars[i][key] = (sqr_sums[i][key] - N * m * m) / (N - 1) if N > 1 else 0.0
         means[i]['count'] = N
 
     return means, vars
@@ -215,12 +227,13 @@ if __name__ == "__main__":
     parser.add_argument("--ma-alpha",   "-ma", type=float, default=0.5, help="Moving average alpha value (default: 0.9)")
     parser.add_argument("--end-result", "-end", action='store_true', help="Plot only the end result (default: False)")
     parser.add_argument("--metric",     "-m", type=str, default="score", help="Metric to plot (default: score)")
+    parser.add_argument("--filter",     "-f", action='store_true', help="Filter out unsuccessful sessions (default: False)")
     args = parser.parse_args()
 
     logging.info(f"Arguments: {args}")
 
     # Open file dialog to select files
-    sessions = list(parse_rollout_file(open_file_dialog(), ma_alpha=args.ma_alpha, training_trend=not args.end_result))
+    sessions = list(parse_rollout_file(open_file_dialog(), ma_alpha=args.ma_alpha, training_trend=not args.end_result, filter=args.filter))
     
     if not sessions:
         logging.error("No files selected or no valid sessions found.")
@@ -286,7 +299,7 @@ if __name__ == "__main__":
         ax.set_xlabel('episode')
         ax.set_ylabel(args.metric)
         ax.set_title('TextWorld Rollout Scores')
-        ax.legend()
+        # ax.legend()
         # ax.grid()
         fig.tight_layout()
         plt.show()
