@@ -26,44 +26,14 @@ An implementation of agentic systems with quest graphs.
 
     -   Install [ROCm-kernel (amdgpu-dkms)](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html)
 
-3.  Create `secrets.env` file to install neccessary tokens (Huggingface, OpenAI, etc.) (See the running section for more details.)
+3.  Create `secrets.env` file to install neccessary tokens (Huggingface, OpenAI, etc.) (See the table below for more details.)
     ```
-    export QUEST_LM_DEPLOYMENT="cloud-api-litellm"
-    export QUEST_LM_MODEL="openai/gpt-4o"
+    export {VARIABLE_NAME}="{VALUE}"
     ...
     ```
+    -   By default, no variables are required to run the experiments. You can run the experiments without any language model or embedding model.
 
-## Run experiments
-
--   By default, use program script `./run_manual.sh {configuration} {path to file} {optional flags}` to execute the python file with the selected configuration. (See table below.)
-    -   The program **may fail** to run on the first attempt due to the failure to find package directories. If this happens, run the program again.
-    -   To clear the cache and reset the experiment, use `./run_manual.sh {configuration} {path to file} --reset`.
--   For VSCode, press `F5` to run the selected configuration:
-    -   Launch `pytorch current file` to run the experiment in the opening file. You will also need to choose the configuration from the dropdown list.
-        -   `torch-cpu` for torch in cpu environment
-        -   `torch-cuda` for torch in CUDA environment.
-        -   `torch-rocm` for torch in ROCm environment.
-    -   Launch `reset` to clear the cache and reset the experiment.
-    -   To assist pylance, add paths to local install python packages in `.vscode/settings.json`:
-        ```json
-        {
-            "python.analysis.extraPaths": [...]
-        }
-        ```
-        -   We recommend using `.venv` as the default virtual environment directory.
-        -   Note that when building docker, python packages required for the experiment will be installed under `artifacts/pip_modules` directory. Except for pytorch, which will be installed in the docker image. To fix pylance, either refer to local install pytorch or use virtual environment on top.
--   Running on Windows
-    -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
-
-| Experiment       | Description                                             | Valid configurations (pick one)         | Path to file (+flags)   |
-| ---------------- | ------------------------------------------------------- | --------------------------------------- | ----------------------- |
-| **Test devices** | Run the test to compare the performance of the devices. | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/benchmark.py`    |
-| **TextWorld**    | Run the TextWorld experiment.                           | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_textworld.py` |
-| **ALFWorld**     | Run the ALFWorld experiment.                            | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_alfworld.py`  |
-| **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/qa_multihop.py`  |
-| **Reset**        | Reset the selected experiment.                          | Any                                     | Any with `--reset`      |
-
-### Environment Variables
+### Environment Variable Formats
 
 | Environment Variables        | Description                                                                             | Values                                                                      |
 | ---------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
@@ -75,12 +45,37 @@ An implementation of agentic systems with quest graphs.
 | `QUEST_EMBEDDING_MODEL`      | Embedding model name.                                                                   | e.g. "text-embedding-3-small", "ibm-granite/granite-embedding-125m-english" |
 | `QUEST_EMBEDDING_API_KEY`    | Embedding service provider API key. (Or use provider' own variable)                     | string                                                                      |
 
-Apart from the above environment variables, you must also include _third-party API_ keys in the `secrets.env` file in order to use their services.
+Apart from the above environment variables, you might also need to include _third-party API_ keys in the `secrets.env` file in order to use their services.
 
-### Run plots:
+## Running experiments
+
+-   By default, use program script `./run_manual.sh {configuration} {path to file} {optional flags}` to execute the python file with the selected configuration. (See table below.)
+    -   The program **may fail** to run on the first attempt due to the failure to find package directories. If this happens, run the program again.
+    -   To clear the cache and reset the experiment, use `./run_manual.sh {configuration} {path to file} --reset`.
+-   For VSCode, press `F5` to run the selected configuration:
+    -   Launch `Run current file` to run the experiment in the opening file.
+        -   You will also need to choose the configuration from the dropdown list.
+            -   `torch-cpu` for torch in cpu environment
+            -   `torch-cuda` for torch in CUDA environment.
+            -   `torch-rocm` for torch in ROCm environment.
+        -   VSCode will also ask for additional program arguments. Pass nothing if you want to use the default arguments.
+    -   Launch `reset` to clear the cache and reset the experiment.
+-   Running on Windows
+    -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
+
+| Experiment       | Description                                             | Valid configurations (pick one)         | Path to file (+flags)   |
+| ---------------- | ------------------------------------------------------- | --------------------------------------- | ----------------------- |
+| **Test devices** | Run the test to compare the performance of the devices. | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/benchmark.py`    |
+| **TextWorld**    | Run the TextWorld experiment.                           | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_textworld.py` |
+| **ALFWorld**     | Run the ALFWorld experiment.                            | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/rl_alfworld.py`  |
+| **Multihop-QA**  | Run the multi-hop QA experiment.                        | `torch-cpu`, `torch-cuda`, `torch-rocm` | `tasks/qa_multihop.py`  |
+| **Reset**        | Reset the selected experiment.                          | Any                                     | Any with `--reset`      |
+
+### Running plots:
 
 -   Plots use graphics therefore they cannot be run in the docker container.
--   Create python virtual environment in the root directory of the project, e.g. `python -m venv .venv`.
+-   Create python virtual environment in the root directory of the project.
+    -   We recommend using `.venv` as the default virtual environment directory, e.g. `python -m venv .venv`.
 -   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib`.
 -   Run the plot script in the virtual environment, e.g. `python tasks/plot_{experiment}.py`.
 
@@ -88,12 +83,25 @@ Apart from the above environment variables, you must also include _third-party A
 
 -   Prepare accelerated hardware with at least 24GB of VRAM.
 -   Create an empty `secrets.env` file in the root directory of the project. (You won't be needing LMs to run the RL experiments. We train everything from scratch.)
--   run for each env_index in set(1, 2, 3, 4, 5, 6) and for each algorithm_flags in ["", "--npt", "--npt --nst"]:
+-   Run for each env_index in set(1, 2, 3, 4, 5, 6) and for each algorithm_flags in ["", "--npt", "--npt --nst"]:
     `./run_manual.sh {configuration} tasks/rl_textworld.py --env-index {env_index} --run-count 2 -s medium {algorithm_flags} -o {random output file name}`
     This will start the training sessions in docker containers and save the rollouts in `artifacts` directory.
     Note that the training takes at least a day to complete one session.
 -   In the virtual environment, run `python3 tasks/plot_rl_textworld.py` to plot the results (select all rollout files) in the graph.
 -   In the virtual environment, run `python3 tasks/plot_rl_textworld.py --end-result` to print the result in the table.
+
+## Development
+
+We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for development. It has great support for Python and Docker.
+
+-   To assist pylance, add paths to local install python packages in `.vscode/settings.json`:
+    ```json
+    {
+        "python.analysis.extraPaths": ["${workspaceFolder}/.venv/lib/python3.12/site-packages", "${workspaceFolder}/artifacts/pip_modules/lib/python3.12/site-packages"]
+    }
+    ```
+    -   We recommend using `.venv` as the default virtual environment directory.
+    -   Note that when building docker, python packages required for the experiment will be installed under `artifacts/pip_modules` directory. Except for pytorch, which will be installed in the docker image. To fix pylance, either refer to local install pytorch or use virtual environment on top.
 
 ## To do
 
