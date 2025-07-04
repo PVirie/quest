@@ -475,13 +475,15 @@ if __name__ == "__main__":
     random.seed(20250301)  # For reproducibility when using the game.
     torch.manual_seed(20250301)  # For reproducibility when using action sampling.
 
+    # The use of full state information is only required for evaluation, not for decision making.
+    # This does not violate POMDP assumption.
     request_infos = textworld.EnvInfos(
         facts=True,  # All the facts that are currently true about the world.
         admissible_commands=True,  # All commands relevant to the current state.
         entities=True,              # List of all interactable entities found in the game.
         max_score=True,            # The maximum reachable score.
-        description=True,          # The description of the current room.
-        inventory=True,            # The player's inventory.
+        description=True,          # The description of the current room. This is consider full state information.
+        inventory=True,            # The player's inventory. This is consider full state information.
         objective=True,            # The player's objective.
         won=True,                  # Whether the player has won.
         lost=True,                 # Whether the player has lost.

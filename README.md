@@ -110,6 +110,7 @@ Apart from the above environment variables, you must also include _third-party A
 -   [ ] Positional encoding
     -   [x] Add PE to state, action, and context
     -   [ ] RoPE
+    -   [ ] Learned encoding
 -   [x] Reduce VRAM usage (increase training time)
     -   [x] Disentangle gradient
     -   [x] Sample action sets
