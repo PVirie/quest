@@ -190,12 +190,12 @@ def process_stat_sequence(session_stat_sequences, filter=False):
                 if key not in sums[i]:
                     sums[i][key] = 0.0
                     sqr_sums[i][key] = 0.0
+                if key not in raws:
+                    raws[key] = []
                 if not filtered:
                     sums[i][key] += value
                     sqr_sums[i][key] += value ** 2
-                if key not in raws:
-                    raws[key] = []
-                raws[key].append(value)
+                    raws[key].append(value)
             sums[i]['count'] = sums[i].get('count', 0) + (1 if not filtered else 0)
             sums[i]['unfiltered_count'] = sums[i].get('unfiltered_count', 0) + 1
 
@@ -305,13 +305,14 @@ if __name__ == "__main__":
 
                 for k, metric in enumerate(['succeeded', 'cl', 'max_cl']):
                     # Mann-Whitney U test for succeeded
+                    alternative = 'two-sided' if metric == 'succeeded' else 'less'
                     u_stat, p_value = mannwhitneyu(
                         raws_i[metric],
                         raws_j[metric],
-                        alternative='greater' if metric == 'succeeded' else 'less'
+                        alternative=alternative
                     )
                     stat_p_value_table[k][i][j] = (u_stat, p_value)
-                    logging.info(f"Mann-Whitney U test of {metric} between {label} and {label2}: U={u_stat:.2f}, p={p_value:.4f}")
+                    logging.info(f"Mann-Whitney U test for {alternative} of {metric} between {label} and {label2}: U={u_stat:.2f}, p={p_value:.4f}")
             logging.info("------------------------------------------------")
 
     else:
