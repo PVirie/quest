@@ -83,12 +83,12 @@ Apart from the above environment variables, you might also need to include _thir
 
 -   Prepare accelerated hardware with at least 24GB of VRAM.
 -   Create an empty `secrets.env` file in the root directory of the project. (You won't be needing LMs to run the RL experiments. We train everything from scratch.)
--   Run for each env_index in set(1, 2, 3, 4, 5, 6) and for each algorithm_flags in ["", "--npt", "--npt --nst"]:
+-   Run for each env_index in set(1, 2, 3, 4, 5) and for each algorithm_flags in ["", "--npt", "--npt --nst"]:
     `./run_manual.sh {configuration} tasks/rl_textworld.py --env-index {env_index} --run-count 2 -s medium {algorithm_flags} -o {random output file name}`
     This will start the training sessions in docker containers and save the rollouts in `artifacts` directory.
     Note that the training takes at least a day to complete one session.
 -   In the virtual environment, run `python3 tasks/plot_rl_textworld.py` to plot the results (select all rollout files) in the graph.
--   In the virtual environment, run `python3 tasks/plot_rl_textworld.py --end-result` to print the result in the table.
+-   In the virtual environment, run `python3 tasks/plot_rl_textworld.py --end-result --filter` to print the result in the table.
 
 ## Development
 
@@ -118,6 +118,7 @@ We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for devel
 -   [ ] Positional encoding
     -   [x] Add PE to state, action, and context
     -   [ ] RoPE
+    -   [ ] Learned encoding
 -   [x] Reduce VRAM usage (increase training time)
     -   [x] Disentangle gradient
     -   [x] Sample action sets
