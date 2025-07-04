@@ -83,12 +83,13 @@ def parse_rollout_file(file_generator, ma_alpha, training_trend, trend_threshold
         if len(sessions) == 0:
             logging.warning(f"No valid sessions found for metadata key: {metadata_key}")
             continue
-        average_stats = compute_mean_stat_sequence([session['stats'] for session in sessions])
-        average_moving_average = compute_moving_average(average_stats, alpha=ma_alpha)
+        mean_per_episode, var_per_episode = process_stat_sequence([session['stats'] for session in sessions])
+        moving_average = compute_moving_average(mean_per_episode, alpha=ma_alpha)
         yield {
             'metadata': sessions[0]['metadata'],
-            'stats': average_stats,
-            'moving_average': average_moving_average
+            'stats': mean_per_episode,
+            'vars': var_per_episode,
+            'moving_average': moving_average
         }
 
 
@@ -110,7 +111,7 @@ def parse_session(session):
     """
     episodes = session.strip().split('------------------------------------------------------------------------')
     header = episodes[0].strip()
-    logging.info(f"Parsing session header: {header}")
+    # logging.info(f"Parsing session header: {header}")
     field_values = {line.split(':', 1)[0].strip().lower(): line.split(':', 1)[1].strip().lower() for line in header.split('\n')} 
     metadata = {
         'date': utilities.get_datetime_from_string(field_values.get('date', '')),
@@ -151,7 +152,7 @@ def parse_session(session):
                     'cl': cl,
                     'max_cl': max_cl 
                 })
-
+    stats.sort(key=lambda x: x['episode'])
     return metadata_key, metadata, stats
 
 
@@ -166,28 +167,44 @@ def compute_moving_average(stats, alpha):
     return output
 
 
-def compute_mean_stat_sequence(session_stat_sequences):
+def process_stat_sequence(session_stat_sequences):
     """Computes the mean of a sequence of statistics."""
     if not session_stat_sequences:
         return []
 
-    # Initialize the output with the first session's stats
-    output = session_stat_sequences[0].copy()
+    sums = []
+    sqr_sums = []
 
     # Iterate over each session's stats
     for session_stats in session_stat_sequences[1:]:
         for i, stat in enumerate(session_stats):
+            if i >= len(sums):
+                sums.append({})
+                sqr_sums.append({})
             for key, value in stat.items():
-                if key not in output[i]:
-                    output[i][key] = 0.0
-                output[i][key] += value
+                if key not in sums[i]:
+                    sums[i][key] = 0.0
+                    sqr_sums[i][key] = 0.0
+                sums[i][key] += value
+                sqr_sums[i][key] += value ** 2
+            sums[i]['count'] = sums[i].get('count', 0) + 1
 
-    # Average the values
-    for i, stat in enumerate(output):
+    means = []
+    vars = []
+    for i, stat in enumerate(sums):
+        if i >= len(means):
+            means.append({})
+            vars.append({})
+        N = stat.get('count', 1)
         for key in stat:
-            stat[key] /= len(session_stat_sequences)
+            if key == 'count':
+                continue
+            m = stat[key] / N if N > 0 else 0.0
+            means[i][key] = m
+            vars[i][key] = (sqr_sums[i][key] - N * m * m) / (N - 1) if N > 1 else 0.0
+        means[i]['count'] = N
 
-    return output
+    return means, vars
 
 
 if __name__ == "__main__":
@@ -210,27 +227,41 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if args.end_result:
-        # print average of success rate and average context length and max context length group by metadata
+        # print mean and variance of success rate and average context length and max context length group by metadata
         metadata_stats = {}
         for session in sessions:
             metadata = session['metadata']
             label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
             if label not in metadata_stats:
-                metadata_stats[label] = {'succeeded': 0, 'cl': 0, 'max_cl': 0, 'count': 0}
-            for stat in session['stats']:
-                metadata_stats[label]['succeeded'] += stat['succeeded']
-                metadata_stats[label]['cl'] += stat['cl']
-                metadata_stats[label]['max_cl'] += stat['max_cl']
-                metadata_stats[label]['count'] += 1
+                metadata_stats[label] = {
+                    'succeeded': 0, 'cl': 0, 'max_cl': 0, 'count': 0,
+                    'succeeded_2': 0, 'cl_2': 0, 'max_cl_2': 0
+                }
+            for means, vars in zip(session['stats'], session['vars']):
+                N = means.get('count', 1)
+                metadata_stats[label]['count'] += N
+                metadata_stats[label]['succeeded'] += means['succeeded'] * N
+                metadata_stats[label]['succeeded_2'] += vars['succeeded'] * (N - 1) + means['succeeded'] ** 2 * N
+                metadata_stats[label]['cl'] += means['cl'] * N
+                metadata_stats[label]['cl_2'] += vars['cl'] * (N - 1) + means['cl'] ** 2 * N
+                metadata_stats[label]['max_cl'] += means['max_cl'] * N
+                metadata_stats[label]['max_cl_2'] += vars['max_cl'] * (N - 1) + means['max_cl'] ** 2 * N
 
         # print the results
         logging.info("End Result Statistics:")
         for label, stats in metadata_stats.items():
-            if stats['count'] > 0:
-                avg_succeeded = stats['succeeded'] / stats['count']
-                avg_cl = stats['cl'] / stats['count']
-                avg_max_cl = stats['max_cl'] / stats['count']
+            N = stats['count']
+            S = N
+            if N > 0:
+                avg_succeeded = stats['succeeded'] / N
+                var_succeeded = (stats['succeeded_2'] - N * (avg_succeeded ** 2)) / (N - 1)
+                avg_cl = stats['cl'] / S
+                var_cl = (stats['cl_2'] - S * (avg_cl ** 2)) / (S - 1)
+                avg_max_cl = stats['max_cl'] / S
+                var_max_cl = (stats['max_cl_2'] - S * (avg_max_cl ** 2)) / (S - 1)
+                logging.info(f"{label} - Count: {N}")
                 logging.info(f"{label} - Avg Succeeded: {avg_succeeded:.2f}, Avg CL: {avg_cl:.2f}, Avg Max CL: {avg_max_cl:.2f}")
+                logging.info(f"{label} - Std Succeeded: {var_succeeded ** 0.5:.2f}, Std CL: {var_cl ** 0.5:.2f}, Std Max CL: {var_max_cl ** 0.5:.2f}")
             else:
                 logging.warning(f"{label} - No valid data found.")
 
