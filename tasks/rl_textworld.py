@@ -38,13 +38,12 @@ tw_envs = {
     "tw-simple-3": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250501", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-3.z8"],
     "tw-simple-4": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250502", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-4.z8"],
     "tw-simple-5": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250601", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-5.z8"],
-    "tw-simple-6": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250602", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-6.z8"],
-    "custom-game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "20250401", "--output", f"{textworld_path}/games/default/custom-game.z8"],
-    "custom-game-2": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "10", "--seed", "20250402", "--output", f"{textworld_path}/games/default/custom-game-2.z8"],
-    "treasure_hunter": ["tw-make", "tw-treasure_hunter", "--level", "15", "--seed", "20250401", "--output", f"{textworld_path}/games/default/treasure_hunter.z8"],
-    "coin_collector": ["tw-make", "tw-coin_collector", "--level", "100", "--seed", "20250401", "--output", f"{textworld_path}/games/default/coin_collector.z8"],
-    "cooking": ["tw-make", "tw-cooking", "--recipe", "4", "--take", "4", "--go", "6", "--open", "--cut", "--cook", "--recipe-seed", "20250401", "--output", f"{textworld_path}/games/default/cooking.z8"],
-    "cooking-2": ["tw-make", "tw-cooking", "--recipe", "3", "--take", "3", "--go", "6", "--cook", "--recipe-seed", "20250402", "--output", f"{textworld_path}/games/default/cooking-2.z8"],
+    # "custom-game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "20250401", "--output", f"{textworld_path}/games/default/custom-game.z8"],
+    # "custom-game-2": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "10", "--seed", "20250402", "--output", f"{textworld_path}/games/default/custom-game-2.z8"],
+    # "treasure_hunter": ["tw-make", "tw-treasure_hunter", "--level", "15", "--seed", "20250401", "--output", f"{textworld_path}/games/default/treasure_hunter.z8"],
+    # "coin_collector": ["tw-make", "tw-coin_collector", "--level", "100", "--seed", "20250401", "--output", f"{textworld_path}/games/default/coin_collector.z8"],
+    # "cooking": ["tw-make", "tw-cooking", "--recipe", "4", "--take", "4", "--go", "6", "--open", "--cut", "--cook", "--recipe-seed", "20250401", "--output", f"{textworld_path}/games/default/cooking.z8"],
+    # "cooking-2": ["tw-make", "tw-cooking", "--recipe", "3", "--take", "3", "--go", "6", "--cook", "--recipe-seed", "20250402", "--output", f"{textworld_path}/games/default/cooking-2.z8"],
 }
 for env_name, env_args in tw_envs.items():
     env_path = env_args[-1]
@@ -107,7 +106,7 @@ class Textworld_Main_Goal(MDP_Transition):
 
     def eval(self, node, obs):
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.4
+        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.1 - (n_quest_node - n_succeeded_node) * 1.0
         done = obs.done
         infos = obs.info
         override_objective = None
@@ -251,7 +250,7 @@ class Textworld_Transition(MDP_Transition):
         progress_transition = obs - node.start_observation
         score = self.score(progress_transition)
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.4
+        mdp_score = score - (n_action_node + n_quest_node) * 0.1 - (n_quest_node - n_succeeded_node) * 1.0
         override_objective = None
         if self == progress_transition:
             terminated = True
@@ -446,12 +445,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset",                  "-r",   action="store_true")
     parser.add_argument("--record-file",            "-o",   type=str, default="rollouts.txt",   help="The file to record the rollouts. Default is 'rollouts.txt'.")
-    parser.add_argument("--env-index",              "-ei",  type=int, default=2,                help="The index of the environment to use. Default is 2 (start from 1).")
-    parser.add_argument("--run-count",              "-rc",  type=int, default=1,                help="The number of runs to perform. Default is 1.")
     parser.add_argument("--q-learning",             "-q",   action="store_true",                help="Use Q-learning instead of Actor-Critic. Default is False.")
     parser.add_argument("--scale",                  "-s",   type=str, default="medium", choices=["small", "medium", "large"], help="The scale of the neural network. Default is 'medium'.")
     parser.add_argument("--no-relegation",          "-nre", action="store_true",                help="Disable relegation during training.")
-    parser.add_argument("--rel_prob",               "-rp",  type=float, default=1.0,            help="The probability of relegation during training. Default is 1.0.")
+    parser.add_argument("--rel-prob",               "-rp",  type=float, default=1.0,            help="The probability of relegation during training. Default is 1.0.")
     parser.add_argument("--no-sub-training",        "-nst", action="store_true",                help="Disable sub training during training.")
     parser.add_argument("--no-prospect-training",   "-npt", action="store_true",                help="Disable prospect training during training.")
     args = parser.parse_args()
@@ -464,16 +461,28 @@ if __name__ == "__main__":
         exit()
     os.makedirs(experiment_path, exist_ok=True)
 
-    selected_env_str = f"tw-simple-{args.env_index}"
-    rollout_file_path = os.path.join(experiment_path, f"rollouts_{selected_env_str}.txt")
+    rollout_file_path = os.path.join(experiment_path, f"rollouts.txt")
     if args.record_file:
         rollout_file_path = os.path.join(experiment_path, args.record_file)
 
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    random.seed(20250301)  # For reproducibility when using the game.
-    torch.manual_seed(20250301)  # For reproducibility when using action sampling.
+    # For reproducibility (https://docs.pytorch.org/docs/stable/notes/randomness.html)
+    random.seed(20250701)  
+    torch.manual_seed(20250701)
+    np.random.seed(20250701)
+    torch.use_deterministic_algorithms(True)
+
+    MAX_VOCAB_SIZE = 1000
+    tokenizer = Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
+
+    if args.q_learning:
+        from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model, Network_Scale_Preset
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.000002, epsilon_greedy=1.0, train_temperature=0.05)
+    else:
+        from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model, Network_Scale_Preset
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.000002, entropy_weight=0.1, train_temperature=1.0)
 
     # The use of full state information is only required for evaluation, not for decision making.
     # This does not violate POMDP assumption.
@@ -489,77 +498,67 @@ if __name__ == "__main__":
         lost=True,                 # Whether the player has lost.
     )
 
-    game_path = tw_envs[selected_env_str][-1]
-    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
-    env = textworld.gym.make(env_id)
-    obs, infos = env.reset()
-    infos = flatten_batch(infos)
+    for env_name, env_args in tw_envs.items():
+        game_path = env_args[-1]
+        env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
+        env = textworld.gym.make(env_id)
 
-    available_objectives = [
-        Textworld_Transition.from_string("Find a carrot", is_main=True),
-        Textworld_Transition.from_string("Find a soap bar", is_main=True),
-        Textworld_Transition.from_string("Find a note", is_main=True),
-        Textworld_Transition.from_string("Find a bell pepper", is_main=True),
-        Textworld_Transition.from_string("Find a toothbrush", is_main=True),
-        Textworld_Transition.from_string("Find a shovel", is_main=True),
-        Textworld_Transition.from_string("Find an apple", is_main=True),
-        Textworld_Main_Goal(infos["objective"], infos["max_score"])
-    ]
-
-    MAX_VOCAB_SIZE = 1000
-    tokenizer = Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
-
-    def env_step(action):
-        obs, score, done, infos = env.step([action])
-        obs = obs[0]
-        # use regex to suppress multiple \n\n to one
-        obs = re.sub(r"\n+", "\n", obs)
-        score = score[0]
-        done = done[0]
+        obs, infos = env.reset()
         infos = flatten_batch(infos)
-        return Textworld_State(obs, score, done, infos)
+        available_objectives = [
+            Textworld_Transition.from_string("Find a carrot", is_main=True),
+            Textworld_Transition.from_string("Find a soap bar", is_main=True),
+            Textworld_Transition.from_string("Find a note", is_main=True),
+            Textworld_Transition.from_string("Find a bell pepper", is_main=True),
+            Textworld_Transition.from_string("Find a toothbrush", is_main=True),
+            Textworld_Transition.from_string("Find a shovel", is_main=True),
+            Textworld_Transition.from_string("Find an apple", is_main=True),
+            Textworld_Main_Goal(infos["objective"], infos["max_score"])
+        ]
 
-    if args.q_learning:
-        from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model, Network_Scale_Preset
-        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.000002, epsilon_greedy=1.0, train_temperature=0.05)
-    else:
-        from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model, Network_Scale_Preset
-        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.000002, entropy_weight=0.1, train_temperature=1.0)
+        def env_step(action):
+            obs, score, done, infos = env.step([action])
+            obs = obs[0]
+            # use regex to suppress multiple \n\n to one
+            obs = re.sub(r"\n+", "\n", obs)
+            score = score[0]
+            done = done[0]
+            infos = flatten_batch(infos)
+            return Textworld_State(obs, score, done, infos)
 
-    persona = Persona(
-        rl_core,
-        tokenizer,
-        compute_folds,
-        env_step,
-        training_relegation_probability=args.rel_prob,
-    )
-
-    persona.set_allow_relegation(not args.no_relegation)
-    persona.set_allow_sub_training(not args.no_sub_training)
-    persona.set_allow_prospect_training(not args.no_prospect_training)
-
-    # if not persona.load(agent_parameter_path):
-    logging.info(f"Selected environment: {selected_env_str}")
-    logging.info(f"Initiate agent training with following parameters:")
-    logging.info(f"  - Algorithm: {'Q-learning' if args.q_learning else 'Actor-Critic'}")
-    logging.info(f"  - Network scale: {str(Network_Scale_Preset(args.scale).value)}")
-    logging.info(f"  - Allow relegation: {not args.no_relegation}")
-    logging.info(f"  - Relegation probability: {args.rel_prob}")
-    logging.info(f"  - Allow sub training: {not args.no_sub_training}")
-    logging.info(f"  - Allow prospect training: {not args.no_prospect_training}")
-    
-    for i in range(int(args.run_count)):
         rl_core.reset()
+
+        persona = Persona(
+            rl_core,
+            tokenizer,
+            compute_folds,
+            env_step,
+            training_relegation_probability=args.rel_prob,
+        )
+
+        # if not persona.load(agent_parameter_path):
+        logging.info(f"Selected environment: {env_name}")
+        logging.info(f"Initiate agent training with following parameters:")
+        logging.info(f"  - Algorithm: {'Q-learning' if args.q_learning else 'Actor-Critic'}")
+        logging.info(f"  - Network scale: {str(Network_Scale_Preset(args.scale).value)}")
+        logging.info(f"  - Allow relegation: {not args.no_relegation}")
+        logging.info(f"  - Relegation probability: {args.rel_prob}")
+        logging.info(f"  - Allow sub training: {not args.no_sub_training}")
+        logging.info(f"  - Allow prospect training: {not args.no_prospect_training}")
+
+        persona.set_allow_relegation(not args.no_relegation)
+        persona.set_allow_sub_training(not args.no_sub_training)
+        persona.set_allow_prospect_training(not args.no_prospect_training)
 
         persona.set_training_mode(True)
         play(env, available_objectives, persona, 
             rollout_file_path=rollout_file_path, 
-            nb_episodes=10000, verbose=True, verbose_step=100, verbose_prefix=f"[Run {i+1}/{args.run_count}]")
+            nb_episodes=10000, verbose=True, verbose_step=100, verbose_prefix=f"[Run {env_name}]")
         # persona.save(agent_parameter_path)
 
         persona.set_training_mode(False)
         play(env, available_objectives, persona, 
             rollout_file_path=rollout_file_path, 
             nb_episodes=len(available_objectives), verbose=True, verbose_step=1)
-        
-    env.close()
+            
+        env.close()

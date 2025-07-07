@@ -83,12 +83,14 @@ Apart from the above environment variables, you might also need to include _thir
 
 -   Prepare accelerated hardware with at least 24GB of VRAM.
 -   Create an empty `secrets.env` file in the root directory of the project. (You won't be needing LMs to run the RL experiments. We train everything from scratch.)
--   Run for each env_index in set(1, 2, 3, 4, 5) and for each algorithm_flags in ["", "--npt", "--npt --nst"]:
-    `./run_manual.sh {configuration} tasks/rl_textworld.py --env-index {env_index} --run-count 2 -s medium {algorithm_flags} -o {random output file name}`
+-   Run for each algorithm_flags in ["", "--npt", "--npt --nst"]:
+    `./run_manual.sh {configuration} tasks/rl_textworld.py -s medium {algorithm_flags} -o {random output file name}`
     This will start the training sessions in docker containers and save the rollouts in `artifacts` directory.
-    Note that the training takes at least a day to complete one session.
--   In the virtual environment, run `python3 tasks/plot_rl_textworld.py` to plot the results (select all rollout files) in the graph.
--   In the virtual environment, run `python3 tasks/plot_rl_textworld.py --end-result --filter` to print the result in the table.
+    Note that the training normally takes a few day to complete per each algorithm_flags.
+-   To plot the results, you can use the following commands:
+    -   Create a virtual environment in the root directory of the project, e.g. `python -m venv .venv`.
+    -   To plot the graph, run `python3 tasks/plot_rl_textworld.py` and select all the rollout files.
+    -   To print the table, run `python3 tasks/plot_rl_textworld.py --end-result --filter` and select all the rollout files.
 
 ## Development
 
