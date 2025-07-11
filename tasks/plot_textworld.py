@@ -1,6 +1,5 @@
 import os
 import sys
-from tkinter import filedialog
 import logging
 from datetime import datetime
 import argparse
@@ -9,9 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import utilities
 
-utilities.install('matplotlib')
-utilities.install('tkinter')
-utilities.install('scipy')
+from tkinter import filedialog
 import matplotlib.pyplot as plt
 from matplotlib import lines, markers
 from cycler import cycler
@@ -195,6 +192,7 @@ def process_stat_sequence(session_stat_sequences, filter=False):
                 if not filtered:
                     sums[i][key] += value
                     sqr_sums[i][key] += value ** 2
+                if not filtered or key == 'succeeded':
                     raws[key].append(value)
             sums[i]['count'] = sums[i].get('count', 0) + (1 if not filtered else 0)
             sums[i]['unfiltered_count'] = sums[i].get('unfiltered_count', 0) + 1
@@ -254,14 +252,19 @@ if __name__ == "__main__":
             label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
             if label not in metadata_stats:
                 metadata_stats[label] = {
-                    'succeeded': 0, 'cl': 0, 'max_cl': 0, 'count': 0,
-                    'succeeded_2': 0, 'cl_2': 0, 'max_cl_2': 0
+                    'count': 0,
+                    'steps': 0, 'succeeded': 0, 'score': 0, 'cl': 0, 'max_cl': 0,  
+                    'step_2': 0, 'succeeded_2': 0, 'score_2': 0, 'cl_2': 0, 'max_cl_2': 0,
                 }
             for means, vars in zip(session['stats'], session['vars']):
                 N = means.get('count', 1)
                 metadata_stats[label]['count'] += N
+                metadata_stats[label]['steps'] += means['steps'] * N
+                metadata_stats[label]['step_2'] += vars['steps'] * (N - 1) + means['steps'] ** 2 * N
                 metadata_stats[label]['succeeded'] += means['succeeded'] * N
                 metadata_stats[label]['succeeded_2'] += vars['succeeded'] * (N - 1) + means['succeeded'] ** 2 * N
+                metadata_stats[label]['score'] += means['score'] * N
+                metadata_stats[label]['score_2'] += vars['score'] * (N - 1) + means['score'] ** 2 * N
                 metadata_stats[label]['cl'] += means['cl'] * N
                 metadata_stats[label]['cl_2'] += vars['cl'] * (N - 1) + means['cl'] ** 2 * N
                 metadata_stats[label]['max_cl'] += means['max_cl'] * N
@@ -271,19 +274,22 @@ if __name__ == "__main__":
         logging.info("End Result Statistics:")
         for label, stats in metadata_stats.items():
             N = stats['count']
-            S = N
             if N > 0:
+                avg_steps = stats['steps'] / N
+                var_steps = (stats['step_2'] - N * (avg_steps ** 2)) / (N - 1)
                 avg_succeeded = stats['succeeded'] / N
                 var_succeeded = (stats['succeeded_2'] - N * (avg_succeeded ** 2)) / (N - 1)
-                avg_cl = stats['cl'] / S
-                var_cl = (stats['cl_2'] - S * (avg_cl ** 2)) / (S - 1)
-                avg_max_cl = stats['max_cl'] / S
-                var_max_cl = (stats['max_cl_2'] - S * (avg_max_cl ** 2)) / (S - 1)
+                avg_score = stats['score'] / N
+                var_score = (stats['score_2'] - N * (avg_score ** 2)) / (N - 1)
+                avg_cl = stats['cl'] / N
+                var_cl = (stats['cl_2'] - N * (avg_cl ** 2)) / (N - 1)
+                avg_max_cl = stats['max_cl'] / N
+                var_max_cl = (stats['max_cl_2'] - N * (avg_max_cl ** 2)) / (N - 1)
                 logging.info(f"{label} - Count: {N}")
-                logging.info(f"{label} - Avg Succeeded: {avg_succeeded:.2f}, Avg CL: {avg_cl:.2f}, Avg Max CL: {avg_max_cl:.2f}")
-                logging.info(f"{label} - Std Succeeded: {var_succeeded ** 0.5:.2f}, Std CL: {var_cl ** 0.5:.2f}, Std Max CL: {var_max_cl ** 0.5:.2f}")
+                logging.info(f"{label} - Avg Steps: {avg_steps:.2f}, Avg Succeeded: {avg_succeeded:.2f}, Avg Score: {avg_score:.2f}, Avg CL: {avg_cl:.2f}, Avg Max CL: {avg_max_cl:.2f}")
+                logging.info(f"{label} - Std Steps: {var_steps ** 0.5:.2f}, Std Succeeded: {var_succeeded ** 0.5:.2f}, Std Score: {var_score ** 0.5:.2f}, Std CL: {var_cl ** 0.5:.2f}, Std Max CL: {var_max_cl ** 0.5:.2f}")
                 # Print LaTeX formatted output
-                logging.info(f"{avg_succeeded:.2f} $\\pm$ {var_succeeded ** 0.5:.2f} & {avg_cl:.2f} $\\pm$ {var_cl ** 0.5:.2f} & {avg_max_cl:.2f} $\\pm$ {var_max_cl ** 0.5:.2f} \\\\")
+                logging.info(f"{avg_score:.2f} $\\pm$ {var_score ** 0.5:.2f} & {avg_succeeded:.2f} $\\pm$ {var_succeeded ** 0.5:.2f} & {avg_cl:.2f} $\\pm$ {var_cl ** 0.5:.2f} \\\\")
             else:
                 logging.warning(f"{label} - No valid data found.")
 
@@ -303,9 +309,16 @@ if __name__ == "__main__":
                 raws_i = session_i['raws']
                 raws_j = session_j['raws']
 
-                for k, metric in enumerate(['succeeded', 'cl', 'max_cl']):
-                    # Mann-Whitney U test for succeeded
-                    alternative = 'two-sided' if metric == 'succeeded' else 'less'
+                for k, metric in enumerate(['score', 'succeeded', 'cl']):
+                    # Mann-Whitney U test
+                    if metric == 'succeeded':
+                        alternative = 'greater'
+                    elif metric == 'cl':
+                        alternative = 'less'
+                    elif metric == 'score':
+                        alternative = 'greater'
+                    else:
+                        alternative = 'two-sided'
                     u_stat, p_value = mannwhitneyu(
                         raws_i[metric],
                         raws_j[metric],

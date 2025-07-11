@@ -1,10 +1,14 @@
 # Quest Graphs for Agentic Systems
 
-An implementation of agentic systems with quest graphs.
+Greetings, and welcome to the Quest Graphs repository!
+This repository contains the code and resources for an agentic system with Quest Graphs.
+My hierarchy promotion algorithm --- Keep All and Prospect --- is designed to help the agent to discover and learn new sub-problems in a more efficient way than the traditional Reinforcement Learning (RL) methods.
 
-| Generation | Model Name | Description |
-| ---------- | ---------- | ----------- |
-| 1          | Foundation | See paper   |
+Live long and prosper!
+
+| Generation | Model Name            | Description |
+| ---------- | --------------------- | ----------- |
+| 1          | Keep all and prospect | See paper   |
 
 ## Prerequisites
 
@@ -76,7 +80,7 @@ Apart from the above environment variables, you might also need to include _thir
 -   Plots use graphics therefore they cannot be run in the docker container.
 -   Create python virtual environment in the root directory of the project.
     -   We recommend using `.venv` as the default virtual environment directory, e.g. `python -m venv .venv`.
--   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib`.
+-   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib scipy`.
 -   Run the plot script in the virtual environment, e.g. `python tasks/plot_{experiment}.py`.
 
 ### Reproducing paper results
@@ -88,7 +92,7 @@ Apart from the above environment variables, you might also need to include _thir
     This will start the training sessions in docker containers and save the rollouts in `artifacts` directory.
     Note that the training normally takes a few day to complete per each algorithm_flags.
 -   To plot the results, you can use the following commands:
-    -   Create a virtual environment in the root directory of the project, e.g. `python -m venv .venv`.
+    -   Follow the instructions in the [Running plots](#running-plots) section to create a virtual environment and install the dependencies.
     -   To plot the graph, run `python3 tasks/plot_rl_textworld.py` and select all the rollout files.
     -   To print the table, run `python3 tasks/plot_rl_textworld.py --end-result --filter` and select all the rollout files.
 
