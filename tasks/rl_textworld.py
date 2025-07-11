@@ -106,7 +106,7 @@ class Textworld_Main_Goal(MDP_Transition):
 
     def eval(self, node, obs):
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.1 - (n_quest_node - n_succeeded_node) * 1.0
+        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.05 - (n_quest_node - n_succeeded_node) * 0.5
         done = obs.done
         infos = obs.info
         override_objective = None
@@ -123,7 +123,7 @@ class Textworld_Main_Goal(MDP_Transition):
                 terminated = True
                 truncated = False
                 succeeded = False
-                mdp_score = mdp_score - 1
+                mdp_score = mdp_score - 5
             else:
                 terminated = False
                 truncated = True
@@ -250,7 +250,7 @@ class Textworld_Transition(MDP_Transition):
         progress_transition = obs - node.start_observation
         score = self.score(progress_transition)
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = score - (n_action_node + n_quest_node) * 0.1 - (n_quest_node - n_succeeded_node) * 1.0
+        mdp_score = score - (n_action_node + n_quest_node) * 0.05 - (n_quest_node - n_succeeded_node) * 0.5
         override_objective = None
         if self == progress_transition:
             terminated = True
@@ -265,12 +265,12 @@ class Textworld_Transition(MDP_Transition):
                 terminated = True
                 truncated = False
                 succeeded = False
-                mdp_score = mdp_score - 1
+                mdp_score = mdp_score - 5
             elif infos["lost"]:
                 terminated = True
                 truncated = False
                 succeeded = False
-                mdp_score = mdp_score - 1
+                mdp_score = mdp_score - 5
             else:
                 terminated = False
                 truncated = True
