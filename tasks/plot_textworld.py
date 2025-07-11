@@ -1,6 +1,5 @@
 import os
 import sys
-from tkinter import filedialog
 import logging
 from datetime import datetime
 import argparse
@@ -9,9 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import utilities
 
-utilities.install('matplotlib')
-utilities.install('tkinter')
-utilities.install('scipy')
+from tkinter import filedialog
 import matplotlib.pyplot as plt
 from matplotlib import lines, markers
 from cycler import cycler
@@ -195,6 +192,7 @@ def process_stat_sequence(session_stat_sequences, filter=False):
                 if not filtered:
                     sums[i][key] += value
                     sqr_sums[i][key] += value ** 2
+                if not filtered or key == 'succeeded':
                     raws[key].append(value)
             sums[i]['count'] = sums[i].get('count', 0) + (1 if not filtered else 0)
             sums[i]['unfiltered_count'] = sums[i].get('unfiltered_count', 0) + 1
