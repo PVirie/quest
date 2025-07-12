@@ -229,7 +229,7 @@ if __name__ == "__main__":
     logging.info("Starting TextWorld Plotting Task")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ma-alpha",   "-ma", type=float, default=0.5, help="Moving average alpha value (default: 0.9)")
+    parser.add_argument("--ma-alpha",   "-ma", type=float, default=0.0, help="Moving average alpha value (default: 0.0)")
     parser.add_argument("--end-result", "-end", action='store_true', help="Plot only the end result (default: False)")
     parser.add_argument("--metric",     "-m", type=str, default="score", help="Metric to plot (default: score)")
     parser.add_argument("--filter",     "-f", action='store_true', help="Filter out unsuccessful sessions (default: False)")
