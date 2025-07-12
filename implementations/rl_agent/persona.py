@@ -290,6 +290,8 @@ class Persona:
                     sub_state_tensor = state_tensor[start_context_mark:(end_context_mark + 1), :]
                     self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, sub_state_tensor, action_list_tensor, all_action_list)
 
+            self.rl_core.update_sheduler()
+
 
     def think(self, quest_node):
         # supports is a list of nodes

@@ -175,4 +175,6 @@ class Hierarchy_Base:
         raise NotImplementedError("train() is not implemented in base class")
 
 
-        
+    def update_sheduler(self):
+        if self.scheduler is not None:
+            self.scheduler.step()

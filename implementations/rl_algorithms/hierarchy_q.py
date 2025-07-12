@@ -50,8 +50,7 @@ class Hierarchy_Q(Hierarchy_Base):
                 device=device)
         
         optimizer = optim.Adam(model.parameters(), learning_rate)
-        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.5)
-        scheduler = None
+        scheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.1, total_iters=2000)
         self.learning_rate = learning_rate
         self.epsilon_greedy = epsilon_greedy
         super().__init__(model=model, optimizer=optimizer, scheduler=scheduler, device=device, discount_factor=discount_factor, train_temperature=train_temperature)
@@ -153,8 +152,6 @@ class Hierarchy_Q(Hierarchy_Base):
         loss.backward()
         self.optimizer.step()
         self.optimizer.zero_grad()
-        if self.scheduler is not None:
-            self.scheduler.step()
         self.iteration += 1
 
         self.ave_loss = self.LOG_ALPHA * self.ave_loss + (1 - self.LOG_ALPHA) * loss.item()
