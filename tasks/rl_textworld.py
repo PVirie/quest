@@ -106,12 +106,17 @@ class Textworld_Main_Goal(MDP_Transition):
 
     def eval(self, node, obs):
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.025 - (n_quest_node - n_succeeded_node) * 0.25
+        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.4
         done = obs.done
         infos = obs.info
         override_objective = None
         if done:
-            if infos["won"]:
+            if infos["lost"] or not node.last_child_succeeded():
+                terminated = True
+                truncated = False
+                succeeded = False
+                mdp_score = mdp_score - 2
+            elif infos["won"]:
                 terminated = True
                 truncated = False
                 succeeded = True
@@ -119,11 +124,6 @@ class Textworld_Main_Goal(MDP_Transition):
                     mdp_score = mdp_score + 20
                 else:
                     mdp_score = mdp_score + 10
-            elif infos["lost"]:
-                terminated = True
-                truncated = False
-                succeeded = False
-                mdp_score = mdp_score - 5
             else:
                 terminated = False
                 truncated = True
@@ -250,9 +250,24 @@ class Textworld_Transition(MDP_Transition):
         progress_transition = obs - node.start_observation
         score = self.score(progress_transition)
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = score - (n_action_node + n_quest_node) * 0.025 - (n_quest_node - n_succeeded_node) * 0.25
+        mdp_score = score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.4
         override_objective = None
-        if self == progress_transition:
+        if done or not node.last_child_succeeded():
+            if infos["won"]:
+                terminated = True
+                truncated = False
+                succeeded = False
+                mdp_score = mdp_score - 2
+            elif infos["lost"]:
+                terminated = True
+                truncated = False
+                succeeded = False
+                mdp_score = mdp_score - 2
+            else:
+                terminated = False
+                truncated = True
+                succeeded = False
+        elif self == progress_transition:
             terminated = True
             truncated = False
             succeeded = True if n_action_node + n_quest_node >= 2 else False # if sub task can be done in one step, discourage it
@@ -260,21 +275,6 @@ class Textworld_Transition(MDP_Transition):
                 mdp_score = mdp_score + 20
             else:
                 mdp_score = mdp_score + 10
-        elif done:
-            if infos["won"]:
-                terminated = True
-                truncated = False
-                succeeded = False
-                mdp_score = mdp_score - 5
-            elif infos["lost"]:
-                terminated = True
-                truncated = False
-                succeeded = False
-                mdp_score = mdp_score - 5
-            else:
-                terminated = False
-                truncated = True
-                succeeded = False
         elif not self.is_main and n_action_node + n_quest_node > 10:
             terminated = False
             truncated = True
@@ -479,10 +479,10 @@ if __name__ == "__main__":
 
     if args.q_learning:
         from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model, Network_Scale_Preset
-        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.00002, epsilon_greedy=1.0, train_temperature=0.05)
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.00001, epsilon_greedy=1.0, train_temperature=0.05)
     else:
         from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model, Network_Scale_Preset
-        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.00002, entropy_weight=0.1, train_temperature=1.0)
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.00001, entropy_weight=0.1, train_temperature=1.0)
 
     # The use of full state information is only required for evaluation, not for decision making.
     # This does not violate POMDP assumption.
@@ -553,7 +553,7 @@ if __name__ == "__main__":
         persona.set_training_mode(True)
         play(env, available_objectives, persona, 
             rollout_file_path=rollout_file_path, 
-            nb_episodes=2000, verbose=True, verbose_step=100, verbose_prefix=f"[Run {env_name}]")
+            nb_episodes=10000, verbose=True, verbose_step=100, verbose_prefix=f"[Run {env_name}]")
         # persona.save(agent_parameter_path)
 
         persona.set_training_mode(False)

@@ -49,7 +49,7 @@ class Hierarchy_AC(Hierarchy_Base):
                 device=device)
         
         optimizer = optim.Adam(model.parameters(), learning_rate)
-        scheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.1, total_iters=2000)
+        scheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.1, total_iters=5000)
         self.learning_rate = learning_rate
         self.entropy_weight = entropy_weight
         super().__init__(model=model, optimizer=optimizer, scheduler=scheduler, device=device, discount_factor=discount_factor, train_temperature=train_temperature)
