@@ -57,8 +57,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from quest_interface import Quest_Graph, Action
 from quest_interface.mdp_state import MDP_State, MDP_Transition
 from implementations.rl_agent import agent_functions, rl_graph
+from implementations.rl_agent.rl_graph import Quest_Node, Observation_Node, Thought_Node
 from implementations.rl_agent.persona import Persona
-
 
 def flatten_batch(infos):
     return {k: v[0] for k, v in infos.items()}
@@ -355,7 +355,7 @@ def compute_folds(objective_transition, state_tuples):
     return selected_transitions
 
 
-def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, verbose=False, verbose_step=10, verbose_prefix=""):
+def play(env, env_step, available_objectives, persona, rollout_file_path, nb_episodes=10, verbose=False, verbose_step=10, verbose_prefix=""):
     
     with open(rollout_file_path, "a", encoding="utf-8") as f:
         # mark date
@@ -399,6 +399,10 @@ def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, 
                     break
             elif action == Action.DISCOVER:
                 working_memory.discover(param_1, param_2)
+                if isinstance(param_1, Observation_Node):
+                    # this is observation node, so we can step in the environment
+                    observation = env_step(param_1.action)
+                    param_1.observation = observation
                 if len(working_memory) > 400:
                     break
             else:
@@ -532,7 +536,6 @@ if __name__ == "__main__":
             rl_core,
             tokenizer,
             compute_folds,
-            env_step,
             training_relegation_probability=args.rel_prob,
         )
 
@@ -551,13 +554,13 @@ if __name__ == "__main__":
         persona.set_allow_prospect_training(not args.no_prospect_training)
 
         persona.set_training_mode(True)
-        play(env, available_objectives, persona, 
+        play(env, env_step, available_objectives, persona, 
             rollout_file_path=rollout_file_path, 
             nb_episodes=10000, verbose=True, verbose_step=100, verbose_prefix=f"[Run {env_name}]")
         # persona.save(agent_parameter_path)
 
         persona.set_training_mode(False)
-        play(env, available_objectives, persona, 
+        play(env, env_step, available_objectives, persona, 
             rollout_file_path=rollout_file_path, 
             nb_episodes=len(available_objectives), verbose=True, verbose_step=1)
             

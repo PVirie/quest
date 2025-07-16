@@ -32,6 +32,8 @@ class Action(Enum):
 
 
 class Quest_Graph:
+    # support multiple focuses
+
     def __init__(self, start_node: Node = None, start_graph = None):
         if start_node is None and start_graph is None:
             raise ValueError("Either start_node or start_graph must be provided")

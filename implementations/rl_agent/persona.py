@@ -29,11 +29,10 @@ class Persona:
     TRAIN_STEP=10
     PRINT_STEP=1000
 
-    def __init__(self, rl_core, tokenizer, compute_folds, env_step, training_relegation_probability=0.25, train_prompt=None):
+    def __init__(self, rl_core, tokenizer, compute_folds, training_relegation_probability=0.25, train_prompt=None):
         self.rl_core = rl_core
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
-        self.env_step = env_step
         self.training_relegation_probability = training_relegation_probability
         self.action_set = set()
         self.extra_actions = {}
@@ -411,11 +410,9 @@ class Persona:
             return return_sub_action, return_node
         elif command.startswith("Action"):
             action = detail
-            last_observation = self.env_step(action)
             return_sub_action = Sub_Action_Type.Act
             return_node = Observation_Node(
-                action = action, 
-                observation = last_observation, 
+                action = action,
                 train_ref = train_ref
             )
             return return_sub_action, return_node
