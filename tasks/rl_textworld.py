@@ -252,13 +252,16 @@ class Textworld_Transition(MDP_Transition):
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
         mdp_score = score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.4
         override_objective = None
-        if done or not node.last_child_succeeded():
-            if infos["won"]:
-                terminated = True
-                truncated = False
-                succeeded = False
-                mdp_score = mdp_score - 2
-            elif infos["lost"]:
+        if self == progress_transition:
+            terminated = True
+            truncated = False
+            succeeded = True if n_action_node + n_quest_node >= 2 else False # if sub task can be done in one step, discourage it
+            if n_succeeded_node >= 2:
+                mdp_score = mdp_score + 20
+            else:
+                mdp_score = mdp_score + 10
+        elif done:
+            if infos["won"] or infos["lost"]:
                 terminated = True
                 truncated = False
                 succeeded = False
@@ -267,14 +270,6 @@ class Textworld_Transition(MDP_Transition):
                 terminated = False
                 truncated = True
                 succeeded = False
-        elif self == progress_transition:
-            terminated = True
-            truncated = False
-            succeeded = True if n_action_node + n_quest_node >= 2 else False # if sub task can be done in one step, discourage it
-            if n_succeeded_node >= 2:
-                mdp_score = mdp_score + 20
-            else:
-                mdp_score = mdp_score + 10
         elif not self.is_main and n_action_node + n_quest_node > 10:
             terminated = False
             truncated = True
@@ -402,18 +397,26 @@ def play(env, env_step, available_objectives, persona, rollout_file_path, nb_epi
 
             ################# Evaluate current situation #################
 
-            if isinstance(last_child, Observation_Node):
-                observation = env_step(last_child.action)
-                mdp_score, terminated, truncated, succeeded, new_objective = focus_node.eval(observation)
-                last_child.train_ref.mdp_score = mdp_score
-                last_child.observation = observation
-            elif isinstance(last_child, Quest_Node):
-                observation = last_child.observation
-                mdp_score, terminated, truncated, succeeded, new_objective = focus_node.eval(observation)
+            if isinstance(last_child, Trainable):
+                last_observation = last_child.observation
+                mdp_score, terminated, truncated, succeeded, new_objective = focus_node.eval(last_observation)
                 last_child.train_ref.mdp_score = mdp_score
             else:
-                observation = focus_node.start_observation
-                mdp_score, terminated, truncated, succeeded, new_objective = focus_node.eval(observation)
+                children = focus_node.get_children()
+                # search for trainable last child
+                found = False
+                for child in reversed(children):
+                    if isinstance(child, Trainable):
+                        last_child = child
+                        found = True
+                        break
+                if not found:
+                    last_observation = focus_node.start_observation
+                else:
+                    last_observation = last_child.observation
+                mdp_score, terminated, truncated, succeeded, new_objective = focus_node.eval(last_observation)
+                if found:
+                    last_child.train_ref.mdp_score = mdp_score
 
             if persona.training_mode:
                 step += 1
@@ -422,9 +425,9 @@ def play(env, env_step, available_objectives, persona, rollout_file_path, nb_epi
 
             if terminated or truncated:
                 if terminated:
-                    return_node = Quest_Node(succeeded=succeeded, observation=observation)
+                    return_node = Quest_Node(succeeded=succeeded, observation=last_observation)
                 elif truncated:
-                    return_node = Quest_Node(truncated=True, succeeded=succeeded, observation=observation)
+                    return_node = Quest_Node(truncated=True, succeeded=succeeded, observation=last_observation)
                 parent = focus_node.get_parent()
                 working_memory.respond(return_node, parent)
                 step = 0
@@ -433,6 +436,8 @@ def play(env, env_step, available_objectives, persona, rollout_file_path, nb_epi
                 continue
 
             subact, new_node = persona.think(focus_node)
+            if isinstance(new_node, Observation_Node):
+                new_node.observation = env_step(new_node.action)
             working_memory.discover(new_node, focus_node)
             if len(working_memory) > 400:
                 break
