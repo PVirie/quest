@@ -61,6 +61,10 @@ class Quest_Graph:
         self.focus[head_index] = node
 
 
+    def get_focus_node(self, head_index=0) -> Node:
+        return self.focus[head_index]
+
+
     def query(self, head_index=0) -> Node_List:
         current_focus_node = self.focus[head_index]
         neighbors = current_focus_node.get_neighbors()

@@ -102,15 +102,17 @@ class Hierarchy_Q(Hierarchy_Base):
         # now prepare available actions
         max_available_actions = max([len(aa) for _, aa in pivot])
         available_actions_indices = []
+        padded_available_actions_by_pivot = []
         action_set = set(action_list)
         for _, aa in pivot:
             # compute free actions
-            free_actions = action_set - set(aa)
-            new_aa = aa.copy()
+            free_actions = action_set - aa
+            new_aa = list(aa.copy())
             # now add missing
             while len(new_aa) < max_available_actions:
                 new_aa.append(random.choice(list(free_actions)))
             available_actions_indices.append([action_list.index(a) for a in new_aa])
+            padded_available_actions_by_pivot.append(new_aa)
         available_actions_indices = torch.tensor(available_actions_indices, dtype=torch.int64, device=self.device) # shape: (num_pivot, max_action_length)
         
         # action_list_tensor has shape (all_action_length, action_size) must be expanded to (num_pivot, all_action_length, action_size)
@@ -125,7 +127,7 @@ class Hierarchy_Q(Hierarchy_Base):
 
         # ----------------------
         # now map to training data items
-        train_action_indexes = torch.reshape(torch.tensor([pivot[p][1].index(a) for _, a, p, _ in train_data], dtype=torch.int64, device=self.device), (-1, 1))
+        train_action_indexes = torch.reshape(torch.tensor([padded_available_actions_by_pivot[p].index(a) for _, a, p, _ in train_data], dtype=torch.int64, device=self.device), (-1, 1))
         train_from_indexes = torch.tensor([p for _, _, p, _ in train_data], dtype=torch.int64, device=self.device)
         train_to_indexes = torch.tensor([p for _, _, _, p in train_data], dtype=torch.int64, device=self.device)
         train_action_scores = torch.gather(action_scores, 0, train_from_indexes.unsqueeze(-1).expand(-1, max_available_actions))

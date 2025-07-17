@@ -56,8 +56,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from quest_interface import Quest_Graph, Action
 from quest_interface.mdp_state import MDP_State, MDP_Transition
-from implementations.rl_agent import agent_functions, rl_graph
-from implementations.rl_agent.rl_graph import Quest_Node, Observation_Node, Thought_Node
+from implementations.rl_agent import rl_graph
+from implementations.rl_agent.rl_graph import Trainable, Observation_Node, Quest_Node, Thought_Node
 from implementations.rl_agent.persona import Persona
 
 def flatten_batch(infos):
@@ -391,22 +391,52 @@ def play(env, env_step, available_objectives, persona, rollout_file_path, nb_epi
         )
 
         working_memory = Quest_Graph(root_node)
+        step = 0
         while True:
-            action, param_1, param_2 = agent_functions.basic_tree(persona, working_memory.query())
-            if action == Action.ANSWER:
-                working_memory.respond(param_1, param_2)
-                if param_2 is None:
-                    break
-            elif action == Action.DISCOVER:
-                working_memory.discover(param_1, param_2)
-                if isinstance(param_1, Observation_Node):
-                    # this is observation node, so we can step in the environment
-                    observation = env_step(param_1.action)
-                    param_1.observation = observation
-                if len(working_memory) > 400:
-                    break
+            focus_node = working_memory.get_focus_node()
+            last_child = focus_node.last_child()
+            if last_child is not None and isinstance(last_child, Quest_Node) and not last_child.is_completed():
+                working_memory.respond(None, last_child)
+                step = 0
+                continue
+
+            ################# Evaluate current situation #################
+
+            if isinstance(last_child, Observation_Node):
+                observation = env_step(last_child.action)
+                mdp_score, terminated, truncated, succeeded, new_objective = focus_node.eval(observation)
+                last_child.train_ref.mdp_score = mdp_score
+                last_child.observation = observation
+            elif isinstance(last_child, Quest_Node):
+                observation = last_child.observation
+                mdp_score, terminated, truncated, succeeded, new_objective = focus_node.eval(observation)
+                last_child.train_ref.mdp_score = mdp_score
             else:
-                raise ValueError("Invalid action")
+                observation = focus_node.start_observation
+                mdp_score, terminated, truncated, succeeded, new_objective = focus_node.eval(observation)
+
+            if persona.training_mode:
+                step += 1
+                if terminated or truncated or step % persona.TRAIN_STEPS == 0:
+                    persona.train(focus_node, train_last_node=terminated)
+
+            if terminated or truncated:
+                if terminated:
+                    return_node = Quest_Node(succeeded=succeeded, observation=observation)
+                elif truncated:
+                    return_node = Quest_Node(truncated=True, succeeded=succeeded, observation=observation)
+                parent = focus_node.get_parent()
+                working_memory.respond(return_node, parent)
+                step = 0
+                if parent is None:
+                    break
+                continue
+
+            subact, new_node = persona.think(focus_node)
+            working_memory.discover(new_node, focus_node)
+            if len(working_memory) > 400:
+                break
+
 
         if root_node.observation is None:
             # error skip
