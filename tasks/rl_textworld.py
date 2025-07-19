@@ -390,10 +390,6 @@ def play(env, env_step, available_objectives, persona, rollout_file_path, nb_epi
         while True:
             focus_node = working_memory.get_focus_node()
             last_child = focus_node.last_child()
-            if last_child is not None and isinstance(last_child, Quest_Node) and not last_child.is_completed():
-                working_memory.respond(None, last_child)
-                step = 0
-                continue
 
             ################# Evaluate current situation #################
 
@@ -436,9 +432,16 @@ def play(env, env_step, available_objectives, persona, rollout_file_path, nb_epi
                 continue
 
             subact, new_node = persona.think(focus_node)
-            if isinstance(new_node, Observation_Node):
+            if isinstance(new_node, Quest_Node):
+                working_memory.discover(new_node, focus_node)
+                working_memory.respond(None, new_node)
+                step = 0
+            elif isinstance(new_node, Observation_Node):
                 new_node.observation = env_step(new_node.action)
-            working_memory.discover(new_node, focus_node)
+                working_memory.discover(new_node, focus_node)
+            else:
+                working_memory.discover(new_node, focus_node)
+
             if len(working_memory) > 400:
                 break
 
