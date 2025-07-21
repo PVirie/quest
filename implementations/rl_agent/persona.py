@@ -26,7 +26,7 @@ def extract_command_and_detail(text):
 
 
 class Persona:
-    TRAIN_STEPS=10
+    TRAIN_STEPS=20
 
     def __init__(self, rl_core, tokenizer, compute_folds, training_relegation_probability=0.25, train_prompt=None):
         self.rl_core = rl_core
