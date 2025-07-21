@@ -159,7 +159,7 @@ class Persona:
             score = train_ref.mdp_score
             pivots.append((last_context_mark, train_ref.available_actions))
             selected_nodes.append((i, train_ref, last_observation, node.objective if isinstance(node, Quest_Node) else None))
-            if not train_ref.has_released:
+            if i >= len(supports) - self.TRAIN_STEPS:
                 if i < len(supports) - 1 or train_last_node:
                     train_data.append((score - last_score, train_ref.selected_action, len(pivots) - 1, len(pivots)))
                     train_ref.release()

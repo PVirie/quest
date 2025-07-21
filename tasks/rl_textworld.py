@@ -111,12 +111,7 @@ class Textworld_Main_Goal(MDP_Transition):
         infos = obs.info
         override_objective = None
         if done:
-            if infos["lost"] or not node.last_child_succeeded():
-                terminated = True
-                truncated = False
-                succeeded = False
-                mdp_score = mdp_score - 2
-            elif infos["won"]:
+            if infos["won"]:
                 terminated = True
                 truncated = False
                 succeeded = True
@@ -124,6 +119,11 @@ class Textworld_Main_Goal(MDP_Transition):
                     mdp_score = mdp_score + 20
                 else:
                     mdp_score = mdp_score + 10
+            elif infos["lost"]:
+                terminated = True
+                truncated = False
+                succeeded = False
+                mdp_score = mdp_score - 2
             else:
                 terminated = False
                 truncated = True
