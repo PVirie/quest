@@ -123,7 +123,7 @@ class Textworld_Main_Goal(MDP_Transition):
                 terminated = True
                 truncated = False
                 succeeded = False
-                mdp_score = mdp_score - 2
+                mdp_score = mdp_score - 1
             else:
                 terminated = False
                 truncated = True
@@ -265,7 +265,7 @@ class Textworld_Transition(MDP_Transition):
                 terminated = True
                 truncated = False
                 succeeded = False
-                mdp_score = mdp_score - 2
+                mdp_score = mdp_score - 1
             else:
                 terminated = False
                 truncated = True

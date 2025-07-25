@@ -106,8 +106,8 @@ class Hierarchy_AC(Hierarchy_Base):
         action_set = set(action_list)
         for _, aa in pivot:
             # compute free actions
-            free_actions = action_set - aa
-            new_aa = list(aa.copy())
+            free_actions = action_set - set(aa)
+            new_aa = list(aa)
             # now add missing
             while len(new_aa) < max_available_actions:
                 new_aa.append(random.choice(list(free_actions)))
