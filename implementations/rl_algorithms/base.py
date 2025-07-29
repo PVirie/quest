@@ -48,6 +48,7 @@ class Hierarchy_Base:
 
         self.ave_loss = 0
         self.iteration = 0
+        self.not_first_reset = False
 
         # use mesh to build gammas
         x = torch.arange(0, self.MAX_CONTEXT_SIZE, dtype=torch.float32, device=device)
@@ -176,5 +177,7 @@ class Hierarchy_Base:
 
 
     def update_sheduler(self):
-        if self.scheduler is not None:
+        if self.scheduler is not None and self.not_first_reset:
+            self.scheduler.last_epoch = -1
             self.scheduler.step()
+            self.not_first_reset = True

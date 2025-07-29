@@ -50,16 +50,13 @@ class Hierarchy_Q(Hierarchy_Base):
                 device=device)
         
         optimizer = optim.Adam(model.parameters(), learning_rate)
-        scheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.1, total_iters=5000)
+        scheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.1, total_iters=10000)
         self.learning_rate = learning_rate
         self.epsilon_greedy = epsilon_greedy
         super().__init__(model=model, optimizer=optimizer, scheduler=scheduler, device=device, discount_factor=discount_factor, train_temperature=train_temperature)
 
 
     def reset(self):
-        if self.scheduler is not None:
-            self.scheduler.last_epoch = -1
-            self.scheduler.step()
         self.model.reset_parameters()
         self.model.train()
         self.optimizer = optim.Adam(self.model.parameters(), self.learning_rate)
