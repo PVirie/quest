@@ -36,6 +36,7 @@ Live long and prosper!
     ...
     ```
     -   By default, no variables are required to run the experiments. You can run the experiments without any language model or embedding model.
+    -   For CUDA, you might need to set `export CUBLAS_WORKSPACE_CONFIG=:4096:8` to allow `CUBLAS` to use deterministic algorithms.
 
 ### Environment Variable Formats
 
@@ -87,8 +88,8 @@ Apart from the above environment variables, you might also need to include _thir
 
 -   Prepare accelerated hardware with at least 24GB of VRAM.
 -   Create an empty `secrets.env` file in the root directory of the project. (You won't be needing LMs to run the RL experiments. We train everything from scratch.)
--   Run for each `algorithm_flags` in [no flags, `--npt`, `--npt --nst`]:
-    `./run_manual.sh {configuration} tasks/rl_textworld.py -s medium {algorithm_flags} -o {random output file name}`
+-   Run for each `algorithm_flags` in [no flags, `-npt`, `-npt -nst`]:
+    `./run_manual.sh {configuration} tasks/rl_textworld.py -s medium {algorithm_flags} -o {output file name}`
     This will start the training sessions in docker containers and save the rollouts in `artifacts` directory.
     Note that the training normally takes a few day to complete per each `algorithm_flags`.
 -   To plot the results, you can use the following commands:
