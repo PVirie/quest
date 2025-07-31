@@ -115,7 +115,7 @@ class Textworld_Main_Goal(MDP_Transition):
                 terminated = True
                 truncated = False
                 succeeded = True
-                mdp_score = mdp_score + 10 + 20 * n_succeeded_node
+                mdp_score = mdp_score + 50 + 25 * n_succeeded_node
             elif infos["lost"]:
                 terminated = True
                 truncated = False
@@ -252,8 +252,8 @@ class Textworld_Transition(MDP_Transition):
         if self == progress_transition:
             terminated = True
             truncated = False
-            succeeded = True
-            mdp_score = mdp_score + 10 + 20 * n_succeeded_node
+            succeeded = True if n_action_node + n_quest_node >= 2 else False # if sub task can be done in one step, discourage it
+            mdp_score = mdp_score + 50 + 25 * n_succeeded_node
         elif done:
             if infos["won"] or infos["lost"]:
                 terminated = True
