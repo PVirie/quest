@@ -100,7 +100,12 @@ class Quest_Node(RL_Node, Trainable):
         else:
             # other type of node, assume succeed
             return True
-    
+
+    def last_child(self):
+        if len(self.children) == 0:
+            return None
+        return self.children[-1]
+
     def eval(self, observation):
         return self.objective.eval(self, observation)
 

@@ -32,6 +32,8 @@ class Action(Enum):
 
 
 class Quest_Graph:
+    # support multiple focuses
+
     def __init__(self, start_node: Node = None, start_graph = None):
         if start_node is None and start_graph is None:
             raise ValueError("Either start_node or start_graph must be provided")
@@ -57,6 +59,10 @@ class Quest_Graph:
         # check whether node is in the graph is not implemented.
         # to remove some interfaces.
         self.focus[head_index] = node
+
+
+    def get_focus_node(self, head_index=0) -> Node:
+        return self.focus[head_index]
 
 
     def query(self, head_index=0) -> Node_List:

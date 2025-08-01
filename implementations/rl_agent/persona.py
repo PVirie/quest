@@ -26,14 +26,12 @@ def extract_command_and_detail(text):
 
 
 class Persona:
-    TRAIN_STEP=10
-    PRINT_STEP=1000
+    TRAIN_STEPS=10
 
-    def __init__(self, rl_core, tokenizer, compute_folds, env_step, training_relegation_probability=0.25, train_prompt=None):
+    def __init__(self, rl_core, tokenizer, compute_folds, training_relegation_probability=0.25, train_prompt=None):
         self.rl_core = rl_core
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
-        self.env_step = env_step
         self.training_relegation_probability = training_relegation_probability
         self.action_set = set()
         self.extra_actions = {}
@@ -50,8 +48,6 @@ class Persona:
             self.use_lm = True
             self.long_lm = Language_Model(max_length=256, top_p=1, temperature=0)
             self.prompt = train_prompt
-
-        self.step = 0
 
 
     def set_training_mode(self, flag):
@@ -161,9 +157,9 @@ class Persona:
 
             train_ref = node.train_ref
             score = train_ref.mdp_score
-            pivots.append((last_context_mark, list(train_ref.available_actions)))
+            pivots.append((last_context_mark, train_ref.available_actions.copy()))
             selected_nodes.append((i, train_ref, last_observation, node.objective if isinstance(node, Quest_Node) else None))
-            if i >= len(supports) - self.TRAIN_STEP:
+            if i >= len(supports) - self.TRAIN_STEPS:
                 if i < len(supports) - 1 or train_last_node:
                     train_data.append((score - last_score, train_ref.selected_action, len(pivots) - 1, len(pivots)))
                     train_ref.release()
@@ -176,7 +172,7 @@ class Persona:
         for sub_objective, from_transition_index, to_transition_index in folds:
             fold_action = f"Sub Task: {str(sub_objective)}"
             self.extra_actions[fold_action] = sub_objective
-            pivots[from_transition_index][1].append(fold_action)
+            pivots[from_transition_index][1].add(fold_action)
 
         # add extra actions
         all_action_list = list(self.action_set.union(self.extra_actions.keys()))
@@ -188,7 +184,7 @@ class Persona:
             self.rl_core.train(train_last_node, pivots, train_data, objective_tensor, state_tensor, action_list_tensor, all_action_list)
 
             if self.allow_prospect_training and len(folds) > 0:
-                i = max(len(selected_nodes) - self.TRAIN_STEP, 0)
+                i = max(len(selected_nodes) - self.TRAIN_STEPS, 0)
                 prospect_node = quest_node[i]
                 if i == 0:
                     _, start_obs_context = prospect_node.get_start_contexts()
@@ -259,7 +255,7 @@ class Persona:
 
             if self.allow_sub_training:
                 for sub_objective, from_transition_index, to_transition_index in folds:
-                    # start_pivot_index = len(supports) - self.TRAIN_STEP
+                    # start_pivot_index = len(supports) - self.TRAIN_STEPS
                     # if from_transition_index <= start_pivot_index:
                     #     continue
 
@@ -290,6 +286,8 @@ class Persona:
                     sub_state_tensor = state_tensor[start_context_mark:(end_context_mark + 1), :]
                     self.rl_core.train(True, sub_pivots, sub_train_data, sub_objective_tensor, sub_state_tensor, action_list_tensor, all_action_list)
 
+            self.rl_core.update_sheduler()
+
 
     def think(self, quest_node):
         # supports is a list of nodes
@@ -298,54 +296,14 @@ class Persona:
         objective_context, start_obs_context = quest_node.get_start_contexts()
         objective_contexts = [objective_context]
         contexts = [start_obs_context]
-        should_eval = False
         for node in supports:
             if isinstance(node, Trainable):
                 contexts.extend(node.get_context())
                 last_observation = node.observation
-                should_eval = True
             elif isinstance(node, Thought_Node):
                 contexts.extend(node.get_context())
-                should_eval = False
                 continue
         
-        ################# Evaluate current situation #################
-        if should_eval:
-            mdp_score, terminated, truncated, succeeded, new_objective = quest_node.eval(last_observation)
-            if len(supports) > 0:
-                # Because training has to update weight anyway, which violate the functional programming paradigm
-                # I'll just update the last child's mdp_score
-                last_node = supports[-1]
-                last_node.train_ref.mdp_score = mdp_score
-                if new_objective is not None:
-                    # increase end goal discover speed
-                    new_action = f"Sub Task: {str(new_objective)}"
-                    last_node.objective = new_objective
-                    last_node.train_ref.selected_action = new_action
-                    last_node.train_ref.selected_action_rank = -1
-                    last_node.train_ref.available_actions.add(new_action)
-                    self.extra_actions[new_action] = new_objective
-
-            train_last_node = False
-            if terminated:
-                train_last_node = True
-                return_sub_action = Sub_Action_Type.Fulfill
-                return_node = Quest_Node(succeeded=succeeded, observation=last_observation)
-            elif truncated:
-                return_sub_action = Sub_Action_Type.Done
-                return_node = Quest_Node(truncated=True, succeeded=succeeded, observation=last_observation)
-
-            if self.training_mode:
-                self.step += 1
-                if terminated or truncated or self.step % self.TRAIN_STEP == 0:
-                    self.train(quest_node, train_last_node=train_last_node)
-
-                # if self.step % self.PRINT_STEP == 0:
-                #     self.rl_core.print(self.step)
-
-            if terminated or truncated:
-                return return_sub_action, return_node
-
         ################# ACTION SELECTION #################
         selectible_action_set = set([f"Action: {ac}" for ac in last_observation.get_available_actions()])
         self.action_set.update(selectible_action_set)
@@ -409,11 +367,9 @@ class Persona:
             return return_sub_action, return_node
         elif command.startswith("Action"):
             action = detail
-            last_observation = self.env_step(action)
             return_sub_action = Sub_Action_Type.Act
             return_node = Observation_Node(
-                action = action, 
-                observation = last_observation, 
+                action = action,
                 train_ref = train_ref
             )
             return return_sub_action, return_node
