@@ -1,6 +1,5 @@
 import os
 import sys
-from tkinter import filedialog
 import logging
 from datetime import datetime
 import argparse
@@ -9,12 +8,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import utilities
 
-utilities.install('matplotlib')
-utilities.install('tkinter')
+from tkinter import filedialog
 import matplotlib.pyplot as plt
 from matplotlib import lines, markers
 from cycler import cycler
 import tkinter as tk
+from scipy.stats import mannwhitneyu
 
 
 def open_file_dialog():
@@ -83,13 +82,14 @@ def parse_rollout_file(file_generator, ma_alpha, training_trend, trend_threshold
         if len(sessions) == 0:
             logging.warning(f"No valid sessions found for metadata key: {metadata_key}")
             continue
-        mean_per_episode, var_per_episode = process_stat_sequence([session['stats'] for session in sessions], filter=filter)
+        mean_per_episode, var_per_episode, raw_per_metric = process_stat_sequence([session['stats'] for session in sessions], filter=filter)
         moving_average = compute_moving_average(mean_per_episode, alpha=ma_alpha)
         yield {
             'metadata': sessions[0]['metadata'],
             'stats': mean_per_episode,
             'vars': var_per_episode,
-            'moving_average': moving_average
+            'moving_average': moving_average,
+            'raws': raw_per_metric,
         }
 
 
@@ -174,6 +174,7 @@ def process_stat_sequence(session_stat_sequences, filter=False):
 
     sums = []
     sqr_sums = []
+    raws = {}
 
     # Iterate over each session's stats
     for session_stats in session_stat_sequences[1:]:
@@ -186,9 +187,13 @@ def process_stat_sequence(session_stat_sequences, filter=False):
                 if key not in sums[i]:
                     sums[i][key] = 0.0
                     sqr_sums[i][key] = 0.0
+                if key not in raws:
+                    raws[key] = []
                 if not filtered:
                     sums[i][key] += value
                     sqr_sums[i][key] += value ** 2
+                if not filtered or key == 'succeeded':
+                    raws[key].append(value)
             sums[i]['count'] = sums[i].get('count', 0) + (1 if not filtered else 0)
             sums[i]['unfiltered_count'] = sums[i].get('unfiltered_count', 0) + 1
 
@@ -216,7 +221,7 @@ def process_stat_sequence(session_stat_sequences, filter=False):
                 vars[i][key] = (sqr_sums[i][key] - N * m * m) / (N - 1) if N > 1 else 0.0
         means[i]['count'] = N
 
-    return means, vars
+    return means, vars, raws
 
 
 if __name__ == "__main__":
@@ -224,7 +229,7 @@ if __name__ == "__main__":
     logging.info("Starting TextWorld Plotting Task")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ma-alpha",   "-ma", type=float, default=0.5, help="Moving average alpha value (default: 0.9)")
+    parser.add_argument("--ma-alpha",   "-ma", type=float, default=0.0, help="Moving average alpha value (default: 0.0)")
     parser.add_argument("--end-result", "-end", action='store_true', help="Plot only the end result (default: False)")
     parser.add_argument("--metric",     "-m", type=str, default="score", help="Metric to plot (default: score)")
     parser.add_argument("--filter",     "-f", action='store_true', help="Filter out unsuccessful sessions (default: False)")
@@ -247,14 +252,19 @@ if __name__ == "__main__":
             label = f"{metadata['allow_relegation']} | {metadata['allow_sub_training']} | {metadata['allow_prospect_training']} | {metadata['relegation_probability']:.2f}"
             if label not in metadata_stats:
                 metadata_stats[label] = {
-                    'succeeded': 0, 'cl': 0, 'max_cl': 0, 'count': 0,
-                    'succeeded_2': 0, 'cl_2': 0, 'max_cl_2': 0
+                    'count': 0,
+                    'steps': 0, 'succeeded': 0, 'score': 0, 'cl': 0, 'max_cl': 0,  
+                    'step_2': 0, 'succeeded_2': 0, 'score_2': 0, 'cl_2': 0, 'max_cl_2': 0,
                 }
             for means, vars in zip(session['stats'], session['vars']):
                 N = means.get('count', 1)
                 metadata_stats[label]['count'] += N
+                metadata_stats[label]['steps'] += means['steps'] * N
+                metadata_stats[label]['step_2'] += vars['steps'] * (N - 1) + means['steps'] ** 2 * N
                 metadata_stats[label]['succeeded'] += means['succeeded'] * N
                 metadata_stats[label]['succeeded_2'] += vars['succeeded'] * (N - 1) + means['succeeded'] ** 2 * N
+                metadata_stats[label]['score'] += means['score'] * N
+                metadata_stats[label]['score_2'] += vars['score'] * (N - 1) + means['score'] ** 2 * N
                 metadata_stats[label]['cl'] += means['cl'] * N
                 metadata_stats[label]['cl_2'] += vars['cl'] * (N - 1) + means['cl'] ** 2 * N
                 metadata_stats[label]['max_cl'] += means['max_cl'] * N
@@ -264,21 +274,59 @@ if __name__ == "__main__":
         logging.info("End Result Statistics:")
         for label, stats in metadata_stats.items():
             N = stats['count']
-            S = N
             if N > 0:
+                avg_steps = stats['steps'] / N
+                var_steps = (stats['step_2'] - N * (avg_steps ** 2)) / (N - 1)
                 avg_succeeded = stats['succeeded'] / N
                 var_succeeded = (stats['succeeded_2'] - N * (avg_succeeded ** 2)) / (N - 1)
-                avg_cl = stats['cl'] / S
-                var_cl = (stats['cl_2'] - S * (avg_cl ** 2)) / (S - 1)
-                avg_max_cl = stats['max_cl'] / S
-                var_max_cl = (stats['max_cl_2'] - S * (avg_max_cl ** 2)) / (S - 1)
+                avg_score = stats['score'] / N
+                var_score = (stats['score_2'] - N * (avg_score ** 2)) / (N - 1)
+                avg_cl = stats['cl'] / N
+                var_cl = (stats['cl_2'] - N * (avg_cl ** 2)) / (N - 1)
+                avg_max_cl = stats['max_cl'] / N
+                var_max_cl = (stats['max_cl_2'] - N * (avg_max_cl ** 2)) / (N - 1)
                 logging.info(f"{label} - Count: {N}")
-                logging.info(f"{label} - Avg Succeeded: {avg_succeeded:.2f}, Avg CL: {avg_cl:.2f}, Avg Max CL: {avg_max_cl:.2f}")
-                logging.info(f"{label} - Std Succeeded: {var_succeeded ** 0.5:.2f}, Std CL: {var_cl ** 0.5:.2f}, Std Max CL: {var_max_cl ** 0.5:.2f}")
+                logging.info(f"{label} - Avg Steps: {avg_steps:.2f}, Avg Succeeded: {avg_succeeded:.2f}, Avg Score: {avg_score:.2f}, Avg CL: {avg_cl:.2f}, Avg Max CL: {avg_max_cl:.2f}")
+                logging.info(f"{label} - Std Steps: {var_steps ** 0.5:.2f}, Std Succeeded: {var_succeeded ** 0.5:.2f}, Std Score: {var_score ** 0.5:.2f}, Std CL: {var_cl ** 0.5:.2f}, Std Max CL: {var_max_cl ** 0.5:.2f}")
                 # Print LaTeX formatted output
-                logging.info(f"{avg_succeeded:.2f} $\\pm$ {var_succeeded ** 0.5:.2f} & {avg_cl:.2f} $\\pm$ {var_cl ** 0.5:.2f} & {avg_max_cl:.2f} $\\pm$ {var_max_cl ** 0.5:.2f} \\\\")
+                logging.info(f"{avg_score:.2f} $\\pm$ {var_score ** 0.5:.2f} & {avg_succeeded:.2f} $\\pm$ {var_succeeded ** 0.5:.2f} & {avg_cl:.2f} $\\pm$ {var_cl ** 0.5:.2f} \\\\")
             else:
                 logging.warning(f"{label} - No valid data found.")
+
+        logging.info("=========================================================")
+        logging.info("Mann-Whitney U Test Results:")
+
+        # calculate the Mann-Whitney U test for each pair of metadata
+        stat_p_value_table = [[[(0.0, 0.0) for _ in range(len(sessions))] for _ in range(len(sessions))] for metric in ['succeeded', 'cl', 'max_cl']]
+        for i, session_i in enumerate(sessions):
+            for j, session_j in enumerate(sessions):
+                if i == j:
+                    continue
+                metadata_i = session_i['metadata']
+                metadata_j = session_j['metadata']
+                label = f"{metadata_i['allow_relegation']} | {metadata_i['allow_sub_training']} | {metadata_i['allow_prospect_training']} | {metadata_i['relegation_probability']:.2f}"
+                label2 = f"{metadata_j['allow_relegation']} | {metadata_j['allow_sub_training']} | {metadata_j['allow_prospect_training']} | {metadata_j['relegation_probability']:.2f}"
+                raws_i = session_i['raws']
+                raws_j = session_j['raws']
+
+                for k, metric in enumerate(['score', 'succeeded', 'cl']):
+                    # Mann-Whitney U test
+                    if metric == 'succeeded':
+                        alternative = 'greater'
+                    elif metric == 'cl':
+                        alternative = 'less'
+                    elif metric == 'score':
+                        alternative = 'greater'
+                    else:
+                        alternative = 'two-sided'
+                    u_stat, p_value = mannwhitneyu(
+                        raws_i[metric],
+                        raws_j[metric],
+                        alternative=alternative
+                    )
+                    stat_p_value_table[k][i][j] = (u_stat, p_value)
+                    logging.info(f"Mann-Whitney U test for {alternative} of {metric} between {label} and {label2}: U={u_stat:.2f}, p={p_value:.4f}")
+            logging.info("------------------------------------------------")
 
     else:
         # Plotting the data
@@ -299,7 +347,7 @@ if __name__ == "__main__":
         ax.set_xlabel('episode')
         ax.set_ylabel(args.metric)
         ax.set_title('TextWorld Rollout Scores')
-        # ax.legend()
+        ax.legend()
         # ax.grid()
         fig.tight_layout()
         plt.show()

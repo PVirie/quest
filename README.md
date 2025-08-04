@@ -1,10 +1,14 @@
 # Quest Graphs for Agentic Systems
 
-An implementation of agentic systems with quest graphs.
+Greetings, and welcome to the Quest Graphs repository!
+This repository contains the code and resources for an agentic system with Quest Graphs.
+My hierarchy promotion algorithm --- Keep All and Prospect --- is designed to help the agent to discover and learn new sub-problems in a more efficient way than the traditional Reinforcement Learning (RL) methods.
 
-| Generation | Model Name | Description |
-| ---------- | ---------- | ----------- |
-| 1          | Foundation | See paper   |
+Live long and prosper!
+
+| Generation | Model Name            | Description |
+| ---------- | --------------------- | ----------- |
+| 1          | Keep all and prospect | See paper   |
 
 ## Prerequisites
 
@@ -32,6 +36,7 @@ An implementation of agentic systems with quest graphs.
     ...
     ```
     -   By default, no variables are required to run the experiments. You can run the experiments without any language model or embedding model.
+    -   For CUDA, you might need to set `export CUBLAS_WORKSPACE_CONFIG=:4096:8` to allow `CUBLAS` to use deterministic algorithms.
 
 ### Environment Variable Formats
 
@@ -50,7 +55,6 @@ Apart from the above environment variables, you might also need to include _thir
 ## Running experiments
 
 -   By default, use program script `./run_manual.sh {configuration} {path to file} {optional flags}` to execute the python file with the selected configuration. (See table below.)
-    -   The program **may fail** to run on the first attempt due to the failure to find package directories. If this happens, run the program again.
     -   To clear the cache and reset the experiment, use `./run_manual.sh {configuration} {path to file} --reset`.
 -   For VSCode, press `F5` to run the selected configuration:
     -   Launch `Run current file` to run the experiment in the opening file.
@@ -62,6 +66,7 @@ Apart from the above environment variables, you might also need to include _thir
     -   Launch `reset` to clear the cache and reset the experiment.
 -   Running on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
+-   The program **may fail** to run on the first attempt due to the failure to find package directories. If this happens, run the program again.
 
 | Experiment       | Description                                             | Valid configurations (pick one)         | Path to file (+flags)   |
 | ---------------- | ------------------------------------------------------- | --------------------------------------- | ----------------------- |
@@ -76,19 +81,21 @@ Apart from the above environment variables, you might also need to include _thir
 -   Plots use graphics therefore they cannot be run in the docker container.
 -   Create python virtual environment in the root directory of the project.
     -   We recommend using `.venv` as the default virtual environment directory, e.g. `python -m venv .venv`.
--   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib`.
+-   Install matplotlib and other dependencies in the virtual environment, e.g. `pip install matplotlib scipy`.
 -   Run the plot script in the virtual environment, e.g. `python tasks/plot_{experiment}.py`.
 
 ### Reproducing paper results
 
 -   Prepare accelerated hardware with at least 24GB of VRAM.
 -   Create an empty `secrets.env` file in the root directory of the project. (You won't be needing LMs to run the RL experiments. We train everything from scratch.)
--   Run for each env_index in set(1, 2, 3, 4, 5) and for each algorithm_flags in ["", "--npt", "--npt --nst"]:
-    `./run_manual.sh {configuration} tasks/rl_textworld.py --env-index {env_index} --run-count 2 -s medium {algorithm_flags} -o {random output file name}`
+-   Run for each `algorithm_flags` in [no flags, `-npt`, `-npt -nst`]:
+    `./run_manual.sh {configuration} tasks/rl_textworld.py -s medium {algorithm_flags} -o {output file name}`
     This will start the training sessions in docker containers and save the rollouts in `artifacts` directory.
-    Note that the training takes at least a day to complete one session.
--   In the virtual environment, run `python3 tasks/plot_rl_textworld.py` to plot the results (select all rollout files) in the graph.
--   In the virtual environment, run `python3 tasks/plot_rl_textworld.py --end-result --filter` to print the result in the table.
+    Note that the training normally takes a few day to complete per each `algorithm_flags`.
+-   To plot the results, you can use the following commands:
+    -   Follow the instructions in the [Running plots](#running-plots) section to create a virtual environment and install the dependencies.
+    -   To plot the graph, run `python3 tasks/plot_textworld.py` and select all the rollout files.
+    -   To print the table, run `python3 tasks/plot_textworld.py --end-result --filter` and select all the rollout files.
 
 ## Development
 

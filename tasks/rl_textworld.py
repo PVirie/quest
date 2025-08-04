@@ -38,13 +38,12 @@ tw_envs = {
     "tw-simple-3": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250501", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-3.z8"],
     "tw-simple-4": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250502", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-4.z8"],
     "tw-simple-5": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250601", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-5.z8"],
-    "tw-simple-6": ["tw-make", "tw-simple", "--rewards", "balanced", "--goal", "brief", "--seed", "20250602", "--silent", "-f", "--output", f"{textworld_path}/games/default/tw-simple-6.z8"],
-    "custom-game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "20250401", "--output", f"{textworld_path}/games/default/custom-game.z8"],
-    "custom-game-2": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "10", "--seed", "20250402", "--output", f"{textworld_path}/games/default/custom-game-2.z8"],
-    "treasure_hunter": ["tw-make", "tw-treasure_hunter", "--level", "15", "--seed", "20250401", "--output", f"{textworld_path}/games/default/treasure_hunter.z8"],
-    "coin_collector": ["tw-make", "tw-coin_collector", "--level", "100", "--seed", "20250401", "--output", f"{textworld_path}/games/default/coin_collector.z8"],
-    "cooking": ["tw-make", "tw-cooking", "--recipe", "4", "--take", "4", "--go", "6", "--open", "--cut", "--cook", "--recipe-seed", "20250401", "--output", f"{textworld_path}/games/default/cooking.z8"],
-    "cooking-2": ["tw-make", "tw-cooking", "--recipe", "3", "--take", "3", "--go", "6", "--cook", "--recipe-seed", "20250402", "--output", f"{textworld_path}/games/default/cooking-2.z8"],
+    # "custom-game": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "5", "--seed", "20250401", "--output", f"{textworld_path}/games/default/custom-game.z8"],
+    # "custom-game-2": ["tw-make", "custom", "--world-size", "5", "--nb-objects", "10", "--quest-length", "10", "--seed", "20250402", "--output", f"{textworld_path}/games/default/custom-game-2.z8"],
+    # "treasure_hunter": ["tw-make", "tw-treasure_hunter", "--level", "15", "--seed", "20250401", "--output", f"{textworld_path}/games/default/treasure_hunter.z8"],
+    # "coin_collector": ["tw-make", "tw-coin_collector", "--level", "100", "--seed", "20250401", "--output", f"{textworld_path}/games/default/coin_collector.z8"],
+    # "cooking": ["tw-make", "tw-cooking", "--recipe", "4", "--take", "4", "--go", "6", "--open", "--cut", "--cook", "--recipe-seed", "20250401", "--output", f"{textworld_path}/games/default/cooking.z8"],
+    # "cooking-2": ["tw-make", "tw-cooking", "--recipe", "3", "--take", "3", "--go", "6", "--cook", "--recipe-seed", "20250402", "--output", f"{textworld_path}/games/default/cooking-2.z8"],
 }
 for env_name, env_args in tw_envs.items():
     env_path = env_args[-1]
@@ -57,9 +56,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from quest_interface import Quest_Graph, Action
 from quest_interface.mdp_state import MDP_State, MDP_Transition
-from implementations.rl_agent import agent_functions, rl_graph
+from implementations.rl_agent import rl_graph
+from implementations.rl_agent.rl_graph import Trainable, Observation_Node, Quest_Node, Thought_Node
 from implementations.rl_agent.persona import Persona
-
 
 def flatten_batch(infos):
     return {k: v[0] for k, v in infos.items()}
@@ -107,7 +106,7 @@ class Textworld_Main_Goal(MDP_Transition):
 
     def eval(self, node, obs):
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.4
+        mdp_score = obs.score - (n_action_node + n_quest_node) * 0.1 - (n_quest_node - n_succeeded_node) * 1.0
         done = obs.done
         infos = obs.info
         override_objective = None
@@ -116,15 +115,12 @@ class Textworld_Main_Goal(MDP_Transition):
                 terminated = True
                 truncated = False
                 succeeded = True
-                if n_succeeded_node >= 2:
-                    mdp_score = mdp_score + 20
-                else:
-                    mdp_score = mdp_score + 10
+                mdp_score = mdp_score + 50 + 25 * n_succeeded_node
             elif infos["lost"]:
                 terminated = True
                 truncated = False
                 succeeded = False
-                mdp_score = mdp_score - 1
+                mdp_score = mdp_score - 5
             else:
                 terminated = False
                 truncated = True
@@ -251,27 +247,19 @@ class Textworld_Transition(MDP_Transition):
         progress_transition = obs - node.start_observation
         score = self.score(progress_transition)
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
-        mdp_score = score - (n_action_node + n_quest_node) * 0.02 - (n_quest_node - n_succeeded_node) * 0.4
+        mdp_score = score - (n_action_node + n_quest_node) * 0.1 - (n_quest_node - n_succeeded_node) * 1.0
         override_objective = None
         if self == progress_transition:
             terminated = True
             truncated = False
             succeeded = True if n_action_node + n_quest_node >= 2 else False # if sub task can be done in one step, discourage it
-            if n_succeeded_node >= 2:
-                mdp_score = mdp_score + 20
-            else:
-                mdp_score = mdp_score + 10
+            mdp_score = mdp_score + 50 + 25 * n_succeeded_node
         elif done:
-            if infos["won"]:
+            if infos["won"] or infos["lost"]:
                 terminated = True
                 truncated = False
                 succeeded = False
-                mdp_score = mdp_score - 1
-            elif infos["lost"]:
-                terminated = True
-                truncated = False
-                succeeded = False
-                mdp_score = mdp_score - 1
+                mdp_score = mdp_score - 5
             else:
                 terminated = False
                 truncated = True
@@ -356,7 +344,7 @@ def compute_folds(objective_transition, state_tuples):
     return selected_transitions
 
 
-def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, verbose=False, verbose_step=10, verbose_prefix=""):
+def play(env, env_step, available_objectives, persona, rollout_file_path, nb_episodes=10, verbose=False, verbose_step=10, verbose_prefix=""):
     
     with open(rollout_file_path, "a", encoding="utf-8") as f:
         # mark date
@@ -392,18 +380,65 @@ def play(env, available_objectives, persona, rollout_file_path, nb_episodes=10, 
         )
 
         working_memory = Quest_Graph(root_node)
+        step = 0
         while True:
-            action, param_1, param_2 = agent_functions.basic_tree(persona, working_memory.query())
-            if action == Action.ANSWER:
-                working_memory.respond(param_1, param_2)
-                if param_2 is None:
-                    break
-            elif action == Action.DISCOVER:
-                working_memory.discover(param_1, param_2)
-                if len(working_memory) > 400:
-                    break
+            focus_node = working_memory.get_focus_node()
+            last_child = focus_node.last_child()
+
+            ################# Evaluate current situation #################
+
+            if isinstance(last_child, Trainable):
+                last_observation = last_child.observation
+                mdp_score, terminated, truncated, succeeded, new_objective = focus_node.eval(last_observation)
+                last_child.train_ref.mdp_score = mdp_score
             else:
-                raise ValueError("Invalid action")
+                children = focus_node.get_children()
+                # search for trainable last child
+                found = False
+                for child in reversed(children):
+                    if isinstance(child, Trainable):
+                        last_child = child
+                        found = True
+                        break
+                if not found:
+                    last_observation = focus_node.start_observation
+                else:
+                    last_observation = last_child.observation
+                mdp_score, terminated, truncated, succeeded, new_objective = focus_node.eval(last_observation)
+                if found:
+                    last_child.train_ref.mdp_score = mdp_score
+
+            if persona.training_mode:
+                step += 1
+                if terminated or truncated or step % persona.TRAIN_STEPS == 0:
+                    persona.train(focus_node, train_last_node=terminated)
+
+            if terminated or truncated:
+                if terminated:
+                    return_node = Quest_Node(succeeded=succeeded, observation=last_observation)
+                elif truncated:
+                    return_node = Quest_Node(truncated=True, succeeded=succeeded, observation=last_observation)
+                parent = focus_node.get_parent()
+                working_memory.respond(return_node, parent)
+                step = 0
+                if parent is None:
+                    break
+                continue
+
+            subact, new_node = persona.think(focus_node)
+            if isinstance(new_node, Quest_Node):
+                working_memory.discover(new_node, focus_node)
+                working_memory.respond(None, new_node)
+                step = 0
+            elif isinstance(new_node, Observation_Node):
+                new_node.observation = env_step(new_node.action)
+                working_memory.discover(new_node, focus_node)
+            else:
+                working_memory.discover(new_node, focus_node)
+
+            if len(working_memory) > 400:
+                break
+
 
         if root_node.observation is None:
             # error skip
@@ -446,12 +481,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset",                  "-r",   action="store_true")
     parser.add_argument("--record-file",            "-o",   type=str, default="rollouts.txt",   help="The file to record the rollouts. Default is 'rollouts.txt'.")
-    parser.add_argument("--env-index",              "-ei",  type=int, default=2,                help="The index of the environment to use. Default is 2 (start from 1).")
-    parser.add_argument("--run-count",              "-rc",  type=int, default=1,                help="The number of runs to perform. Default is 1.")
     parser.add_argument("--q-learning",             "-q",   action="store_true",                help="Use Q-learning instead of Actor-Critic. Default is False.")
     parser.add_argument("--scale",                  "-s",   type=str, default="medium", choices=["small", "medium", "large"], help="The scale of the neural network. Default is 'medium'.")
     parser.add_argument("--no-relegation",          "-nre", action="store_true",                help="Disable relegation during training.")
-    parser.add_argument("--rel_prob",               "-rp",  type=float, default=1.0,            help="The probability of relegation during training. Default is 1.0.")
+    parser.add_argument("--rel-prob",               "-rp",  type=float, default=1.0,            help="The probability of relegation during training. Default is 1.0.")
     parser.add_argument("--no-sub-training",        "-nst", action="store_true",                help="Disable sub training during training.")
     parser.add_argument("--no-prospect-training",   "-npt", action="store_true",                help="Disable prospect training during training.")
     args = parser.parse_args()
@@ -464,16 +497,28 @@ if __name__ == "__main__":
         exit()
     os.makedirs(experiment_path, exist_ok=True)
 
-    selected_env_str = f"tw-simple-{args.env_index}"
-    rollout_file_path = os.path.join(experiment_path, f"rollouts_{selected_env_str}.txt")
+    rollout_file_path = os.path.join(experiment_path, f"rollouts.txt")
     if args.record_file:
         rollout_file_path = os.path.join(experiment_path, args.record_file)
 
     agent_parameter_path = os.path.join(experiment_path, "parameters")
     os.makedirs(agent_parameter_path, exist_ok=True)
 
-    random.seed(20250301)  # For reproducibility when using the game.
-    torch.manual_seed(20250301)  # For reproducibility when using action sampling.
+    # For reproducibility (https://docs.pytorch.org/docs/stable/notes/randomness.html)
+    random.seed(20250701)  
+    torch.manual_seed(20250701)
+    np.random.seed(20250701)
+    torch.use_deterministic_algorithms(True)
+
+    MAX_VOCAB_SIZE = 1000
+    tokenizer = Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
+
+    if args.q_learning:
+        from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model, Network_Scale_Preset
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.95, learning_rate=0.00001, epsilon_greedy=1.0, train_temperature=0.05)
+    else:
+        from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model, Network_Scale_Preset
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.95, learning_rate=0.00001, entropy_weight=1.0, train_temperature=1.0)
 
     # The use of full state information is only required for evaluation, not for decision making.
     # This does not violate POMDP assumption.
@@ -489,77 +534,69 @@ if __name__ == "__main__":
         lost=True,                 # Whether the player has lost.
     )
 
-    game_path = tw_envs[selected_env_str][-1]
-    env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
-    env = textworld.gym.make(env_id)
-    obs, infos = env.reset()
-    infos = flatten_batch(infos)
+    for env_name, env_args in tw_envs.items():
+        game_path = env_args[-1]
+        env_id = textworld.gym.register_game(game_path, request_infos, max_episode_steps=100, batch_size=1)
+        env = textworld.gym.make(env_id)
 
-    available_objectives = [
-        Textworld_Transition.from_string("Find a carrot", is_main=True),
-        Textworld_Transition.from_string("Find a soap bar", is_main=True),
-        Textworld_Transition.from_string("Find a note", is_main=True),
-        Textworld_Transition.from_string("Find a bell pepper", is_main=True),
-        Textworld_Transition.from_string("Find a toothbrush", is_main=True),
-        Textworld_Transition.from_string("Find a shovel", is_main=True),
-        Textworld_Transition.from_string("Find an apple", is_main=True),
-        Textworld_Main_Goal(infos["objective"], infos["max_score"])
-    ]
-
-    MAX_VOCAB_SIZE = 1000
-    tokenizer = Text_Tokenizer(MAX_VOCAB_SIZE, device=device)
-
-    def env_step(action):
-        obs, score, done, infos = env.step([action])
-        obs = obs[0]
-        # use regex to suppress multiple \n\n to one
-        obs = re.sub(r"\n+", "\n", obs)
-        score = score[0]
-        done = done[0]
+        obs, infos = env.reset()
         infos = flatten_batch(infos)
-        return Textworld_State(obs, score, done, infos)
+        available_objectives = [
+            Textworld_Transition.from_string("Find a carrot", is_main=True),
+            Textworld_Transition.from_string("Find a soap bar", is_main=True),
+            Textworld_Transition.from_string("Find a note", is_main=True),
+            Textworld_Transition.from_string("Find a bell pepper", is_main=True),
+            Textworld_Transition.from_string("Find a toothbrush", is_main=True),
+            Textworld_Transition.from_string("Find a shovel", is_main=True),
+            Textworld_Transition.from_string("Find an apple", is_main=True),
+            Textworld_Transition.from_string("Find a remote", is_main=True),
+            Textworld_Transition.from_string("Find a milk", is_main=True),
+            Textworld_Transition.from_string("Find a tomato plant", is_main=True),
+            # Textworld_Main_Goal(infos["objective"], infos["max_score"])
+        ]
 
-    if args.q_learning:
-        from implementations.rl_algorithms.hierarchy_q import Hierarchy_Q as Model, Network_Scale_Preset
-        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.000002, epsilon_greedy=1.0, train_temperature=0.05)
-    else:
-        from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model, Network_Scale_Preset
-        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.97, learning_rate=0.000002, entropy_weight=0.1, train_temperature=1.0)
+        def env_step(action):
+            obs, score, done, infos = env.step([action])
+            obs = obs[0]
+            # use regex to suppress multiple \n\n to one
+            obs = re.sub(r"\n+", "\n", obs)
+            score = score[0]
+            done = done[0]
+            infos = flatten_batch(infos)
+            return Textworld_State(obs, score, done, infos)
 
-    persona = Persona(
-        rl_core,
-        tokenizer,
-        compute_folds,
-        env_step,
-        training_relegation_probability=args.rel_prob,
-    )
-
-    persona.set_allow_relegation(not args.no_relegation)
-    persona.set_allow_sub_training(not args.no_sub_training)
-    persona.set_allow_prospect_training(not args.no_prospect_training)
-
-    # if not persona.load(agent_parameter_path):
-    logging.info(f"Selected environment: {selected_env_str}")
-    logging.info(f"Initiate agent training with following parameters:")
-    logging.info(f"  - Algorithm: {'Q-learning' if args.q_learning else 'Actor-Critic'}")
-    logging.info(f"  - Network scale: {str(Network_Scale_Preset(args.scale).value)}")
-    logging.info(f"  - Allow relegation: {not args.no_relegation}")
-    logging.info(f"  - Relegation probability: {args.rel_prob}")
-    logging.info(f"  - Allow sub training: {not args.no_sub_training}")
-    logging.info(f"  - Allow prospect training: {not args.no_prospect_training}")
-    
-    for i in range(int(args.run_count)):
         rl_core.reset()
 
+        persona = Persona(
+            rl_core,
+            tokenizer,
+            compute_folds,
+            training_relegation_probability=args.rel_prob,
+        )
+
+        # if not persona.load(agent_parameter_path):
+        logging.info(f"Selected environment: {env_name}")
+        logging.info(f"Initiate agent training with following parameters:")
+        logging.info(f"  - Algorithm: {'Q-learning' if args.q_learning else 'Actor-Critic'}")
+        logging.info(f"  - Network scale: {str(Network_Scale_Preset(args.scale).value)}")
+        logging.info(f"  - Allow relegation: {not args.no_relegation}")
+        logging.info(f"  - Relegation probability: {args.rel_prob}")
+        logging.info(f"  - Allow sub training: {not args.no_sub_training}")
+        logging.info(f"  - Allow prospect training: {not args.no_prospect_training}")
+
+        persona.set_allow_relegation(not args.no_relegation)
+        persona.set_allow_sub_training(not args.no_sub_training)
+        persona.set_allow_prospect_training(not args.no_prospect_training)
+
         persona.set_training_mode(True)
-        play(env, available_objectives, persona, 
+        play(env, env_step, available_objectives, persona, 
             rollout_file_path=rollout_file_path, 
-            nb_episodes=10000, verbose=True, verbose_step=100, verbose_prefix=f"[Run {i+1}/{args.run_count}]")
+            nb_episodes=10000, verbose=True, verbose_step=100, verbose_prefix=f"[Run {env_name}]")
         # persona.save(agent_parameter_path)
 
         persona.set_training_mode(False)
-        play(env, available_objectives, persona, 
+        play(env, env_step, available_objectives, persona, 
             rollout_file_path=rollout_file_path, 
             nb_episodes=len(available_objectives), verbose=True, verbose_step=1)
-        
-    env.close()
+            
+        env.close()
