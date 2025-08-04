@@ -163,7 +163,27 @@ We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for devel
 
 ## Note
 
-### Language models
+### Experiment results
+
+#### Keep All and Prospect Training
+
+-   Keep All training really helps boost the hierarchy promotion compared to the original QDP with baseline RL. This is because the agent parallelly uses discovered successful trajectory segment to learn the lower level sub-problems instead of having to wait for the exploration.
+-   With prospect however, the final results may not be improved from the Keep All only training, but the training time is significantly much shorter even with the additional process. This is because prospect training allows the agent to reach the end of episode faster and truncate the early sub-problem trials.
+
+### Development notes
+
+#### RL models
+
+Actor critic models work well when combined with the following:
+
+-   Deeper transformer layers
+
+#### Hiearachy
+
+-   Low sub-problem trial count allows agent to cut losses and learn higher level faster. (Around 10 trials.)
+-   When do sub-problem training, scan and train the entire rollout yield consistently better results.
+
+#### Language models
 
 These models seem to work with the given instructions:
 
@@ -171,19 +191,8 @@ These models seem to work with the given instructions:
 -   Qwen/Qwen2.5-7B-Instruct
 -   deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B, deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
 
-### Embedding models
+#### Embedding models
 
 -   text-embedding-3-large
 -   ibm-granite/granite-embedding-125m-english
 -   intfloat/multilingual-e5-large-instruct
-
-### RL models
-
-Actor critic models work well when combined with the following:
-
--   Deeper transformer layers
-
-### Hiearachy
-
--   Low sub-problem trial count allows agent to cut losses and learn higher level faster. (Around 10 trials.)
--   When do sub-problem training, scan and train the entire rollout yield consistently better results.
