@@ -36,6 +36,7 @@ Live long and prosper!
     ...
     ```
     -   By default, no variables are required to run the experiments. You can run the experiments without any language model or embedding model.
+    -   For CUDA, you might need to set `export CUBLAS_WORKSPACE_CONFIG=:4096:8` to allow `CUBLAS` to use deterministic algorithms.
 
 ### Environment Variable Formats
 
@@ -54,7 +55,6 @@ Apart from the above environment variables, you might also need to include _thir
 ## Running experiments
 
 -   By default, use program script `./run_manual.sh {configuration} {path to file} {optional flags}` to execute the python file with the selected configuration. (See table below.)
-    -   The program **may fail** to run on the first attempt due to the failure to find package directories. If this happens, run the program again.
     -   To clear the cache and reset the experiment, use `./run_manual.sh {configuration} {path to file} --reset`.
 -   For VSCode, press `F5` to run the selected configuration:
     -   Launch `Run current file` to run the experiment in the opening file.
@@ -66,6 +66,7 @@ Apart from the above environment variables, you might also need to include _thir
     -   Launch `reset` to clear the cache and reset the experiment.
 -   Running on Windows
     -   The relative path in Windows that passes to docker has invalid path separators. _Always use POSIX path separators_ when passing `{path to file}` parameter when running `run_manual.sh` script. Or simply create a new configuration in `.vscode/launch.json` with the hard coded configuration you wish to run with the POSIX path separators.
+-   The program **may fail** to run on the first attempt due to the failure to find package directories. If this happens, run the program again.
 
 | Experiment       | Description                                             | Valid configurations (pick one)         | Path to file (+flags)   |
 | ---------------- | ------------------------------------------------------- | --------------------------------------- | ----------------------- |
@@ -87,8 +88,8 @@ Apart from the above environment variables, you might also need to include _thir
 
 -   Prepare accelerated hardware with at least 24GB of VRAM.
 -   Create an empty `secrets.env` file in the root directory of the project. (You won't be needing LMs to run the RL experiments. We train everything from scratch.)
--   Run for each `algorithm_flags` in [no flags, `--npt`, `--npt --nst`]:
-    `./run_manual.sh {configuration} tasks/rl_textworld.py -s medium {algorithm_flags} -o {random output file name}`
+-   Run for each `algorithm_flags` in [no flags, `-npt`, `-npt -nst`]:
+    `./run_manual.sh {configuration} tasks/rl_textworld.py -s medium {algorithm_flags} -o {output file name}`
     This will start the training sessions in docker containers and save the rollouts in `artifacts` directory.
     Note that the training normally takes a few day to complete per each `algorithm_flags`.
 -   To plot the results, you can use the following commands:
