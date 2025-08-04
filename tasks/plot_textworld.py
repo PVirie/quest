@@ -347,7 +347,7 @@ if __name__ == "__main__":
         ax.set_xlabel('episode')
         ax.set_ylabel(args.metric)
         ax.set_title('TextWorld Rollout Scores')
-        # ax.legend()
+        ax.legend()
         # ax.grid()
         fig.tight_layout()
         plt.show()

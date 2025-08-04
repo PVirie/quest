@@ -93,8 +93,8 @@ Apart from the above environment variables, you might also need to include _thir
     Note that the training normally takes a few day to complete per each `algorithm_flags`.
 -   To plot the results, you can use the following commands:
     -   Follow the instructions in the [Running plots](#running-plots) section to create a virtual environment and install the dependencies.
-    -   To plot the graph, run `python3 tasks/plot_rl_textworld.py` and select all the rollout files.
-    -   To print the table, run `python3 tasks/plot_rl_textworld.py --end-result --filter` and select all the rollout files.
+    -   To plot the graph, run `python3 tasks/plot_textworld.py` and select all the rollout files.
+    -   To print the table, run `python3 tasks/plot_textworld.py --end-result --filter` and select all the rollout files.
 
 ## Development
 
