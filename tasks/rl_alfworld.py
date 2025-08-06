@@ -99,10 +99,9 @@ class Alfworld_Main_Goal(MDP_Transition):
 
 
 class Alfworld_Transition(MDP_Transition):
-    def __init__(self, new_location=None, new_item=None, used_item=None):
+    def __init__(self, new_location=None, new_item=None):
         self.new_location = new_location
         self.new_item = new_item
-        self.used_item = used_item
         self.is_main = False
 
 
@@ -111,9 +110,9 @@ class Alfworld_Transition(MDP_Transition):
         if objective.startswith("Go to "):
             return Alfworld_Transition(new_location=objective[7:])
         elif objective.startswith("Find "):
-            return Alfworld_Transition(new_item=set([objective[5:]]))
-        elif objective.startswith("Use "):
-            return Alfworld_Transition(used_item=objective[4:])
+            return Alfworld_Transition(new_item=objective[5:])
+        else:
+            return Alfworld_Transition()
 
 
     def __str__(self):
@@ -121,7 +120,7 @@ class Alfworld_Transition(MDP_Transition):
     
 
     def __len__(self):
-        return 1
+        return 1 if self.new_location is not None or self.new_item is not None else 0
     
 
     def __eq__(self, other):
@@ -130,9 +129,6 @@ class Alfworld_Transition(MDP_Transition):
                 return False
         if self.new_item is not None:
             if not self.new_item == other.new_item:
-                return False
-        if self.used_item is not None:
-            if not self.used_item == other.used_item:
                 return False
         return True
     
@@ -143,11 +139,13 @@ class Alfworld_Transition(MDP_Transition):
         if other.is_main:
             return True
         
-        if self.new_location is not None:
-            return other.new_location is None
+        if other.new_location is not None:
+            return False
+
+        if other.new_item is not None:
+            return self.new_location is not None
         
         return False
-
     
 
     def applicable_from(self, state):
@@ -195,11 +193,19 @@ class Alfworld_State(MDP_State):
         self.done = done
         self.info = info
 
-        # To do: implement extract new_location, new_item, used_item from obs
+        # for new_location: detect "You arrive at <location>." in obs
+        if "You arrive at " in obs:
+            location = obs.split("You arrive at ")[1].split(".")[0]
+            self.new_location = location.strip()
+        else:
+            self.new_location = None
 
-        self.new_location = None
-        self.new_item = None
-        self.used_item = None
+        # for new_item: detect "You pick up the {obj id} from the..." in obs
+        if "You pick up the " in obs:
+            item = obs.split("You pick up the ")[1].split(" from the")[0]
+            self.new_item = item.strip()
+        else:
+            self.new_item = None
 
 
     def get_available_actions(self):
@@ -215,8 +221,6 @@ class Alfworld_State(MDP_State):
         if self.new_location is not None:
             size += 1
         if self.new_item is not None:
-            size += 1
-        if self.used_item is not None:
             size += 1
         return size
 
