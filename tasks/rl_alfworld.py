@@ -81,11 +81,6 @@ class Alfworld_Main_Goal(MDP_Transition):
                 truncated = False
                 succeeded = True
                 mdp_score = mdp_score + 50 + 25 * n_succeeded_node
-            elif infos["lost"]:
-                terminated = True
-                truncated = False
-                succeeded = False
-                mdp_score = mdp_score - 5
             else:
                 terminated = False
                 truncated = True
@@ -103,6 +98,13 @@ class Alfworld_Transition(MDP_Transition):
         self.new_location = new_location
         self.new_item = new_item
         self.is_main = False
+
+        if new_location is not None:
+            self.objective = f"Go to {new_location}"
+        elif new_item is not None:
+            self.objective = f"Find {new_item}"
+        else:
+            self.objective = ""
 
 
     @staticmethod
@@ -123,12 +125,12 @@ class Alfworld_Transition(MDP_Transition):
         return 1 if self.new_location is not None or self.new_item is not None else 0
     
 
-    def __eq__(self, other):
+    def __eq__(self, state):
         if self.new_location is not None:
-            if not self.new_location == other.new_location:
+            if not self.new_location == state.new_location:
                 return False
         if self.new_item is not None:
-            if not self.new_item == other.new_item:
+            if not self.new_item == state.new_item:
                 return False
         return True
     
@@ -155,17 +157,16 @@ class Alfworld_Transition(MDP_Transition):
     def eval(self, node, obs):
         done = obs.done
         infos = obs.info
-        progress_transition = obs - node.start_observation
         n_action_node, _, n_quest_node, n_succeeded_node = node.count_context_type()
         mdp_score = 0 - (n_action_node + n_quest_node) * 0.1 - (n_quest_node - n_succeeded_node) * 1.0
         override_objective = None
-        if self == progress_transition:
+        if self == obs:
             terminated = True
             truncated = False
             succeeded = True if n_action_node + n_quest_node >= 2 else False # if sub task can be done in one step, discourage it
             mdp_score = mdp_score + 50 + 25 * n_succeeded_node
         elif done:
-            if infos["won"] or infos["lost"]:
+            if infos["won"]:
                 terminated = True
                 truncated = False
                 succeeded = False
@@ -174,7 +175,7 @@ class Alfworld_Transition(MDP_Transition):
                 terminated = False
                 truncated = True
                 succeeded = False
-        elif not self.is_main and n_action_node + n_quest_node > 10:
+        elif not self.is_main and n_action_node + n_quest_node > 20:
             terminated = False
             truncated = True
             succeeded = False
@@ -239,9 +240,7 @@ def compute_folds(objective_transition, state_tuples):
     for i, j in pairs:
         if not (j - i >= 2 and j - i <= 10):
             continue
-        st = Alfworld_Transition(states[j].new_location, states[j].new_item, states[j].used_item)
-        if not st.count_diff == 1:
-            continue
+        st = Alfworld_Transition(states[j].new_location, states[j].new_item)
         if not st < objective_transition:
             continue
         if i > 0 and not st.applicable_from(states[i - 1]):
