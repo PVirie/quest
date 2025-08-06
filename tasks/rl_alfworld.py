@@ -94,25 +94,33 @@ class Alfworld_Main_Goal(MDP_Transition):
 
 
 class Alfworld_Transition(MDP_Transition):
-    def __init__(self, new_location=None, new_item=None):
-        self.new_location = new_location
-        self.new_item = new_item
+    def __init__(self, type=None, item=None):
         self.is_main = False
+        self.type = type
+        self.item = item
 
-        if new_location is not None:
-            self.objective = f"Go to {new_location}"
-        elif new_item is not None:
-            self.objective = f"Find {new_item}"
+        if type == "find":
+            self.objective = f"Find {item}"
+        elif type == "heat":
+            self.objective = f"Heat {item}"
+        elif type == "cool":
+            self.objective = f"Cool {item}"
+        elif type == "clean":
+            self.objective = f"Clean {item}"
         else:
             self.objective = ""
 
 
     @staticmethod
     def from_string(objective):
-        if objective.startswith("Go to "):
-            return Alfworld_Transition(new_location=objective[7:])
-        elif objective.startswith("Find "):
-            return Alfworld_Transition(new_item=objective[5:])
+        if objective.startswith("Find "):
+            return Alfworld_Transition(type="find", item=objective[5:])
+        elif objective.startswith("Heat "):
+            return Alfworld_Transition(type="heat", item=objective[5:])
+        elif objective.startswith("Cool "):
+            return Alfworld_Transition(type="cool", item=objective[5:])
+        elif objective.startswith("Clean "):
+            return Alfworld_Transition(type="clean", item=objective[6:])
         else:
             return Alfworld_Transition()
 
@@ -122,31 +130,28 @@ class Alfworld_Transition(MDP_Transition):
     
 
     def __len__(self):
-        return 1 if self.new_location is not None or self.new_item is not None else 0
+        return 1 if self.type is not None else 0
     
 
     def __eq__(self, state):
-        if self.new_location is not None:
-            if not self.new_location == state.new_location:
-                return False
-        if self.new_item is not None:
-            if not self.new_item == state.new_item:
-                return False
-        return True
+        return self.type == state.type and self.item == state.item
     
     
     def __lt__(self, other):
         # test of stictly less than
-        # location change < find item < main
+        # location find < clean < heat < cool < main
         if other.is_main:
             return True
-        
-        if other.new_location is not None:
-            return False
-
-        if other.new_item is not None:
-            return self.new_location is not None
-        
+        elif other.type == "cool":
+            if self.type == "cool":
+                return False
+        elif other.type == "heat":
+            if self.type in ["cool", "heat"]:
+                return False
+        elif other.type == "clean":
+            if self.type == "find":
+                return True
+            
         return False
     
 
@@ -193,20 +198,33 @@ class Alfworld_State(MDP_State):
         self.score = score
         self.done = done
         self.info = info
+        
+        self.item = None
+        self.type = None
 
-        # for new_location: detect "You arrive at <location>." in obs
-        if "You arrive at " in obs:
-            location = obs.split("You arrive at ")[1].split(".")[0]
-            self.new_location = location.strip()
-        else:
-            self.new_location = None
-
-        # for new_item: detect "You pick up the {obj id} from the..." in obs
+        # for find item: detect "You pick up the {obj id} from the..." in obs
         if "You pick up the " in obs:
             item = obs.split("You pick up the ")[1].split(" from the")[0]
-            self.new_item = item.strip()
-        else:
-            self.new_item = None
+            self.item = item.strip()
+            self.type = "find"
+
+        # for heat item: detect "You heat the {obj id} with the..." in obs
+        if "You heat the " in obs:
+            item = obs.split("You heat the ")[1].split(" with the")[0]
+            self.item = item.strip()
+            self.type = "heat"
+
+        # for cool item: detect "You cool the {obj id} with the..." in obs
+        if "You cool the " in obs:
+            item = obs.split("You cool the ")[1].split(" with the")[0]
+            self.item = item.strip()
+            self.type = "cool"
+
+        # for clean item: detect "You clean the {obj id} with the..." in obs
+        if "You clean the " in obs:
+            item = obs.split("You clean the ")[1].split(" with the")[0]
+            self.item = item.strip()
+            self.type = "clean"
 
 
     def get_available_actions(self):
@@ -218,12 +236,7 @@ class Alfworld_State(MDP_State):
     
 
     def __len__(self):
-        size = 0
-        if self.new_location is not None:
-            size += 1
-        if self.new_item is not None:
-            size += 1
-        return size
+        return 1 if self.item is not None else 0
 
 
 def compute_folds(objective_transition, state_tuples):
@@ -240,7 +253,7 @@ def compute_folds(objective_transition, state_tuples):
     for i, j in pairs:
         if not (j - i >= 2 and j - i <= 10):
             continue
-        st = Alfworld_Transition(states[j].new_location, states[j].new_item)
+        st = Alfworld_Transition(states[j].type, states[j].item)
         if not st < objective_transition:
             continue
         if i > 0 and not st.applicable_from(states[i - 1]):
@@ -283,9 +296,10 @@ def play(env, env_step, persona, rollout_file_path, epoch=10, verbose=False, ver
     stat_max_score = []
     stat_count_succeeded = []
 
-    no_episode = 1
+    no_episode = 0
     for no_epoch in range(epoch):
         for no_env in range(num_environments):
+            no_episode += 1
             obs, infos = env.reset()  # Start new episode.
             obs = obs[0]
             infos = flatten_batch(infos)
