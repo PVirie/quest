@@ -156,10 +156,11 @@ We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for devel
 -   [x] Non-Markovian Reinforcement learning
     -   [x] [TextWorld](https://github.com/microsoft/TextWorld) environment
     -   [x] [ALFWorld](https://github.com/alfworld/alfworld) environment
-    -   [ ] [Textworld express] (https://github.com/cognitiveailab/TextWorldExpress) environment, to speed up simulation.
 -   [x] Sub-problem reward structure
     -   [x] Define textworld reward structure
-    -   [ ] Define ALFWorld reward structure
+    -   [x] Define ALFWorld reward structure
+-   [ ] Speed up simulation
+    -   [ ] [Textworld express] (https://github.com/cognitiveailab/TextWorldExpress) environment, to speed up simulation.
 
 ## Note
 

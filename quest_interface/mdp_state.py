@@ -37,12 +37,6 @@ class MDP_Transition:
 
 class MDP_State:
 
-    def __sub__(self, other):
-        """
-        Subtracts the state of another MDP_State from this one.
-        """
-        pass
-
 
     def get_available_actions(self):
         """
