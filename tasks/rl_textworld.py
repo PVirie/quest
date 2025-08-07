@@ -85,7 +85,7 @@ class Textworld_Main_Goal(MDP_Transition):
         self.is_main = True
 
 
-    def __str__(self):
+    def __repr__(self):
         return f"{self.objective}"
     
 
