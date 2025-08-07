@@ -228,7 +228,8 @@ class Alfworld_State(MDP_State):
 
 
     def get_available_actions(self):
-        return self.info["admissible_commands"]
+        # remove "help" command from admissible commands
+        return [a for a in self.info["admissible_commands"] if a != "help"]
     
 
     def get_context(self):
@@ -498,8 +499,6 @@ if __name__ == "__main__":
         score = score[0]
         done = done[0]
         infos = flatten_batch(infos)
-        # remove "help" command from admissible commands
-        infos["admissible_commands"].remove("help")
         return Alfworld_State(obs, score, done, infos)
 
     play(env, env_step, persona, rollout_file_path=rollout_file_path, epoch=1, verbose=True, verbose_step=100, verbose_prefix=f"")
@@ -518,8 +517,6 @@ if __name__ == "__main__":
         score = score[0]
         done = done[0]
         infos = flatten_batch(infos)
-        # remove "help" command from admissible commands
-        infos["admissible_commands"].remove("help")
         return Alfworld_State(obs, score, done, infos)
 
     play(env, test_env_step, persona, rollout_file_path=rollout_file_path, epoch=1, verbose=True, verbose_step=100, verbose_prefix=f"")

@@ -124,7 +124,6 @@ We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for devel
     -   [x] Q-learning (a value-based method; works but not as good as actor-critic, hard to tune exploration.)
 -   [ ] Positional encoding
     -   [x] Add PE to state, action, and context
-    -   [ ] RoPE
     -   [ ] Learned encoding
 -   [x] Reduce VRAM usage (increase training time)
     -   [x] Disentangle gradient
@@ -139,6 +138,7 @@ We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for devel
     -   [x] Contracting sub-problem filter
 -   [x] Sub-problem parallel training
 -   [x] Prospect training
+-   [ ] Sub-quest arguments
 
 ### Backends
 
