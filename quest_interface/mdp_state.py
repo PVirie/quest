@@ -13,7 +13,7 @@ class MDP_Transition:
         pass
 
 
-    def __str__(self):
+    def __repr__(self):
         """
         Returns a string representation of the transition.
         """

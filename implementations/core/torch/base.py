@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.nn.init as init
 
 
-def positional_encoding(seq_len, embed_dim):
+def Sinusoidal_positional_encoding(seq_len, embed_dim):
     pe = torch.zeros(seq_len, embed_dim)
     position = torch.arange(0, seq_len, dtype=torch.float).unsqueeze(1)
     div_term = torch.exp(torch.arange(0, embed_dim, 2).float() * -(torch.log(torch.tensor(10000.0)) / embed_dim))

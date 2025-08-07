@@ -90,7 +90,7 @@ class Persona:
             return False
         with open(extra_actions_path, "rb") as f:
             actions = pickle.load(f)
-            self.extra_actions = {f"Sub Task: {str(action)}": action for action in actions}
+            self.extra_actions = {f"Sub Task: {repr(action)}": action for action in actions}
         # load the rl_core and the extra actions
         succeeded = self.tokenizer.load(os.path.join(path, "tokenizer"))
         if not succeeded:
@@ -170,7 +170,7 @@ class Persona:
 
         folds = self.compute_folds(quest_node.objective, selected_nodes)
         for sub_objective, from_transition_index, to_transition_index in folds:
-            fold_action = f"Sub Task: {str(sub_objective)}"
+            fold_action = f"Sub Task: {repr(sub_objective)}"
             self.extra_actions[fold_action] = sub_objective
             pivots[from_transition_index][1].add(fold_action)
 
@@ -236,7 +236,7 @@ class Persona:
                                 train_ref=None,
                                 observation=observation
                             )
-                    action = f"Sub Task: {str(sub_objective)}"
+                    action = f"Sub Task: {repr(sub_objective)}"
                     last_prospect_score, last_prospect_context_mark = include_node(i, sub_prospect_node, action, observation)
                     last_prospect_observation = observation
                     i = to_transition_index + 1

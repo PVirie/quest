@@ -62,11 +62,11 @@ class Quest_Node(RL_Node, Trainable):
 
 
     def get_start_contexts(self):
-        return f"Objective: {str(self.objective)}", f"Observation: {self.start_observation.get_context()}"
+        return f"Objective: {repr(self.objective)}", f"Observation: {self.start_observation.get_context()}"
 
     def get_context(self):
         contexts = []
-        contexts.append(f"Sub Task: {str(self.objective)}")
+        contexts.append(f"Sub Task: {repr(self.objective)}")
         if self.succeeded is not None:
             contexts.append(f"Result: {'Succeeded' if self.succeeded else 'Failed'}")
         elif self.truncated:

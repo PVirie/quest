@@ -122,9 +122,9 @@ We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for devel
 -   [x] Transformer RL
     -   [x] Actor-critic (a policy gradient method; **works well**, because it can auto-tune exploration and exploitation.)
     -   [x] Q-learning (a value-based method; works but not as good as actor-critic, hard to tune exploration.)
--   [ ] Positional encoding
+-   [x] Positional encoding
     -   [x] Add PE to state, action, and context
-    -   [ ] Learned encoding
+    -   [x] Learned encoding
 -   [x] Reduce VRAM usage (increase training time)
     -   [x] Disentangle gradient
     -   [x] Sample action sets

@@ -125,9 +125,9 @@ class Alfworld_Transition(MDP_Transition):
             return Alfworld_Transition()
 
 
-    def __str__(self):
+    def __repr__(self):
         return f"{self.objective}"
-    
+        
 
     def __len__(self):
         return 1 if self.type is not None else 0
