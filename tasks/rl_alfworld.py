@@ -462,7 +462,7 @@ if __name__ == "__main__":
         rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.95, learning_rate=0.00001, epsilon_greedy=1.0, train_temperature=0.05)
     else:
         from implementations.rl_algorithms.hierarchy_ac import Hierarchy_AC as Model, Network_Scale_Preset
-        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.95, learning_rate=0.00001, entropy_weight=1.0, train_temperature=1.0)
+        rl_core = Model(input_size=MAX_VOCAB_SIZE, network_preset=Network_Scale_Preset(args.scale), device=device, discount_factor=0.95, learning_rate=0.00001, entropy_weight=0.1, train_temperature=1.0)
 
     rl_core.reset()
     persona = Persona(
@@ -498,23 +498,16 @@ if __name__ == "__main__":
         score = score[0]
         done = done[0]
         infos = flatten_batch(infos)
+        # remove "help" command from admissible commands
+        infos["admissible_commands"].remove("help")
         return Alfworld_State(obs, score, done, infos)
 
     play(env, env_step, persona, rollout_file_path=rollout_file_path, epoch=1, verbose=True, verbose_step=100, verbose_prefix=f"")
 
-    # # interact
-    # obs, info = env.reset()
-    # # get random actions from admissible 'valid' commands (not available for AlfredThorEnv)
-    # admissible_commands = list(info['admissible_commands']) # note: BUTLER generates commands word-by-word without using admissible_commands
-    # random_actions = [np.random.choice(admissible_commands[0])]
-
-    # # step
-    # obs, scores, dones, infos = env.step(random_actions)
-    # logging.info("Action: {}, Obs: {}".format(random_actions[0], obs[0]))
     
     # setup_test
     persona.set_training_mode(False)
-    test_env = get_environment(env_type)(config, train_eval='valid_unseen')
+    test_env = get_environment(env_type)(config, train_eval='eval_in_distribution')
     test_env = env.init_env(batch_size=1)
 
     def test_env_step(action):
@@ -525,6 +518,8 @@ if __name__ == "__main__":
         score = score[0]
         done = done[0]
         infos = flatten_batch(infos)
+        # remove "help" command from admissible commands
+        infos["admissible_commands"].remove("help")
         return Alfworld_State(obs, score, done, infos)
 
     play(env, test_env_step, persona, rollout_file_path=rollout_file_path, epoch=1, verbose=True, verbose_step=100, verbose_prefix=f"")
