@@ -347,8 +347,6 @@ def play(env, env_step, available_objectives, persona, rollout_file_path, nb_epi
         # mark date
         f.write(f"========================================================================\n")
         f.write(f"Date: {utilities.get_current_time_string()}\n")
-        f.write(f"Allow relegation: {persona.allow_relegation}\n")
-        f.write(f"Relegation probability: {persona.training_relegation_probability}\n")
         f.write(f"Allow sub training: {persona.allow_sub_training}\n")
         f.write(f"Allow prospect training: {persona.allow_prospect_training}\n")
         f.write(f"------------------------------------------------------------------------\n")
@@ -372,8 +370,7 @@ def play(env, env_step, available_objectives, persona, rollout_file_path, nb_epi
         objective_transition = available_objectives[no_episode % len(available_objectives)]   
         root_node = rl_graph.Quest_Node(
             objective = objective_transition,
-            start_observation = Textworld_State(obs, score, done, infos),
-            allow_relegation=persona.compute_allow_relegation()
+            start_observation = Textworld_State(obs, score, done, infos)
         )
 
         working_memory = Quest_Graph(root_node)
@@ -480,8 +477,6 @@ if __name__ == "__main__":
     parser.add_argument("--record-file",            "-o",   type=str, default="rollouts.txt",   help="The file to record the rollouts. Default is 'rollouts.txt'.")
     parser.add_argument("--q-learning",             "-q",   action="store_true",                help="Use Q-learning instead of Actor-Critic. Default is False.")
     parser.add_argument("--scale",                  "-s",   type=str, default="medium", choices=["small", "medium", "large"], help="The scale of the neural network. Default is 'medium'.")
-    parser.add_argument("--no-relegation",          "-nre", action="store_true",                help="Disable relegation during training.")
-    parser.add_argument("--rel-prob",               "-rp",  type=float, default=1.0,            help="The probability of relegation during training. Default is 1.0.")
     parser.add_argument("--no-sub-training",        "-nst", action="store_true",                help="Disable sub training during training.")
     parser.add_argument("--no-prospect-training",   "-npt", action="store_true",                help="Disable prospect training during training.")
     args = parser.parse_args()
@@ -567,8 +562,7 @@ if __name__ == "__main__":
         persona = Persona(
             rl_core,
             tokenizer,
-            compute_folds,
-            training_relegation_probability=args.rel_prob,
+            compute_folds
         )
 
         # if not persona.load(agent_parameter_path):
@@ -576,12 +570,9 @@ if __name__ == "__main__":
         logging.info(f"Initiate agent training with following parameters:")
         logging.info(f"  - Algorithm: {'Q-learning' if args.q_learning else 'Actor-Critic'}")
         logging.info(f"  - Network scale: {str(Network_Scale_Preset(args.scale).value)}")
-        logging.info(f"  - Allow relegation: {not args.no_relegation}")
-        logging.info(f"  - Relegation probability: {args.rel_prob}")
         logging.info(f"  - Allow sub training: {not args.no_sub_training}")
         logging.info(f"  - Allow prospect training: {not args.no_prospect_training}")
 
-        persona.set_allow_relegation(not args.no_relegation)
         persona.set_allow_sub_training(not args.no_sub_training)
         persona.set_allow_prospect_training(not args.no_prospect_training)
 

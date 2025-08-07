@@ -28,16 +28,14 @@ def extract_command_and_detail(text):
 class Persona:
     TRAIN_STEPS=10
 
-    def __init__(self, rl_core, tokenizer, compute_folds, training_relegation_probability=0.25, train_prompt=None):
+    def __init__(self, rl_core, tokenizer, compute_folds, train_prompt=None):
         self.rl_core = rl_core
         self.tokenizer = tokenizer
         self.compute_folds = compute_folds
-        self.training_relegation_probability = training_relegation_probability
         self.action_set = set()
         self.extra_actions = {}
 
         self.training_mode = False
-        self.allow_relegation = True
         self.allow_sub_training = True
         self.allow_prospect_training = True
 
@@ -52,14 +50,6 @@ class Persona:
 
     def set_training_mode(self, flag):
         self.training_mode = flag
-
-
-    def set_allow_relegation(self, flag):
-        self.allow_relegation = flag
-
-
-    def compute_allow_relegation(self):
-        return self.allow_relegation and (random.random() < self.training_relegation_probability or not self.training_mode)
 
 
     def set_allow_sub_training(self, flag):
@@ -107,7 +97,6 @@ class Persona:
         str_levelled_prefix = "\n" + prefix
         formatted_start_obs_context = start_obs_context.replace("\n", str_levelled_prefix)
         contexts = [
-            f"{prefix}Relegation: {'enabled' if quest_node.allow_relegation else 'disabled'}",
             f"{prefix}{objective_context}", 
             f"{prefix}{formatted_start_obs_context}"
         ]
@@ -230,7 +219,6 @@ class Persona:
                     sub_prospect_node = Quest_Node(
                                 objective=sub_objective,
                                 start_observation=last_prospect_observation,
-                                allow_relegation=False,
                                 succeeded=True,
                                 truncated=False,
                                 train_ref=None,
@@ -313,9 +301,7 @@ class Persona:
             if obj < current_objective and obj.applicable_from(last_observation):
                 # must check less than and diff to prevent infinite loop
                 valid_extra_actions.add(key)
-        available_actions = selectible_action_set.union(valid_extra_actions)
-        if quest_node.allow_relegation:
-            selectible_action_set.update(valid_extra_actions)
+        selectible_action_set.update(valid_extra_actions)
 
         lm_response = ""
         if self.use_lm:
@@ -329,7 +315,7 @@ class Persona:
                 # if the response is not an action, sub task or final respond, ignore it
                 lm_response = ""
             else:
-                available_actions.add(lm_response)
+                selectible_action_set.add(lm_response)
 
         rl_response = ""
         # remove thoughts from the context for RL
@@ -338,7 +324,7 @@ class Persona:
         state_tensor = self.tokenizer(rl_contexts, stack=True)
         action_list_tensor = self.tokenizer(selectible_action_set, stack=True)
         train_ref = self.rl_core.act(objective_tensor, state_tensor, action_list_tensor, list(selectible_action_set), sample_action=self.training_mode)
-        train_ref.available_actions = available_actions
+        train_ref.available_actions = selectible_action_set
         rl_response = train_ref.selected_action
 
         if not self.training_mode and train_ref is not None:
@@ -361,8 +347,7 @@ class Persona:
             return_node = Quest_Node(
                 objective = sub_objective,
                 start_observation = last_observation,
-                train_ref = train_ref,
-                allow_relegation = self.compute_allow_relegation()
+                train_ref = train_ref
             )
             return return_sub_action, return_node
         elif command.startswith("Action"):
