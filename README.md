@@ -138,7 +138,6 @@ We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for devel
     -   [x] Contracting sub-problem filter
 -   [x] Sub-problem parallel training
 -   [x] Prospect training
--   [ ] Sub-quest arguments
 
 ### Backends
 
@@ -159,8 +158,8 @@ We recommend using [VSCode](https://code.visualstudio.com/) as the IDE for devel
 -   [x] Sub-problem reward structure
     -   [x] Define textworld reward structure
     -   [x] Define ALFWorld reward structure
--   [ ] Speed up simulation
-    -   [ ] [Textworld express] (https://github.com/cognitiveailab/TextWorldExpress) environment, to speed up simulation.
+-   [x] Speed up simulation
+    -   [x] [Textworld express] (https://github.com/cognitiveailab/TextWorldExpress) environment, to speed up simulation.
 
 ## Note
 

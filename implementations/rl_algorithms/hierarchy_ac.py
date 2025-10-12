@@ -22,7 +22,7 @@ class Hierarchy_AC(Hierarchy_Base):
         
         if network_preset == Network_Scale_Preset.small:
             model = Model(
-                input_size=input_size, hidden_size=128,
+                input_size=input_size, hidden_size=64,
                 context_head=16, context_layers=2,
                 objective_head=8, objective_layers=2,
                 action_head=8, action_layers=2,
