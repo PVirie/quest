@@ -2,7 +2,7 @@ services:
     python-service:
         profiles: ["python"]
         build:
-            dockerfile: ./Dockerfile.python
+            dockerfile: ./docker_files/Dockerfile.python
             context: .
         container_name: thinking-python
         restart: no
@@ -30,7 +30,7 @@ services:
     torch-cpu-service:
         profiles: ["torch-cpu"]
         build:
-            dockerfile: ./Dockerfile.torch-cpu
+            dockerfile: ./docker_files/Dockerfile.torch-cpu
             context: .
         container_name: thinking-torch-cpu
         restart: no
@@ -58,7 +58,7 @@ services:
     torch-cuda-service:
         profiles: ["torch-cuda"]
         build:
-            dockerfile: ./Dockerfile.torch-cuda
+            dockerfile: ./docker_files/Dockerfile.torch-cuda
             context: .
         container_name: thinking-torch-cuda
         restart: no
@@ -93,7 +93,7 @@ services:
     torch-rocm-service:
         profiles: ["torch-rocm"]
         build:
-            dockerfile: ./Dockerfile.torch-rocm
+            dockerfile: ./docker_files/Dockerfile.torch-rocm
             context: .
         container_name: thinking-torch-rocm
         restart: no
@@ -126,7 +126,7 @@ services:
     torch-rocm-gptq-service:
         profiles: ["torch-rocm"]
         build:
-            dockerfile: ./Dockerfile.torch-rocm-gptq
+            dockerfile: ./docker_files/Dockerfile.torch-rocm-gptq
             context: .
         container_name: thinking-torch-rocm-gptq
         restart: no
